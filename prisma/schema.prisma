@@ -1,0 +1,478 @@
+// ============================================================
+// Project Planner — Prisma schema
+// PostgreSQL. Covers auth, RBAC, projects, tasks, collaboration,
+// notifications, templates, audit logging and reporting entities.
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------
+// Enums
+// ----------------------------------------------------------------
+
+enum Role {
+  ADMIN
+  PROJECT_MANAGER
+  TEAM_MEMBER
+  VIEWER
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  ARCHIVED
+  CANCELLED
+}
+
+enum TaskStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  ON_HOLD
+  COMPLETED
+  DELAYED
+}
+
+enum DependencyType {
+  FINISH_TO_START
+  START_TO_START
+  FINISH_TO_FINISH
+  START_TO_FINISH
+}
+
+enum NotificationType {
+  TASK_ASSIGNED
+  TASK_DUE_SOON
+  TASK_OVERDUE
+  TASK_COMMENT
+  PROJECT_STATUS
+  MENTION
+  PROJECT_INVITE
+}
+
+enum RecurrenceFrequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum LeaveType {
+  VACATION
+  SICK
+  PERSONAL
+  PUBLIC_HOLIDAY
+  OTHER
+}
+
+// ----------------------------------------------------------------
+// Auth.js models (Account / Session / VerificationToken)
+// ----------------------------------------------------------------
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ----------------------------------------------------------------
+// Core: User
+// ----------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  passwordHash  String? // dev-login only; never used with Entra SSO
+  role          Role      @default(TEAM_MEMBER)
+  jobTitle      String?
+  department    String?
+  // Microsoft Entra object id, for Graph correlation
+  entraOid      String?   @unique
+  isActive      Boolean   @default(true)
+  // Capacity in hours/week used by workload reports
+  weeklyCapacity Int      @default(40)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  accounts          Account[]
+  sessions          Session[]
+  ownedProjects     Project[]        @relation("ProjectOwner")
+  memberships       ProjectMember[]
+  createdTasks      Task[]           @relation("TaskCreatedBy")
+  assignedTasks     TaskAssignee[]
+  comments          Comment[]
+  attachments       Attachment[]
+  activities        Activity[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  leaveEntries      LeaveEntry[]
+  discussionPosts   DiscussionPost[]
+
+  @@index([department])
+  @@index([role])
+}
+
+// ----------------------------------------------------------------
+// Project
+// ----------------------------------------------------------------
+
+model Project {
+  id            String        @id @default(cuid())
+  name          String
+  key           String        @unique // short code e.g. "MKT-2026"
+  description   String?       @db.Text
+  department    String?
+  priority      Priority      @default(MEDIUM)
+  status        ProjectStatus @default(PLANNING)
+  startDate     DateTime?
+  endDate       DateTime?
+  budget        Decimal?      @db.Decimal(14, 2)
+  currency      String        @default("USD")
+  color         String        @default("#2563eb")
+  isArchived    Boolean       @default(false)
+  archivedAt    DateTime?
+  ownerId       String
+  templateId    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  owner       User             @relation("ProjectOwner", fields: [ownerId], references: [id])
+  template    ProjectTemplate? @relation(fields: [templateId], references: [id])
+  members     ProjectMember[]
+  tasks       Task[]
+  discussions DiscussionPost[]
+  activities  Activity[]
+
+  @@index([ownerId])
+  @@index([status])
+  @@index([department])
+  @@index([isArchived])
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  // Role scoped to this project (overrides nothing global, used for per-project access)
+  role      Role     @default(TEAM_MEMBER)
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+}
+
+// ----------------------------------------------------------------
+// Task & Subtask (self-referential parent/child)
+// ----------------------------------------------------------------
+
+model Task {
+  id             String     @id @default(cuid())
+  projectId      String
+  parentId       String? // null => top-level task; set => subtask
+  title          String
+  description    String?    @db.Text
+  status         TaskStatus @default(NOT_STARTED)
+  priority       Priority   @default(MEDIUM)
+  startDate      DateTime?
+  dueDate        DateTime?
+  completedAt    DateTime?
+  // 0-100 percentage complete
+  progress       Int        @default(0)
+  estimatedHours Float?
+  actualHours    Float?
+  // ordering within a status column / list
+  orderIndex     Int        @default(0)
+  createdById    String
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent     Task?     @relation("Subtasks", fields: [parentId], references: [id], onDelete: Cascade)
+  subtasks   Task[]    @relation("Subtasks")
+  createdBy  User      @relation("TaskCreatedBy", fields: [createdById], references: [id])
+  assignees  TaskAssignee[]
+  comments   Comment[]
+  attachments Attachment[]
+  reminders  Reminder[]
+
+  // dependency edges
+  dependsOn      TaskDependency[] @relation("DependentTask")
+  dependedOnBy   TaskDependency[] @relation("PrerequisiteTask")
+
+  // recurrence template
+  recurrence RecurrenceRule?
+
+  @@index([projectId])
+  @@index([parentId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+model TaskAssignee {
+  id         String   @id @default(cuid())
+  taskId     String
+  userId     String
+  assignedAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([userId])
+}
+
+model TaskDependency {
+  id             String         @id @default(cuid())
+  // the task that depends on the prerequisite
+  taskId         String
+  // the prerequisite that must be satisfied first
+  prerequisiteId String
+  type           DependencyType @default(FINISH_TO_START)
+  createdAt      DateTime       @default(now())
+
+  task         Task @relation("DependentTask", fields: [taskId], references: [id], onDelete: Cascade)
+  prerequisite Task @relation("PrerequisiteTask", fields: [prerequisiteId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, prerequisiteId])
+  @@index([prerequisiteId])
+}
+
+model RecurrenceRule {
+  id         String              @id @default(cuid())
+  taskId     String              @unique
+  frequency  RecurrenceFrequency
+  interval   Int                 @default(1) // every N units
+  // bitmask or csv of weekdays for WEEKLY (0=Sun..6=Sat)
+  byWeekday  String?
+  endDate    DateTime?
+  count      Int? // max occurrences
+  nextRunAt  DateTime?
+  createdAt  DateTime            @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+}
+
+model Reminder {
+  id        String   @id @default(cuid())
+  taskId    String
+  remindAt  DateTime
+  sent      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([remindAt, sent])
+}
+
+// ----------------------------------------------------------------
+// Collaboration: comments, attachments, discussions, activity
+// ----------------------------------------------------------------
+
+model Comment {
+  id        String   @id @default(cuid())
+  taskId    String
+  authorId  String
+  body      String   @db.Text
+  // user ids mentioned via @mention, csv
+  mentions  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+}
+
+model Attachment {
+  id          String   @id @default(cuid())
+  taskId      String?
+  uploadedById String
+  fileName    String
+  mimeType    String
+  size        Int
+  // local path or Graph driveItem url
+  storageDriver String @default("local") // "local" | "graph"
+  url         String   @db.Text
+  // Graph driveItem id for OneDrive/SharePoint files
+  driveItemId String?
+  createdAt   DateTime @default(now())
+
+  task       Task? @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  uploadedBy User  @relation(fields: [uploadedById], references: [id])
+
+  @@index([taskId])
+}
+
+model DiscussionPost {
+  id        String   @id @default(cuid())
+  projectId String
+  authorId  String
+  body      String   @db.Text
+  parentId  String? // threaded replies
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  author  User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent  DiscussionPost?  @relation("Thread", fields: [parentId], references: [id], onDelete: Cascade)
+  replies DiscussionPost[] @relation("Thread")
+
+  @@index([projectId])
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  projectId String?
+  userId    String
+  // e.g. "task.created", "project.status_changed", "comment.added"
+  action    String
+  // arbitrary JSON metadata describing the change
+  metadata  Json?
+  entityType String? // "task" | "project" | "comment" ...
+  entityId   String?
+  createdAt DateTime @default(now())
+
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id])
+
+  @@index([projectId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+// ----------------------------------------------------------------
+// Notifications
+// ----------------------------------------------------------------
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  title     String
+  body      String?          @db.Text
+  // deep link target, e.g. /projects/abc/tasks/xyz
+  link      String?
+  isRead    Boolean          @default(false)
+  // whether an email was dispatched via Graph
+  emailSent Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+// ----------------------------------------------------------------
+// Templates
+// ----------------------------------------------------------------
+
+model ProjectTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?  @db.Text
+  department  String?
+  // serialized task tree + defaults
+  blueprint   Json
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  projects Project[]
+}
+
+// ----------------------------------------------------------------
+// Leave calendar / capacity planning
+// ----------------------------------------------------------------
+
+model LeaveEntry {
+  id        String    @id @default(cuid())
+  userId    String
+  type      LeaveType @default(VACATION)
+  startDate DateTime
+  endDate   DateTime
+  note      String?
+  approved  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([startDate, endDate])
+}
+
+// ----------------------------------------------------------------
+// Audit log (security / compliance)
+// ----------------------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String // e.g. "auth.login", "project.delete"
+  entityType String?
+  entityId   String?
+  ipAddress  String?
+  userAgent  String?  @db.Text
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+}
