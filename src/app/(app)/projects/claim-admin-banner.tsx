@@ -1,16 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
-import { ShieldCheck, Loader2 } from "lucide-react";
+import { ShieldCheck, Loader2, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 
 export function ClaimAdminBanner() {
-  const router = useRouter();
   const { toast } = useToast();
   const [loading, setLoading] = React.useState(false);
-  const [done, setDone] = React.useState(false);
+  const [claimed, setClaimed] = React.useState(false);
 
   async function claim() {
     setLoading(true);
@@ -20,28 +18,35 @@ export function ClaimAdminBanner() {
 
       if (!res.ok) {
         toast({ title: data.error ?? "Setup failed", variant: "error" });
+        setLoading(false);
         return;
       }
 
-      setDone(true);
+      setClaimed(true);
       toast({
         title: "Admin access granted!",
-        description: "Sign out and sign back in to activate your new role.",
+        description: "Signing you out to activate your new role…",
         variant: "success",
       });
 
-      // Hard reload after a short delay so the session re-hydrates
+      // Sign out after 1.5 s so the toast is visible, then land on /login
       setTimeout(() => {
-        router.push("/api/auth/signout?callbackUrl=/login");
-      }, 2000);
+        window.location.href = "/api/auth/signout?callbackUrl=/login";
+      }, 1500);
     } catch {
       toast({ title: "Network error — please try again", variant: "error" });
-    } finally {
       setLoading(false);
     }
   }
 
-  if (done) return null;
+  if (claimed) {
+    return (
+      <div className="flex items-center gap-3 rounded-xl border border-green-500/30 bg-green-500/5 px-5 py-4 text-sm text-green-700 dark:text-green-400">
+        <LogOut className="h-4 w-4 shrink-0" />
+        Admin role granted — signing you out now…
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-start gap-4 rounded-xl border border-primary/30 bg-primary/5 px-5 py-4">
@@ -49,11 +54,13 @@ export function ClaimAdminBanner() {
         <ShieldCheck className="h-5 w-5" />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-semibold text-foreground">First-run setup — no admin account found</p>
+        <p className="font-semibold text-foreground">
+          Your account needs Admin access
+        </p>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          Your account currently has limited permissions. Click below to claim
-          Admin access. This option is only available once, before any admin
-          exists.
+          You are recognised as a designated admin but your session role has not
+          been activated yet. Click the button — you will be signed out
+          automatically and re-signed in with full Admin permissions.
         </p>
       </div>
       <Button
@@ -63,8 +70,10 @@ export function ClaimAdminBanner() {
         onClick={claim}
         disabled={loading}
       >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
-        {loading ? "Claiming…" : "Claim Admin Access"}
+        {loading
+          ? <Loader2 className="h-4 w-4 animate-spin" />
+          : <ShieldCheck className="h-4 w-4" />}
+        {loading ? "Activating…" : "Activate Admin"}
       </Button>
     </div>
   );

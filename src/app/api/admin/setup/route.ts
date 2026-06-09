@@ -1,29 +1,34 @@
 import { getAuthedUser, handle, json } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
+import { adminEmails } from "@/auth";
 
 /**
  * POST /api/admin/setup
  *
- * One-time bootstrap endpoint.  Promotes the calling user to ADMIN
- * *only* when zero ADMIN accounts exist in the database.
+ * Promotes the calling user to ADMIN when either:
+ *   (a) Their email is listed in the ADMIN_EMAILS env var, OR
+ *   (b) No ADMIN account exists yet (first-run bootstrap).
  *
- * Once any ADMIN exists this endpoint is permanently locked — it returns
- * 403 so it cannot be used to escalate privileges after initial setup.
+ * After promotion the caller must sign out and back in so their JWT
+ * picks up the new role — unless they call /api/auth/session?update.
  */
 export async function POST() {
   return handle(async () => {
     const user = await getAuthedUser();
+    const email = (user.email ?? "").toLowerCase();
+    const isPinned = adminEmails.includes(email);
 
-    // Safety check — refuse if an admin already exists
-    const adminCount = await prisma.user.count({ where: { role: "ADMIN" } });
-    if (adminCount > 0) {
-      return json(
-        { error: "An admin account already exists. Setup is locked." },
-        { status: 403 },
-      );
+    if (!isPinned) {
+      // Only allow if no admin exists yet
+      const adminCount = await prisma.user.count({ where: { role: "ADMIN" } });
+      if (adminCount > 0) {
+        return json(
+          { error: "An admin account already exists. Setup is locked." },
+          { status: 403 },
+        );
+      }
     }
 
-    // Promote
     await prisma.user.update({
       where: { id: user.id },
       data: { role: "ADMIN" },
@@ -35,24 +40,29 @@ export async function POST() {
         action: "admin.setup",
         entityType: "user",
         entityId: user.id,
-        metadata: { note: "First-run admin bootstrap" },
+        metadata: {
+          note: isPinned ? "Promoted via ADMIN_EMAILS" : "First-run admin bootstrap",
+        },
       },
     });
 
-    return json({ ok: true, message: "You are now an admin. Please sign out and sign back in." });
+    return json({ ok: true });
   });
 }
 
 /**
  * GET /api/admin/setup
- *
- * Returns whether first-run setup is still available (no admin yet).
- * Used by the Projects page to decide whether to show the claim banner.
+ * Returns whether the calling user is eligible to claim admin right now.
  */
 export async function GET() {
   return handle(async () => {
-    await getAuthedUser(); // must be signed in
+    const user = await getAuthedUser();
+    const email = (user.email ?? "").toLowerCase();
+    const isPinned = adminEmails.includes(email);
     const adminCount = await prisma.user.count({ where: { role: "ADMIN" } });
-    return json({ setupAvailable: adminCount === 0 });
+    return json({
+      setupAvailable: isPinned || adminCount === 0,
+      isPinned,
+    });
   });
 }

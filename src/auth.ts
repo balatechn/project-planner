@@ -15,6 +15,13 @@ const allowedDomains = (process.env.ALLOWED_EMAIL_DOMAINS ?? "")
   .filter(Boolean);
 const allowedTenant = process.env.ALLOWED_TENANT_ID?.trim();
 
+// Comma-separated list of emails that must always have ADMIN role.
+// Add ADMIN_EMAILS=bala@nationalgroupindia.com to your Vercel env vars.
+export const adminEmails = (process.env.ADMIN_EMAILS ?? "")
+  .split(",")
+  .map((e) => e.trim().toLowerCase())
+  .filter(Boolean);
+
 const entraConfigured =
   !!process.env.AUTH_MICROSOFT_ENTRA_ID_ID &&
   !!process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET;
@@ -123,14 +130,18 @@ export const authConfig: NextAuthConfig = {
           select: { id: true, role: true, department: true },
         });
         if (dbUser) {
-          // ── First-run bootstrap ─────────────────────────────────────────
-          // If no ADMIN exists anywhere in the workspace, auto-promote this
-          // user so the application is immediately usable after first login.
+          // ── Admin promotion ─────────────────────────────────────────────
+          // Promote when:
+          //   a) Email is in the ADMIN_EMAILS env var (permanent super-admins)
+          //   b) No ADMIN exists yet (first-run bootstrap)
           if (dbUser.role !== "ADMIN") {
-            const adminCount = await prisma.user.count({
-              where: { role: "ADMIN" },
-            });
-            if (adminCount === 0) {
+            const email = (user.email ?? "").toLowerCase();
+            const isPinned = adminEmails.includes(email);
+            const adminCount = isPinned
+              ? 0 // skip the extra COUNT query — we already know to promote
+              : await prisma.user.count({ where: { role: "ADMIN" } });
+
+            if (isPinned || adminCount === 0) {
               await prisma.user.update({
                 where: { id: dbUser.id },
                 data: { role: "ADMIN" },
@@ -138,7 +149,7 @@ export const authConfig: NextAuthConfig = {
               dbUser.role = "ADMIN";
             }
           }
-          // ── End bootstrap ───────────────────────────────────────────────
+          // ── End admin promotion ─────────────────────────────────────────
           token.uid = dbUser.id;
           token.role = dbUser.role;
           token.department = dbUser.department ?? undefined;

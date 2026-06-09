@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { ProjectStatusBadge, PriorityBadge } from "@/components/badges";
 import { NewProjectButton } from "./new-project-button";
 import { ClaimAdminBanner } from "./claim-admin-banner";
+import { adminEmails } from "@/auth";
 import { format } from "date-fns";
 
 export const metadata: Metadata = { title: "Projects" };
@@ -39,6 +40,7 @@ export default async function ProjectsPage({
   const params = searchParams ? await searchParams : {};
   const autoOpen = params.new === "1";
   const canCreate = can(user.role, "project:create");
+  const isPinnedAdmin = adminEmails.includes((user.email ?? "").toLowerCase());
 
   const [projects, users, adminCount] = await Promise.all([
     prisma.project.findMany({
@@ -61,14 +63,14 @@ export default async function ProjectsPage({
       orderBy: { updatedAt: "desc" },
     }),
     canCreate ? getActiveUsers() : Promise.resolve([]),
-    // Only count admins when the user can't create — cheap query to decide
-    // whether to show the first-run claim banner
+    // Count admins only when needed for the banner decision
     !canCreate
       ? prisma.user.count({ where: { role: "ADMIN" } })
-      : Promise.resolve(1), // >0 → banner hidden
+      : Promise.resolve(1), // >0 → banner hidden for normal users
   ]);
 
-  const showClaimBanner = !canCreate && adminCount === 0;
+  // Show banner if: not yet an admin AND (pinned in ADMIN_EMAILS OR no admin exists)
+  const showClaimBanner = !canCreate && (isPinnedAdmin || adminCount === 0);
 
   // Common props for NewProjectButton
   const newProjectProps = {
