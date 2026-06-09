@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { signIn } from "next-auth/react";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -69,17 +70,32 @@ export function LoginForm({
   return (
     <Card className="w-full max-w-md shadow-lg">
       <CardHeader className="space-y-1">
-        <div className="mb-2 flex items-center gap-2 lg:hidden">
-          <div className="brand-gradient flex h-9 w-9 items-center justify-center rounded-lg text-white">
-            ◆
+        {/* Mobile-only logo — shown when the brand panel is hidden */}
+        <div className="mb-3 flex items-center gap-3 lg:hidden">
+          <div className="brand-gradient flex h-10 w-10 items-center justify-center rounded-xl p-1.5">
+            <Image
+              src="https://nationalgroupindia.com/logo_full.webp"
+              alt="National Group India"
+              width={32}
+              height={32}
+              className="object-contain brightness-0 invert"
+              priority
+            />
           </div>
-          <span className="font-semibold">Project Planner</span>
+          <div>
+            <p className="text-sm font-bold leading-tight">National Group India</p>
+            <p className="text-[11px] text-muted-foreground uppercase tracking-wider">
+              Project Planner
+            </p>
+          </div>
         </div>
+
         <CardTitle className="text-2xl">Welcome back</CardTitle>
         <CardDescription>
           Sign in to your corporate workspace to continue.
         </CardDescription>
       </CardHeader>
+
       <CardContent className="space-y-4">
         {formError && (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
@@ -103,9 +119,8 @@ export function LoginForm({
           </Button>
         ) : (
           <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-            Microsoft Entra ID SSO is not configured yet. See{" "}
-            <span className="font-mono">docs/SSO_SETUP.md</span>. Use the
-            developer login below to explore the app.
+            Microsoft Entra ID SSO is not configured yet. Use the developer
+            login below to explore the app.
           </div>
         )}
 
@@ -124,7 +139,7 @@ export function LoginForm({
                 <Input
                   id="email"
                   type="email"
-                  placeholder="admin@contoso.com"
+                  placeholder="you@nationalgroupindia.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -150,10 +165,6 @@ export function LoginForm({
                 {loading === "dev" && <Loader2 className="animate-spin" />}
                 Sign in
               </Button>
-              <p className="text-center text-xs text-muted-foreground">
-                Seed accounts: admin@contoso.com / manager@contoso.com — password{" "}
-                <span className="font-mono">Password123!</span>
-              </p>
             </form>
           </>
         )}

@@ -8,6 +8,7 @@ const nextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "graph.microsoft.com" },
       { protocol: "https", hostname: "*.sharepoint.com" },
+      { protocol: "https", hostname: "nationalgroupindia.com" },
     ],
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 86400, // 24 h browser cache for optimised images
