@@ -11,6 +11,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -153,9 +154,11 @@ export function NewProjectButton({
         if (!o && searchParams.get("new")) router.replace("/projects");
       }}
     >
-      <Button variant="brand" onClick={() => setOpen(true)}>
-        <Plus /> New Project
-      </Button>
+      <DialogTrigger asChild>
+        <Button variant="brand">
+          <Plus /> New Project
+        </Button>
+      </DialogTrigger>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create a new project</DialogTitle>
