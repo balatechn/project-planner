@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ProjectStatusBadge, PriorityBadge } from "@/components/badges";
 import { NewProjectButton } from "./new-project-button";
+import { ClaimAdminBanner } from "./claim-admin-banner";
 import { format } from "date-fns";
 
 export const metadata: Metadata = { title: "Projects" };
@@ -34,13 +35,12 @@ export default async function ProjectsPage({
   const user = await requireUser();
   const where = projectAccessWhere(user.id, user.role);
 
-  // Resolve ?new=1 on the server — no useSearchParams() needed in client
+  // Read ?new=1 on the server — no useSearchParams() needed client-side
   const params = searchParams ? await searchParams : {};
   const autoOpen = params.new === "1";
-
   const canCreate = can(user.role, "project:create");
 
-  const [projects, users] = await Promise.all([
+  const [projects, users, adminCount] = await Promise.all([
     prisma.project.findMany({
       where: { ...where, isArchived: false },
       select: {
@@ -61,9 +61,16 @@ export default async function ProjectsPage({
       orderBy: { updatedAt: "desc" },
     }),
     canCreate ? getActiveUsers() : Promise.resolve([]),
+    // Only count admins when the user can't create — cheap query to decide
+    // whether to show the first-run claim banner
+    !canCreate
+      ? prisma.user.count({ where: { role: "ADMIN" } })
+      : Promise.resolve(1), // >0 → banner hidden
   ]);
 
-  // Common props shared by both instances of NewProjectButton
+  const showClaimBanner = !canCreate && adminCount === 0;
+
+  // Common props for NewProjectButton
   const newProjectProps = {
     users,
     currentUserId: user.id,
@@ -74,6 +81,9 @@ export default async function ProjectsPage({
 
   return (
     <div className="space-y-6">
+      {/* First-run admin claim banner */}
+      {showClaimBanner && <ClaimAdminBanner />}
+
       <PageHeader
         title="Projects"
         description={`${projects.length} active ${projects.length === 1 ? "project" : "projects"} in your workspace.`}

@@ -123,6 +123,22 @@ export const authConfig: NextAuthConfig = {
           select: { id: true, role: true, department: true },
         });
         if (dbUser) {
+          // ── First-run bootstrap ─────────────────────────────────────────
+          // If no ADMIN exists anywhere in the workspace, auto-promote this
+          // user so the application is immediately usable after first login.
+          if (dbUser.role !== "ADMIN") {
+            const adminCount = await prisma.user.count({
+              where: { role: "ADMIN" },
+            });
+            if (adminCount === 0) {
+              await prisma.user.update({
+                where: { id: dbUser.id },
+                data: { role: "ADMIN" },
+              });
+              dbUser.role = "ADMIN";
+            }
+          }
+          // ── End bootstrap ───────────────────────────────────────────────
           token.uid = dbUser.id;
           token.role = dbUser.role;
           token.department = dbUser.department ?? undefined;
