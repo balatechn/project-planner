@@ -1,0 +1,253 @@
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import {
+  BarChart3,
+  CalendarDays,
+  CheckSquare,
+  ChevronDown,
+  FolderKanban,
+  GanttChartSquare,
+  LayoutDashboard,
+  Menu,
+  Search,
+  Settings,
+  ShieldCheck,
+  Users,
+  X,
+} from "lucide-react";
+import type { Role } from "@prisma/client";
+import { cn } from "@/lib/utils";
+import { can } from "@/lib/rbac";
+import { Input } from "@/components/ui/input";
+import { NotificationsBell } from "@/components/notifications-bell";
+import { ThemeToggle } from "@/components/theme-toggle";
+import { UserMenu } from "@/components/user-menu";
+
+type NavItem = {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  show?: (role: Role) => boolean;
+};
+
+const PRIMARY_NAV: NavItem[] = [
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/projects", label: "Projects", icon: FolderKanban },
+  { href: "/portfolio", label: "Portfolio", icon: GanttChartSquare },
+  { href: "/my-tasks", label: "My Tasks", icon: CheckSquare },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
+];
+
+const MORE_NAV: NavItem[] = [
+  { href: "/reports", label: "Reports", icon: BarChart3, show: (r) => can(r, "report:view") },
+  { href: "/team", label: "Team Workload", icon: Users, show: (r) => can(r, "report:view") },
+  { href: "/admin/users", label: "Users & Roles", icon: ShieldCheck, show: (r) => can(r, "admin:users") },
+  { href: "/admin/audit", label: "Audit Log", icon: Settings, show: (r) => can(r, "admin:audit") },
+];
+
+export function AppTopNav({
+  user,
+}: {
+  user: {
+    name?: string | null;
+    email?: string | null;
+    image?: string | null;
+    role: Role;
+  };
+}) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const [mobileOpen, setMobileOpen] = React.useState(false);
+  const [moreOpen, setMoreOpen] = React.useState(false);
+  const [query, setQuery] = React.useState("");
+  const moreRef = React.useRef<HTMLDivElement>(null);
+
+  const visibleMore = MORE_NAV.filter((item) => !item.show || item.show(user.role));
+
+  // Close "More" dropdown when clicking outside
+  React.useEffect(() => {
+    function handle(e: MouseEvent) {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handle);
+    return () => document.removeEventListener("mousedown", handle);
+  }, []);
+
+  // Close mobile menu on route change
+  React.useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
+
+  function onSearch(e: React.FormEvent) {
+    e.preventDefault();
+    if (query.trim()) {
+      router.push(`/search?q=${encodeURIComponent(query.trim())}`);
+      setQuery("");
+    }
+  }
+
+  function isActive(href: string) {
+    return pathname === href || pathname.startsWith(href + "/");
+  }
+
+  return (
+    <>
+      {/* ── Main top bar ── */}
+      <header className="sticky top-0 z-40 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 shadow-sm">
+        <div className="mx-auto flex h-14 max-w-screen-2xl items-center gap-2 px-4 lg:px-6">
+
+          {/* Logo */}
+          <Link href="/dashboard" className="flex items-center gap-2 mr-3 flex-shrink-0">
+            <div className="brand-gradient flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold text-white shadow-sm">
+              ◆
+            </div>
+            <span className="hidden font-semibold tracking-tight sm:inline-block">
+              Project Planner
+            </span>
+          </Link>
+
+          {/* Desktop nav links */}
+          <nav className="hidden md:flex items-center gap-0.5 flex-1">
+            {PRIMARY_NAV.map((item) => {
+              const active = isActive(item.href);
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors whitespace-nowrap",
+                    active
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <span className="hidden lg:inline">{item.label}</span>
+                </Link>
+              );
+            })}
+
+            {/* "More" dropdown */}
+            {visibleMore.length > 0 && (
+              <div className="relative" ref={moreRef}>
+                <button
+                  onClick={() => setMoreOpen((v) => !v)}
+                  className={cn(
+                    "flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                    visibleMore.some((item) => isActive(item.href))
+                      ? "bg-primary/10 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  <span className="hidden lg:inline">More</span>
+                  <ChevronDown className={cn("h-4 w-4 transition-transform", moreOpen && "rotate-180")} />
+                </button>
+                {moreOpen && (
+                  <div className="absolute left-0 top-full mt-1 w-48 rounded-lg border bg-card shadow-lg py-1 z-50">
+                    {visibleMore.map((item) => {
+                      const active = isActive(item.href);
+                      const Icon = item.icon;
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          onClick={() => setMoreOpen(false)}
+                          className={cn(
+                            "flex items-center gap-2.5 px-3 py-2 text-sm transition-colors",
+                            active
+                              ? "bg-primary/10 text-primary font-medium"
+                              : "text-foreground hover:bg-muted",
+                          )}
+                        >
+                          <Icon className="h-4 w-4 flex-shrink-0 text-muted-foreground" />
+                          {item.label}
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </nav>
+
+          {/* Search */}
+          <form onSubmit={onSearch} className="relative flex-1 max-w-xs hidden sm:block ml-2">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search…"
+              className="pl-8 h-8 text-sm bg-muted/50 border-0 focus-visible:bg-background focus-visible:border"
+            />
+          </form>
+
+          {/* Right actions */}
+          <div className="ml-auto flex items-center gap-1">
+            <NotificationsBell />
+            <ThemeToggle />
+            <div className="mx-1 h-5 w-px bg-border" />
+            <UserMenu
+              name={user.name}
+              email={user.email}
+              image={user.image}
+              role={user.role}
+            />
+            {/* Mobile hamburger */}
+            <button
+              className="md:hidden ml-1 rounded-lg p-2 hover:bg-muted transition-colors"
+              onClick={() => setMobileOpen((v) => !v)}
+              aria-label="Toggle menu"
+            >
+              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+          </div>
+        </div>
+
+        {/* Mobile menu */}
+        {mobileOpen && (
+          <div className="md:hidden border-t bg-card">
+            {/* Mobile search */}
+            <div className="px-4 pt-3 pb-1 sm:hidden">
+              <form onSubmit={onSearch} className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search projects and tasks…"
+                  className="pl-9"
+                />
+              </form>
+            </div>
+            <nav className="px-3 py-2 space-y-0.5">
+              {[...PRIMARY_NAV, ...visibleMore].map((item) => {
+                const active = isActive(item.href);
+                const Icon = item.icon;
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
+                      active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )}
+                  >
+                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
+        )}
+      </header>
+    </>
+  );
+}
