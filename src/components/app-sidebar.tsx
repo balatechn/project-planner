@@ -8,6 +8,7 @@ import {
   CalendarDays,
   CheckSquare,
   FolderKanban,
+  GanttChartSquare,
   LayoutDashboard,
   Settings,
   ShieldCheck,
@@ -31,6 +32,7 @@ const NAV: { section: string; items: NavItem[] }[] = [
     items: [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/projects", label: "Projects", icon: FolderKanban },
+      { href: "/portfolio", label: "Portfolio", icon: GanttChartSquare },
       { href: "/my-tasks", label: "My Tasks", icon: CheckSquare },
       { href: "/calendar", label: "Calendar", icon: CalendarDays },
     ],

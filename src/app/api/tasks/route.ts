@@ -29,7 +29,18 @@ export async function GET(req: Request) {
       },
       orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
     });
-    return json({ tasks });
+    return json({ tasks: tasks.map((t) => ({
+      ...t,
+      startDate: t.startDate?.toISOString() ?? null,
+      dueDate: t.dueDate?.toISOString() ?? null,
+      completedAt: t.completedAt?.toISOString() ?? null,
+      baselineStart: (t as Record<string, unknown>).baselineStart instanceof Date
+        ? ((t as Record<string, unknown>).baselineStart as Date).toISOString()
+        : null,
+      baselineEnd: (t as Record<string, unknown>).baselineEnd instanceof Date
+        ? ((t as Record<string, unknown>).baselineEnd as Date).toISOString()
+        : null,
+    })) });
   });
 }
 
@@ -53,6 +64,7 @@ export async function POST(req: Request) {
       data: {
         projectId: data.projectId,
         parentId: data.parentId ?? null,
+        sprintId: data.sprintId ?? null,
         title: data.title,
         description: data.description ?? null,
         status: data.status,
@@ -61,6 +73,10 @@ export async function POST(req: Request) {
         dueDate: data.dueDate,
         estimatedHours: data.estimatedHours ?? null,
         progress: data.progress,
+        isMilestone: data.isMilestone ?? false,
+        wbsNumber: data.wbsNumber ?? null,
+        baselineStart: data.baselineStart ?? null,
+        baselineEnd: data.baselineEnd ?? null,
         orderIndex: (lastTask?.orderIndex ?? 0) + 1,
         createdById: user.id,
         assignees: {
@@ -73,6 +89,11 @@ export async function POST(req: Request) {
             (prerequisiteId) => ({ prerequisiteId }),
           ),
         },
+        labels: data.labelIds?.length
+          ? {
+              create: Array.from(new Set(data.labelIds)).map((labelId) => ({ labelId })),
+            }
+          : undefined,
       },
       include: {
         assignees: { select: { userId: true } },

@@ -48,10 +48,10 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
-        // Brand corporate palette
+        // Brand palette — orange/gold
         brand: {
-          blue: "hsl(var(--brand-blue))",
-          green: "hsl(var(--brand-green))",
+          orange: "hsl(var(--brand-orange))",
+          gold: "hsl(var(--brand-gold))",
           gray: "hsl(var(--brand-gray))",
         },
         // Status colors

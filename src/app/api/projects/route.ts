@@ -48,11 +48,13 @@ export async function POST(req: Request) {
       key = `${projectKeyFromName(data.name)}${suffix++}`;
     }
 
+    const ownerId = data.ownerId ?? user.id;
     const project = await prisma.project.create({
       data: {
         name: data.name,
         key,
         description: data.description ?? null,
+        entity: data.entity ?? null,
         department: data.department ?? null,
         priority: data.priority,
         status: data.status,
@@ -61,10 +63,11 @@ export async function POST(req: Request) {
         budget: data.budget ?? null,
         currency: data.currency,
         color: data.color,
-        ownerId: data.ownerId ?? user.id,
+        ownerId,
+        projectManagerId: data.projectManagerId ?? null,
         members: {
           create: Array.from(new Set(data.memberIds ?? []))
-            .filter((id) => id !== (data.ownerId ?? user.id))
+            .filter((id) => id !== ownerId)
             .map((userId) => ({ userId })),
         },
       },

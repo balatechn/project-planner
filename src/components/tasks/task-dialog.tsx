@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { format } from "date-fns";
-import { Loader2, Paperclip, Send, Trash2 } from "lucide-react";
+import { CheckSquare, Clock, Loader2, Paperclip, Plus, Send, Square, Trash2 } from "lucide-react";
 import type { Priority, TaskStatus } from "@prisma/client";
 import type { Person, TaskListItem, WorkspacePermissions } from "@/types/app";
 import {
@@ -43,6 +43,19 @@ type Attachment = {
   url: string;
   size: number;
 };
+type ChecklistItem = {
+  id: string;
+  title: string;
+  isCompleted: boolean;
+  orderIndex: number;
+};
+type TimeLogEntry = {
+  id: string;
+  hours: number;
+  logDate: string;
+  description: string | null;
+  user: Person;
+};
 
 export function TaskDialog({
   open,
@@ -70,7 +83,12 @@ export function TaskDialog({
   const [saving, setSaving] = React.useState(false);
   const [comments, setComments] = React.useState<Comment[]>([]);
   const [attachments, setAttachments] = React.useState<Attachment[]>([]);
+  const [checklist, setChecklist] = React.useState<ChecklistItem[]>([]);
+  const [timeLogs, setTimeLogs] = React.useState<TimeLogEntry[]>([]);
   const [newComment, setNewComment] = React.useState("");
+  const [newCheckItem, setNewCheckItem] = React.useState("");
+  const [logHours, setLogHours] = React.useState("");
+  const [logDesc, setLogDesc] = React.useState("");
   const fileRef = React.useRef<HTMLInputElement>(null);
 
   const [form, setForm] = React.useState(() => initialForm(task, defaultStatus));
@@ -87,11 +105,15 @@ export function TaskDialog({
         .then((d) => {
           setComments(d.task?.comments ?? []);
           setAttachments(d.task?.attachments ?? []);
+          setChecklist(d.task?.checklistItems ?? []);
+          setTimeLogs(d.task?.timeLogs ?? []);
         })
         .catch(() => undefined);
     } else {
       setComments([]);
       setAttachments([]);
+      setChecklist([]);
+      setTimeLogs([]);
     }
   }, [task, defaultStatus]);
 
@@ -118,6 +140,8 @@ export function TaskDialog({
       startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
       dueDate: form.dueDate ? new Date(form.dueDate).toISOString() : null,
       assigneeIds: assignees,
+      isMilestone: form.isMilestone,
+      wbsNumber: form.wbsNumber || null,
     };
     try {
       const res = await fetch(
@@ -176,6 +200,48 @@ export function TaskDialog({
     }
   }
 
+  async function addChecklistItem() {
+    if (!task || !newCheckItem.trim()) return;
+    const res = await fetch(`/api/tasks/${task.id}/checklist`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: newCheckItem }),
+    });
+    if (res.ok) {
+      const { item } = await res.json();
+      setChecklist((c) => [...c, item]);
+      setNewCheckItem("");
+    }
+  }
+
+  async function toggleChecklistItem(itemId: string, done: boolean) {
+    if (!task) return;
+    await fetch(`/api/tasks/${task.id}/checklist/${itemId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isCompleted: done }),
+    });
+    setChecklist((c) =>
+      c.map((item) => (item.id === itemId ? { ...item, isCompleted: done } : item)),
+    );
+  }
+
+  async function logTime() {
+    if (!task || !logHours) return;
+    const res = await fetch(`/api/tasks/${task.id}/time-logs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ hours: Number(logHours), description: logDesc || null }),
+    });
+    if (res.ok) {
+      const { log } = await res.json();
+      setTimeLogs((t) => [log, ...t]);
+      setLogHours("");
+      setLogDesc("");
+      toast({ title: "Time logged", variant: "success" });
+    }
+  }
+
   async function uploadFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file || !task) return;
@@ -224,6 +290,103 @@ export function TaskDialog({
                 className="min-h-24"
               />
             </div>
+
+            {/* Checklist */}
+            {isEdit && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <CheckSquare className="h-3.5 w-3.5" />
+                  Checklist
+                  {checklist.length > 0 && (
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      {checklist.filter((c) => c.isCompleted).length}/{checklist.length}
+                    </span>
+                  )}
+                </Label>
+                <div className="space-y-1">
+                  {checklist.map((item) => (
+                    <label key={item.id} className="flex items-center gap-2 text-sm cursor-pointer rounded px-1 hover:bg-muted/50">
+                      <button
+                        type="button"
+                        onClick={() => toggleChecklistItem(item.id, !item.isCompleted)}
+                        className="text-primary"
+                      >
+                        {item.isCompleted ? (
+                          <CheckSquare className="h-4 w-4" />
+                        ) : (
+                          <Square className="h-4 w-4" />
+                        )}
+                      </button>
+                      <span className={item.isCompleted ? "line-through text-muted-foreground" : ""}>
+                        {item.title}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+                {!readOnly && (
+                  <div className="flex gap-2">
+                    <Input
+                      value={newCheckItem}
+                      onChange={(e) => setNewCheckItem(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && addChecklistItem()}
+                      placeholder="Add checklist item…"
+                      className="h-8 text-sm"
+                    />
+                    <Button size="sm" variant="outline" className="h-8" onClick={addChecklistItem}>
+                      <Plus className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Time Logging */}
+            {isEdit && (
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5" />
+                  Time Log
+                  {timeLogs.length > 0 && (
+                    <span className="text-xs text-muted-foreground ml-auto">
+                      {timeLogs.reduce((s, l) => s + l.hours, 0).toFixed(1)}h total
+                    </span>
+                  )}
+                </Label>
+                <div className="max-h-28 space-y-1 overflow-y-auto thin-scroll">
+                  {timeLogs.map((log) => (
+                    <div key={log.id} className="flex items-center justify-between text-xs rounded bg-muted/50 px-2 py-1">
+                      <span className="text-muted-foreground">
+                        {format(new Date(log.logDate), "MMM d")} · {log.user.name}
+                      </span>
+                      <span className="font-medium">{log.hours}h</span>
+                      {log.description && (
+                        <span className="text-muted-foreground truncate max-w-[120px] ml-2">{log.description}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    min={0.25}
+                    step={0.25}
+                    value={logHours}
+                    onChange={(e) => setLogHours(e.target.value)}
+                    placeholder="hrs"
+                    className="h-8 w-20 text-sm"
+                  />
+                  <Input
+                    value={logDesc}
+                    onChange={(e) => setLogDesc(e.target.value)}
+                    placeholder="What did you work on?"
+                    className="h-8 text-sm flex-1"
+                  />
+                  <Button size="sm" variant="outline" className="h-8" onClick={logTime} disabled={!logHours}>
+                    Log
+                  </Button>
+                </div>
+              </div>
+            )}
 
             {/* Comments */}
             {isEdit && (
@@ -362,6 +525,32 @@ export function TaskDialog({
             </div>
 
             <div className="space-y-1.5">
+              <Label htmlFor="wbs">WBS Number</Label>
+              <Input
+                id="wbs"
+                value={form.wbsNumber}
+                disabled={readOnly}
+                onChange={(e) => set("wbsNumber", e.target.value)}
+                placeholder="1.2.3"
+                className="h-8 text-sm"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="task-milestone"
+                checked={form.isMilestone}
+                disabled={readOnly}
+                onChange={(e) => set("isMilestone", e.target.checked)}
+                className="h-4 w-4"
+              />
+              <label htmlFor="task-milestone" className="text-sm font-medium cursor-pointer">
+                Milestone
+              </label>
+            </div>
+
+            <div className="space-y-1.5">
               <Label>Assignees</Label>
               <div className="flex flex-wrap gap-1.5">
                 {users.map((u) => {
@@ -467,10 +656,12 @@ function initialForm(task: TaskListItem | null, defaultStatus: TaskStatus) {
     title: task?.title ?? "",
     description: task?.description ?? "",
     status: task?.status ?? defaultStatus,
-    priority: task?.priority ?? "MEDIUM",
+    priority: task?.priority ?? ("MEDIUM" as Priority),
     startDate: task?.startDate ? task.startDate.slice(0, 10) : "",
     dueDate: task?.dueDate ? task.dueDate.slice(0, 10) : "",
     progress: String(task?.progress ?? 0),
     estimatedHours: task?.estimatedHours ? String(task.estimatedHours) : "",
+    isMilestone: task?.isMilestone ?? false,
+    wbsNumber: task?.wbsNumber ?? "",
   };
 }

@@ -1,4 +1,5 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
+export { Prisma };
 
 // Prevent multiple instances of Prisma Client in development (HMR).
 const globalForPrisma = globalThis as unknown as {

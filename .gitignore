@@ -38,3 +38,6 @@ prisma/*.db-journal
 # uploads (local fallback storage)
 /uploads
 /public/uploads
+
+.vercel
+.env*

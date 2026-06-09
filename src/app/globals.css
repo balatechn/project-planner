@@ -4,87 +4,88 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
-    --foreground: 222 47% 11%;
+    /* Off-white / cream background */
+    --background: 38 33% 97%;
+    --foreground: 24 10% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 24 10% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 24 10% 15%;
 
-    /* Corporate blue */
-    --primary: 221 83% 53%;
-    --primary-foreground: 210 40% 98%;
+    /* Orange / gold primary */
+    --primary: 38 92% 50%;
+    --primary-foreground: 0 0% 100%;
 
-    /* Soft gray */
-    --secondary: 210 40% 94%;
-    --secondary-foreground: 222 47% 18%;
+    /* Warm soft gray secondary */
+    --secondary: 38 20% 92%;
+    --secondary-foreground: 24 10% 25%;
 
-    --muted: 210 40% 94%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 38 15% 93%;
+    --muted-foreground: 24 8% 48%;
 
-    /* Corporate green accent */
-    --accent: 160 84% 39%;
+    /* Amber accent */
+    --accent: 32 95% 44%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214 32% 88%;
-    --input: 214 32% 88%;
-    --ring: 221 83% 53%;
+    --border: 38 20% 88%;
+    --input: 38 20% 88%;
+    --ring: 38 92% 50%;
 
     --radius: 0.6rem;
 
-    --brand-blue: 221 83% 53%;
-    --brand-green: 160 84% 39%;
-    --brand-gray: 215 16% 47%;
+    --brand-orange: 38 92% 50%;
+    --brand-gold: 43 96% 56%;
+    --brand-gray: 24 8% 48%;
 
     --status-notstarted: 215 16% 55%;
-    --status-inprogress: 221 83% 53%;
+    --status-inprogress: 214 89% 52%;
     --status-onhold: 38 92% 50%;
-    --status-completed: 160 84% 39%;
+    --status-completed: 142 71% 45%;
     --status-delayed: 0 72% 51%;
   }
 
   .dark {
-    --background: 222 47% 7%;
-    --foreground: 210 40% 96%;
+    --background: 24 10% 8%;
+    --foreground: 38 20% 94%;
 
-    --card: 222 44% 11%;
-    --card-foreground: 210 40% 96%;
+    --card: 24 10% 11%;
+    --card-foreground: 38 20% 94%;
 
-    --popover: 222 44% 11%;
-    --popover-foreground: 210 40% 96%;
+    --popover: 24 10% 11%;
+    --popover-foreground: 38 20% 94%;
 
-    --primary: 217 91% 60%;
-    --primary-foreground: 222 47% 11%;
+    --primary: 38 92% 52%;
+    --primary-foreground: 24 10% 8%;
 
-    --secondary: 217 33% 18%;
-    --secondary-foreground: 210 40% 96%;
+    --secondary: 24 10% 18%;
+    --secondary-foreground: 38 20% 90%;
 
-    --muted: 217 33% 18%;
-    --muted-foreground: 215 20% 65%;
+    --muted: 24 10% 18%;
+    --muted-foreground: 38 10% 60%;
 
-    --accent: 160 84% 42%;
-    --accent-foreground: 222 47% 11%;
+    --accent: 32 95% 48%;
+    --accent-foreground: 24 10% 8%;
 
     --destructive: 0 63% 50%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 217 33% 20%;
-    --input: 217 33% 22%;
-    --ring: 217 91% 60%;
+    --border: 24 10% 20%;
+    --input: 24 10% 22%;
+    --ring: 38 92% 52%;
 
-    --brand-blue: 217 91% 60%;
-    --brand-green: 160 84% 42%;
-    --brand-gray: 215 20% 65%;
+    --brand-orange: 38 92% 52%;
+    --brand-gold: 43 96% 58%;
+    --brand-gray: 38 10% 60%;
 
     --status-notstarted: 215 20% 60%;
-    --status-inprogress: 217 91% 60%;
+    --status-inprogress: 214 89% 58%;
     --status-onhold: 38 92% 55%;
-    --status-completed: 160 84% 45%;
+    --status-completed: 142 71% 50%;
     --status-delayed: 0 72% 58%;
   }
 }
@@ -99,20 +100,20 @@
   }
 }
 
-/* Corporate gradient surfaces */
+/* Orange / gold gradient surfaces */
 .brand-gradient {
   background-image: linear-gradient(
     135deg,
-    hsl(221 83% 53%) 0%,
-    hsl(199 89% 48%) 45%,
-    hsl(160 84% 39%) 100%
+    hsl(38 92% 50%) 0%,
+    hsl(43 96% 56%) 50%,
+    hsl(32 95% 44%) 100%
   );
 }
 
 .brand-gradient-subtle {
   background-image: linear-gradient(
     135deg,
-    hsl(var(--primary) / 0.08) 0%,
+    hsl(var(--primary) / 0.10) 0%,
     hsl(var(--accent) / 0.08) 100%
   );
 }
@@ -120,8 +121,8 @@
 .text-gradient {
   background-image: linear-gradient(
     135deg,
-    hsl(221 83% 53%),
-    hsl(160 84% 39%)
+    hsl(38 92% 50%),
+    hsl(32 95% 44%)
   );
   -webkit-background-clip: text;
   background-clip: text;

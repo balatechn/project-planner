@@ -32,6 +32,24 @@ type UserOption = {
   image: string | null;
 };
 
+const TIMELINE_PRESETS = [
+  { label: "6 months", months: 6 },
+  { label: "1 year", months: 12 },
+  { label: "2 years", months: 24 },
+  { label: "3 years", months: 36 },
+  { label: "Custom", months: 0 },
+];
+
+function addMonths(date: Date, months: number): Date {
+  const d = new Date(date);
+  d.setMonth(d.getMonth() + months);
+  return d;
+}
+
+function toDateInput(d: Date): string {
+  return d.toISOString().split("T")[0];
+}
+
 export function NewProjectButton({
   users,
   currentUserId,
@@ -44,26 +62,40 @@ export function NewProjectButton({
   const { toast } = useToast();
   const [open, setOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
+  const [timelinePreset, setTimelinePreset] = React.useState("12");
 
   React.useEffect(() => {
     if (searchParams.get("new") === "1") setOpen(true);
   }, [searchParams]);
 
+  const today = toDateInput(new Date());
+
   const [form, setForm] = React.useState({
     name: "",
     description: "",
+    entity: "",
     department: "",
     priority: "MEDIUM",
     status: "PLANNING",
-    startDate: "",
-    endDate: "",
+    startDate: today,
+    endDate: toDateInput(addMonths(new Date(), 12)),
     budget: "",
-    color: "#2563eb",
+    color: "#f59e0b",
     ownerId: currentUserId,
+    projectManagerId: currentUserId,
   });
 
   function update<K extends keyof typeof form>(key: K, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function applyPreset(months: string) {
+    setTimelinePreset(months);
+    const m = parseInt(months, 10);
+    if (m > 0) {
+      const start = form.startDate ? new Date(form.startDate) : new Date();
+      update("endDate", toDateInput(addMonths(start, m)));
+    }
   }
 
   async function submit() {
@@ -77,13 +109,20 @@ export function NewProjectButton({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ...form,
+          name: form.name,
+          description: form.description || null,
+          entity: form.entity || null,
+          department: form.department || null,
+          priority: form.priority,
+          status: form.status,
           budget: form.budget ? Number(form.budget) : null,
+          color: form.color,
+          ownerId: form.ownerId,
+          projectManagerId: form.projectManagerId || null,
           startDate: form.startDate
             ? new Date(form.startDate).toISOString()
             : null,
           endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
-          department: form.department || null,
         }),
       });
       if (!res.ok) {
@@ -93,7 +132,7 @@ export function NewProjectButton({
       const { project } = await res.json();
       toast({ title: "Project created", variant: "success" });
       setOpen(false);
-      router.push(`/projects/${project.id}`);
+      router.push(`/projects/${project.id}?view=gantt`);
       router.refresh();
     } catch (e) {
       toast({
@@ -117,7 +156,7 @@ export function NewProjectButton({
       <Button variant="brand" onClick={() => setOpen(true)}>
         <Plus /> New Project
       </Button>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create a new project</DialogTitle>
           <DialogDescription>
@@ -126,6 +165,7 @@ export function NewProjectButton({
         </DialogHeader>
 
         <div className="grid gap-4 sm:grid-cols-2">
+          {/* Project name */}
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="name">Project name *</Label>
             <Input
@@ -136,6 +176,7 @@ export function NewProjectButton({
             />
           </div>
 
+          {/* Description */}
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="description">Description</Label>
             <Textarea
@@ -143,9 +184,22 @@ export function NewProjectButton({
               value={form.description}
               onChange={(e) => update("description", e.target.value)}
               placeholder="What is this project about?"
+              rows={2}
             />
           </div>
 
+          {/* Entity */}
+          <div className="space-y-1.5">
+            <Label htmlFor="entity">Entity / Division</Label>
+            <Input
+              id="entity"
+              value={form.entity}
+              onChange={(e) => update("entity", e.target.value)}
+              placeholder="ACME Corp — APAC"
+            />
+          </div>
+
+          {/* Department */}
           <div className="space-y-1.5">
             <Label>Department</Label>
             <Select
@@ -165,6 +219,27 @@ export function NewProjectButton({
             </Select>
           </div>
 
+          {/* Project Manager */}
+          <div className="space-y-1.5">
+            <Label>Project Manager</Label>
+            <Select
+              value={form.projectManagerId}
+              onValueChange={(v) => update("projectManagerId", v)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select PM" />
+              </SelectTrigger>
+              <SelectContent>
+                {users.map((u) => (
+                  <SelectItem key={u.id} value={u.id}>
+                    {u.name ?? u.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Owner */}
           <div className="space-y-1.5">
             <Label>Project owner</Label>
             <Select
@@ -184,6 +259,7 @@ export function NewProjectButton({
             </Select>
           </div>
 
+          {/* Priority */}
           <div className="space-y-1.5">
             <Label>Priority</Label>
             <Select
@@ -203,6 +279,7 @@ export function NewProjectButton({
             </Select>
           </div>
 
+          {/* Status */}
           <div className="space-y-1.5">
             <Label>Status</Label>
             <Select
@@ -222,26 +299,59 @@ export function NewProjectButton({
             </Select>
           </div>
 
+          {/* Timeline preset */}
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label>Timeline</Label>
+            <div className="flex flex-wrap gap-2">
+              {TIMELINE_PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => applyPreset(String(preset.months))}
+                  className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                    timelinePreset === String(preset.months)
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background hover:bg-muted"
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Start date */}
           <div className="space-y-1.5">
             <Label htmlFor="start">Start date</Label>
             <Input
               id="start"
               type="date"
               value={form.startDate}
-              onChange={(e) => update("startDate", e.target.value)}
+              onChange={(e) => {
+                update("startDate", e.target.value);
+                const m = parseInt(timelinePreset, 10);
+                if (m > 0 && e.target.value) {
+                  update("endDate", toDateInput(addMonths(new Date(e.target.value), m)));
+                }
+              }}
             />
           </div>
 
+          {/* End date */}
           <div className="space-y-1.5">
             <Label htmlFor="end">End date</Label>
             <Input
               id="end"
               type="date"
               value={form.endDate}
-              onChange={(e) => update("endDate", e.target.value)}
+              onChange={(e) => {
+                update("endDate", e.target.value);
+                setTimelinePreset("0"); // custom
+              }}
             />
           </div>
 
+          {/* Budget */}
           <div className="space-y-1.5">
             <Label htmlFor="budget">Budget (USD)</Label>
             <Input
@@ -254,6 +364,7 @@ export function NewProjectButton({
             />
           </div>
 
+          {/* Color */}
           <div className="space-y-1.5">
             <Label htmlFor="color">Color</Label>
             <Input

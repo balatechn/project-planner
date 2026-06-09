@@ -51,6 +51,12 @@ export async function GET(_req: Request, { params }: Params) {
             prerequisite: { select: { id: true, title: true, status: true } },
           },
         },
+        checklistItems: { orderBy: { orderIndex: "asc" } },
+        timeLogs: {
+          include: { user: { select: { id: true, name: true, image: true } } },
+          orderBy: { logDate: "desc" },
+          take: 20,
+        },
         createdBy: { select: { id: true, name: true, image: true } },
         project: { select: { id: true, name: true, color: true } },
       },
@@ -77,7 +83,7 @@ export async function PATCH(req: Request, { params }: Params) {
       onlyStatusOrOrder ? "task:updateStatus" : "task:edit",
     );
 
-    const { assigneeIds, dependsOnIds, ...rest } = data;
+    const { assigneeIds, dependsOnIds, labelIds, ...rest } = data;
     const completing =
       rest.status === "COMPLETED" && existing.status !== "COMPLETED";
 

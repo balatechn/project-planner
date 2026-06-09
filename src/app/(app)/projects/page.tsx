@@ -8,9 +8,8 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ProjectStatusBadge, PriorityBadge } from "@/components/badges";
-import { AvatarStack } from "@/components/avatar-stack";
-import { formatCurrency } from "@/lib/utils";
 import { NewProjectButton } from "./new-project-button";
+import { format } from "date-fns";
 
 export const metadata: Metadata = { title: "Projects" };
 
@@ -23,6 +22,7 @@ export default async function ProjectsPage() {
       where: { ...where, isArchived: false },
       include: {
         owner: { select: { id: true, name: true, image: true } },
+        projectManager: { select: { id: true, name: true, image: true } },
         members: {
           select: { user: { select: { id: true, name: true, image: true } } },
         },
@@ -67,68 +67,106 @@ export default async function ProjectsPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {projects.map((p) => {
-            const tasks = p.tasks;
-            const pct =
-              tasks.length === 0
-                ? 0
-                : Math.round(
-                    tasks.reduce(
-                      (s, t) =>
-                        s + (t.status === "COMPLETED" ? 100 : t.progress),
-                      0,
-                    ) / tasks.length,
-                  );
-            return (
-              <Link key={p.id} href={`/projects/${p.id}`}>
-                <Card className="h-full transition-all hover:-translate-y-0.5 hover:shadow-md">
-                  <div
-                    className="h-1.5 rounded-t-xl"
-                    style={{ backgroundColor: p.color }}
-                  />
-                  <CardContent className="space-y-4 p-5">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold">{p.name}</p>
-                        <p className="text-xs text-muted-foreground">
-                          {p.key} · {p.department ?? "No department"}
-                        </p>
-                      </div>
-                      <ProjectStatusBadge status={p.status} />
-                    </div>
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b bg-muted/50">
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Project</th>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground hidden md:table-cell">Entity / Dept</th>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground hidden lg:table-cell">Project Manager</th>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground hidden lg:table-cell">Timeline</th>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground hidden sm:table-cell">Progress</th>
+                  <th className="px-4 py-3 text-center font-semibold text-muted-foreground hidden sm:table-cell">Tasks</th>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground hidden md:table-cell">Priority</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {projects.map((p) => {
+                  const tasks = p.tasks;
+                  const pct =
+                    tasks.length === 0
+                      ? 0
+                      : Math.round(
+                          tasks.reduce(
+                            (s, t) =>
+                              s + (t.status === "COMPLETED" ? 100 : t.progress),
+                            0,
+                          ) / tasks.length,
+                        );
+                  const pm = p.projectManager ?? p.owner;
+                  const timeline =
+                    p.startDate && p.endDate
+                      ? `${format(p.startDate, "MMM yy")} – ${format(p.endDate, "MMM yy")}`
+                      : p.endDate
+                      ? `Due ${format(p.endDate, "MMM yy")}`
+                      : "—";
 
-                    {p.description && (
-                      <p className="line-clamp-2 text-sm text-muted-foreground">
-                        {p.description}
-                      </p>
-                    )}
-
-                    <div className="space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-muted-foreground">Progress</span>
-                        <span className="font-medium">{pct}%</span>
-                      </div>
-                      <Progress value={pct} className="h-1.5" />
-                    </div>
-
-                    <div className="flex items-center justify-between pt-1">
-                      <AvatarStack
-                        people={[p.owner, ...p.members.map((m) => m.user)]}
-                        max={4}
-                        size="h-7 w-7"
-                      />
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                  return (
+                    <tr
+                      key={p.id}
+                      className="group hover:bg-muted/30 transition-colors"
+                    >
+                      <td className="px-4 py-3">
+                        <Link
+                          href={`/projects/${p.id}?view=gantt`}
+                          className="flex items-center gap-3 group-hover:text-primary transition-colors"
+                        >
+                          <span
+                            className="h-8 w-1 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: p.color }}
+                          />
+                          <div className="min-w-0">
+                            <p className="font-medium truncate max-w-[180px] lg:max-w-[240px]">
+                              {p.name}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{p.key}</p>
+                          </div>
+                        </Link>
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        <div className="text-sm">
+                          {p.entity && (
+                            <p className="font-medium text-foreground">{p.entity}</p>
+                          )}
+                          <p className="text-muted-foreground text-xs">
+                            {p.department ?? "—"}
+                          </p>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        <span className="text-sm">{pm.name ?? "—"}</span>
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        <span className="text-xs text-muted-foreground whitespace-nowrap">
+                          {timeline}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <ProjectStatusBadge status={p.status} />
+                      </td>
+                      <td className="px-4 py-3 hidden sm:table-cell">
+                        <div className="flex items-center gap-2 min-w-[100px]">
+                          <Progress value={pct} className="h-1.5 flex-1" />
+                          <span className="text-xs text-muted-foreground w-8 text-right">
+                            {pct}%
+                          </span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center hidden sm:table-cell">
+                        <span className="text-sm font-medium">{tasks.length}</span>
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
                         <PriorityBadge priority={p.priority} />
-                        <span>{formatCurrency(p.budget?.toString(), p.currency)}</span>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            );
-          })}
-        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </Card>
       )}
     </div>
   );

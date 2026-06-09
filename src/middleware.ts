@@ -27,6 +27,9 @@ export function middleware(req: NextRequest) {
   }
 
   if (!hasSessionCookie(req)) {
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json({ error: "Authentication required" }, { status: 401 });
+    }
     const url = new URL("/login", req.url);
     url.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(url);

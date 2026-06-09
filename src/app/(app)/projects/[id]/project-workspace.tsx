@@ -3,14 +3,19 @@
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
+  AlertTriangle,
   Archive,
   CalendarDays,
+  ClipboardList,
+  Flag,
   GanttChartSquare,
   KanbanSquare,
   LayoutList,
   MoreVertical,
   Plus,
+  Timer,
   Trash2,
+  Zap,
 } from "lucide-react";
 import type { TaskStatus } from "@prisma/client";
 import type {
@@ -40,6 +45,9 @@ import { GanttView } from "@/components/tasks/gantt-view";
 import { CalendarView } from "@/components/tasks/calendar-view";
 import { TaskDialog } from "@/components/tasks/task-dialog";
 import { ProjectOverview } from "./project-overview";
+import { SprintView } from "./sprint-view";
+import { RiskRegister } from "./risk-register";
+import { MeetingNotes } from "./meeting-notes";
 import { formatCurrency } from "@/lib/utils";
 
 export function ProjectWorkspace({
@@ -58,6 +66,7 @@ export function ProjectWorkspace({
   const router = useRouter();
   const searchParams = useSearchParams();
   const { toast } = useToast();
+  const defaultView = searchParams.get("view") ?? "gantt";
 
   const [tasks, setTasks] = React.useState<TaskListItem[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -234,20 +243,29 @@ export function ProjectWorkspace({
       </div>
 
       {/* Views */}
-      <Tabs defaultValue="board">
+      <Tabs defaultValue={defaultView}>
         <TabsList className="flex-wrap">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="gantt">
+            <GanttChartSquare className="h-3.5 w-3.5" /> Gantt
+          </TabsTrigger>
           <TabsTrigger value="board">
-            <KanbanSquare /> Board
+            <KanbanSquare className="h-3.5 w-3.5" /> Board
           </TabsTrigger>
           <TabsTrigger value="list">
-            <LayoutList /> List
-          </TabsTrigger>
-          <TabsTrigger value="gantt">
-            <GanttChartSquare /> Gantt
+            <LayoutList className="h-3.5 w-3.5" /> List
           </TabsTrigger>
           <TabsTrigger value="calendar">
-            <CalendarDays /> Calendar
+            <CalendarDays className="h-3.5 w-3.5" /> Calendar
+          </TabsTrigger>
+          <TabsTrigger value="sprints">
+            <Zap className="h-3.5 w-3.5" /> Sprints
+          </TabsTrigger>
+          <TabsTrigger value="risks">
+            <AlertTriangle className="h-3.5 w-3.5" /> Risks
+          </TabsTrigger>
+          <TabsTrigger value="meetings">
+            <ClipboardList className="h-3.5 w-3.5" /> Meetings
           </TabsTrigger>
         </TabsList>
 
@@ -259,6 +277,16 @@ export function ProjectWorkspace({
           <>
             <TabsContent value="overview">
               <ProjectOverview project={project} tasks={tasks} members={members} />
+            </TabsContent>
+            <TabsContent value="gantt">
+              <GanttView
+                tasks={tasks}
+                onOpenTask={openTask}
+                canCreate={permissions.canCreateTask}
+                projectId={project.id}
+                allUsers={allUsers}
+                onSaved={loadTasks}
+              />
             </TabsContent>
             <TabsContent value="board">
               <KanbanBoard
@@ -273,11 +301,31 @@ export function ProjectWorkspace({
             <TabsContent value="list">
               <TaskListView tasks={tasks} onOpenTask={openTask} />
             </TabsContent>
-            <TabsContent value="gantt">
-              <GanttView tasks={tasks} onOpenTask={openTask} />
-            </TabsContent>
             <TabsContent value="calendar">
               <CalendarView tasks={tasks} onOpenTask={openTask} />
+            </TabsContent>
+            <TabsContent value="sprints">
+              <SprintView
+                projectId={project.id}
+                tasks={tasks}
+                allUsers={allUsers}
+                permissions={permissions}
+                onOpenTask={openTask}
+                onSaved={loadTasks}
+              />
+            </TabsContent>
+            <TabsContent value="risks">
+              <RiskRegister
+                projectId={project.id}
+                permissions={permissions}
+              />
+            </TabsContent>
+            <TabsContent value="meetings">
+              <MeetingNotes
+                projectId={project.id}
+                allUsers={allUsers}
+                permissions={permissions}
+              />
             </TabsContent>
           </>
         )}

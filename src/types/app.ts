@@ -15,6 +15,7 @@ export type TaskListItem = {
   id: string;
   projectId: string;
   parentId: string | null;
+  sprintId: string | null;
   title: string;
   description: string | null;
   status: TaskStatus;
@@ -24,6 +25,10 @@ export type TaskListItem = {
   progress: number;
   estimatedHours: number | null;
   orderIndex: number;
+  isMilestone: boolean;
+  wbsNumber: string | null;
+  baselineStart?: string | null;
+  baselineEnd?: string | null;
   assignees: { user: Person }[];
   dependsOn: { prerequisiteId: string }[];
   _count: { subtasks: number; comments: number; attachments: number };
