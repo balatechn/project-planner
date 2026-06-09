@@ -111,7 +111,7 @@ export function AppTopNav({
             </span>
           </Link>
 
-          {/* Desktop nav links */}
+          {/* Desktop nav links — prefetch=true triggers route prefetch on hover */}
           <nav className="hidden md:flex items-center gap-0.5 flex-1">
             {PRIMARY_NAV.map((item) => {
               const active = isActive(item.href);
@@ -120,6 +120,7 @@ export function AppTopNav({
                 <Link
                   key={item.href}
                   href={item.href}
+                  prefetch={true}
                   className={cn(
                     "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors whitespace-nowrap",
                     active

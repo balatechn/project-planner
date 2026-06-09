@@ -22,9 +22,12 @@ type Notification = {
   createdAt: string;
 };
 
+const POLL_INTERVAL = 60_000; // 60 s when visible
+
 export function NotificationsBell() {
   const [items, setItems] = React.useState<Notification[]>([]);
   const [unread, setUnread] = React.useState(0);
+  const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = React.useCallback(async () => {
     try {
@@ -34,21 +37,50 @@ export function NotificationsBell() {
       setItems(data.notifications);
       setUnread(data.notifications.filter((n) => !n.isRead).length);
     } catch {
-      /* ignore */
+      /* network error — silently skip */
+    }
+  }, []);
+
+  // Start / stop polling based on tab visibility so we waste no network
+  // requests when the user is on another tab.
+  const startPolling = React.useCallback(() => {
+    if (intervalRef.current) return; // already running
+    intervalRef.current = setInterval(load, POLL_INTERVAL);
+  }, [load]);
+
+  const stopPolling = React.useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
   }, []);
 
   React.useEffect(() => {
-    load();
-    const t = setInterval(load, 60_000);
-    return () => clearInterval(t);
-  }, [load]);
+    load(); // immediate load on mount
+    startPolling();
 
-  async function markAllRead() {
-    await fetch("/api/notifications", { method: "PATCH" });
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        load(); // refresh immediately when user returns to tab
+        startPolling();
+      } else {
+        stopPolling();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      stopPolling();
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [load, startPolling, stopPolling]);
+
+  const markAllRead = React.useCallback(async () => {
+    // Optimistic update
     setUnread(0);
     setItems((prev) => prev.map((n) => ({ ...n, isRead: true })));
-  }
+    await fetch("/api/notifications", { method: "PATCH" });
+  }, []);
 
   return (
     <DropdownMenu>
@@ -75,7 +107,7 @@ export function NotificationsBell() {
           )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <div className="max-h-80 overflow-y-auto thin-scroll">
+        <div className="max-h-80 overflow-y-auto thin-scroll scroll-smooth-container">
           {items.length === 0 && (
             <p className="px-3 py-6 text-center text-sm text-muted-foreground">
               You&apos;re all caught up.
@@ -85,7 +117,7 @@ export function NotificationsBell() {
             <Link
               key={n.id}
               href={n.link ?? "#"}
-              className="block border-b px-3 py-2.5 last:border-0 hover:bg-muted"
+              className="block border-b px-3 py-2.5 last:border-0 hover:bg-muted transition-colors"
             >
               <div className="flex items-start gap-2">
                 {!n.isRead && (

@@ -307,10 +307,12 @@ model Task {
   recurrence RecurrenceRule?
 
   @@index([projectId])
+  @@index([projectId, status]) // composite for workspace task loading
   @@index([sprintId])
   @@index([parentId])
   @@index([status])
   @@index([dueDate])
+  @@index([updatedAt])
 }
 
 model TaskAssignee {

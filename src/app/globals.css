@@ -146,3 +146,66 @@
   backdrop-filter: blur(10px);
   background-color: hsl(var(--card) / 0.7);
 }
+
+/* ── Performance: smooth page-level fade-in ────────────────────────────── */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes skeleton-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.18s ease-out both;
+}
+
+/* Override shadcn skeleton with a shimmering gradient for better UX */
+.animate-pulse {
+  animation: none !important;
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 25%,
+    hsl(var(--muted-foreground) / 0.08) 50%,
+    hsl(var(--muted)) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite !important;
+}
+
+/* ── Performance: GPU-composited hover transitions ─────────────────────── */
+a, button, [role="button"] {
+  transition-property: color, background-color, border-color, box-shadow, opacity, transform;
+  transition-duration: 120ms;
+  transition-timing-function: ease-out;
+}
+
+/* ── Content rows: instant hover with GPU layer promotion ──────────────── */
+.hover-row {
+  will-change: background-color;
+  transform: translateZ(0);
+}
+
+/* ── Scrollable containers ─────────────────────────────────────────────── */
+.scroll-smooth-container {
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Focus ring uses primary brand colour ──────────────────────────────── */
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+/* ── Prevent layout shift on page transitions ──────────────────────────── */
+html {
+  scroll-behavior: smooth;
+}
+body {
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import { formatDistanceToNow, isPast } from "date-fns";
 import {
   AlertTriangle,
@@ -31,15 +32,24 @@ import { AvatarStack } from "@/components/avatar-stack";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
-export default async function DashboardPage() {
-  const user = await requireUser();
-  const where = projectAccessWhere(user.id, user.role);
-
-  const [projects, myTasks, overdueCount, completedThisWeek, recentActivity] =
-    await Promise.all([
+// Cache the project list per user for 30 s — fast repeat visits, still fresh
+const getDashboardData = unstable_cache(
+  async (
+    userId: string,
+    role: string,
+    whereJson: string,
+  ) => {
+    const where = JSON.parse(whereJson);
+    const [projects, recentActivity] = await Promise.all([
       prisma.project.findMany({
         where: { ...where, isArchived: false },
-        include: {
+        select: {
+          id: true,
+          name: true,
+          key: true,
+          department: true,
+          status: true,
+          color: true,
           owner: { select: { id: true, name: true, image: true } },
           members: {
             select: { user: { select: { id: true, name: true, image: true } } },
@@ -49,12 +59,46 @@ export default async function DashboardPage() {
         orderBy: { updatedAt: "desc" },
         take: 6,
       }),
+      prisma.activity.findMany({
+        where: { project: where },
+        select: {
+          id: true,
+          action: true,
+          createdAt: true,
+          user: { select: { name: true, image: true } },
+          project: { select: { name: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: 8,
+      }),
+    ]);
+    return { projects, recentActivity };
+  },
+  ["dashboard-data"],
+  { revalidate: 30 }, // 30 s cache per user
+);
+
+export default async function DashboardPage() {
+  const user = await requireUser();
+  const where = projectAccessWhere(user.id, user.role);
+
+  // Per-user real-time task counts run fresh every request (cheap queries)
+  const [{ projects, recentActivity }, myTasks, overdueCount, completedThisWeek] =
+    await Promise.all([
+      getDashboardData(user.id, user.role, JSON.stringify(where)),
       prisma.task.findMany({
         where: {
           assignees: { some: { userId: user.id } },
           status: { not: "COMPLETED" },
         },
-        include: { project: { select: { id: true, name: true, color: true } } },
+        select: {
+          id: true,
+          title: true,
+          priority: true,
+          status: true,
+          dueDate: true,
+          project: { select: { id: true, name: true, color: true } },
+        },
         orderBy: [{ dueDate: "asc" }],
         take: 8,
       }),
@@ -73,15 +117,6 @@ export default async function DashboardPage() {
             gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
           },
         },
-      }),
-      prisma.activity.findMany({
-        where: { project: where },
-        include: {
-          user: { select: { name: true, image: true } },
-          project: { select: { name: true } },
-        },
-        orderBy: { createdAt: "desc" },
-        take: 8,
       }),
     ]);
 

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   AlertTriangle,
@@ -26,6 +27,7 @@ import type {
 } from "@/types/app";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu,
@@ -34,22 +36,73 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/toast";
-import {
-  PriorityBadge,
-  ProjectStatusBadge,
-} from "@/components/badges";
+import { PriorityBadge, ProjectStatusBadge } from "@/components/badges";
 import { AvatarStack } from "@/components/avatar-stack";
-import { KanbanBoard } from "@/components/tasks/kanban-board";
-import { TaskListView } from "@/components/tasks/task-list-view";
-import { GanttView } from "@/components/tasks/gantt-view";
-import { CalendarView } from "@/components/tasks/calendar-view";
-import { TaskDialog } from "@/components/tasks/task-dialog";
-import { ProjectOverview } from "./project-overview";
-import { SprintView } from "./sprint-view";
-import { RiskRegister } from "./risk-register";
-import { MeetingNotes } from "./meeting-notes";
 import { formatCurrency } from "@/lib/utils";
 
+// ── Heavy views loaded lazily so the initial JS bundle stays small ─────────
+const TabSkeleton = () => (
+  <div className="mt-4 space-y-3">
+    {Array.from({ length: 6 }).map((_, i) => (
+      <Skeleton key={i} className="h-10 w-full rounded-lg" />
+    ))}
+  </div>
+);
+
+const GanttView = dynamic(
+  () => import("@/components/tasks/gantt-view").then((m) => ({ default: m.GanttView })),
+  { loading: () => <TabSkeleton />, ssr: false },
+);
+const KanbanBoard = dynamic(
+  () => import("@/components/tasks/kanban-board").then((m) => ({ default: m.KanbanBoard })),
+  { loading: () => <TabSkeleton />, ssr: false },
+);
+const TaskListView = dynamic(
+  () => import("@/components/tasks/task-list-view").then((m) => ({ default: m.TaskListView })),
+  { loading: () => <TabSkeleton />, ssr: false },
+);
+const CalendarView = dynamic(
+  () => import("@/components/tasks/calendar-view").then((m) => ({ default: m.CalendarView })),
+  { loading: () => <TabSkeleton />, ssr: false },
+);
+const TaskDialog = dynamic(
+  () => import("@/components/tasks/task-dialog").then((m) => ({ default: m.TaskDialog })),
+  { ssr: false },
+);
+const ProjectOverview = dynamic(
+  () => import("./project-overview").then((m) => ({ default: m.ProjectOverview })),
+  { loading: () => <TabSkeleton />, ssr: false },
+);
+const SprintView = dynamic(
+  () => import("./sprint-view").then((m) => ({ default: m.SprintView })),
+  { loading: () => <TabSkeleton />, ssr: false },
+);
+const RiskRegister = dynamic(
+  () => import("./risk-register").then((m) => ({ default: m.RiskRegister })),
+  { loading: () => <TabSkeleton />, ssr: false },
+);
+const MeetingNotes = dynamic(
+  () => import("./meeting-notes").then((m) => ({ default: m.MeetingNotes })),
+  { loading: () => <TabSkeleton />, ssr: false },
+);
+
+// ── Task loading skeleton (shown while fetch is in-flight) ─────────────────
+function WorkspaceSkeleton() {
+  return (
+    <div className="mt-4 space-y-2">
+      {Array.from({ length: 8 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 rounded-lg border px-4 py-3">
+          <Skeleton className="h-2 w-2 rounded-full" />
+          <Skeleton className="h-4 flex-1 max-w-[320px]" />
+          <Skeleton className="ml-auto h-5 w-16 rounded-full" />
+          <Skeleton className="h-5 w-20 rounded-full" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Component ──────────────────────────────────────────────────────────────
 export function ProjectWorkspace({
   project,
   members,
@@ -72,10 +125,24 @@ export function ProjectWorkspace({
   const [loading, setLoading] = React.useState(true);
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [activeTask, setActiveTask] = React.useState<TaskListItem | null>(null);
-  const [createStatus, setCreateStatus] = React.useState<TaskStatus>(
-    "NOT_STARTED",
-  );
+  const [createStatus, setCreateStatus] = React.useState<TaskStatus>("NOT_STARTED");
 
+  // ── Memoised derived stats ────────────────────────────────────────────────
+  const { completed, pct } = React.useMemo(() => {
+    const done = tasks.filter((t) => t.status === "COMPLETED").length;
+    const p =
+      tasks.length === 0
+        ? 0
+        : Math.round(
+            tasks.reduce(
+              (s, t) => s + (t.status === "COMPLETED" ? 100 : t.progress),
+              0,
+            ) / tasks.length,
+          );
+    return { completed: done, pct: p };
+  }, [tasks]);
+
+  // ── Data loading ──────────────────────────────────────────────────────────
   const loadTasks = React.useCallback(async () => {
     const res = await fetch(`/api/tasks?projectId=${project.id}`, {
       cache: "no-store",
@@ -103,30 +170,42 @@ export function ProjectWorkspace({
     }
   }, [searchParams, tasks]);
 
-  function openCreate(status: TaskStatus) {
+  // ── Handlers ──────────────────────────────────────────────────────────────
+  const openCreate = React.useCallback((status: TaskStatus) => {
     setActiveTask(null);
     setCreateStatus(status);
     setDialogOpen(true);
-  }
+  }, []);
 
-  function openTask(task: TaskListItem) {
+  const openTask = React.useCallback((task: TaskListItem) => {
     setActiveTask(task);
     setDialogOpen(true);
-  }
+  }, []);
 
-  async function moveTask(taskId: string, status: TaskStatus) {
-    setTasks((prev) =>
-      prev.map((t) => (t.id === taskId ? { ...t, status } : t)),
-    );
-    await fetch(`/api/tasks/${taskId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-    loadTasks();
-  }
+  // Optimistic move with silent background sync
+  const moveTask = React.useCallback(
+    async (taskId: string, status: TaskStatus) => {
+      setTasks((prev) =>
+        prev.map((t) => (t.id === taskId ? { ...t, status } : t)),
+      );
+      await fetch(`/api/tasks/${taskId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      // Silent refresh — no spinner, just reconcile
+      const res = await fetch(`/api/tasks?projectId=${project.id}`, {
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const { tasks: fresh } = await res.json();
+        setTasks(fresh);
+      }
+    },
+    [project.id],
+  );
 
-  async function archive() {
+  const archive = React.useCallback(async () => {
     const res = await fetch(`/api/projects/${project.id}/archive`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -139,13 +218,11 @@ export function ProjectWorkspace({
       });
       router.refresh();
     }
-  }
+  }, [project.id, project.isArchived, router, toast]);
 
-  async function remove() {
+  const remove = React.useCallback(async () => {
     if (!confirm(`Delete project "${project.name}" and all its tasks?`)) return;
-    const res = await fetch(`/api/projects/${project.id}`, {
-      method: "DELETE",
-    });
+    const res = await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
     if (res.ok) {
       toast({ title: "Project deleted", variant: "success" });
       router.push("/projects");
@@ -153,33 +230,21 @@ export function ProjectWorkspace({
     } else {
       toast({ title: "Delete failed", variant: "error" });
     }
-  }
+  }, [project.id, project.name, router, toast]);
 
-  const completed = tasks.filter((t) => t.status === "COMPLETED").length;
-  const pct =
-    tasks.length === 0
-      ? 0
-      : Math.round(
-          tasks.reduce(
-            (s, t) => s + (t.status === "COMPLETED" ? 100 : t.progress),
-            0,
-          ) / tasks.length,
-        );
-
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-5">
       {/* Header */}
       <div className="flex flex-col gap-4 border-b pb-5 lg:flex-row lg:items-start lg:justify-between">
         <div className="flex gap-3">
           <span
-            className="mt-1 h-12 w-1.5 rounded-full"
+            className="mt-1 h-12 w-1.5 shrink-0 rounded-full"
             style={{ backgroundColor: project.color }}
           />
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold tracking-tight">
-                {project.name}
-              </h1>
+              <h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
               <ProjectStatusBadge status={project.status} />
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -270,9 +335,7 @@ export function ProjectWorkspace({
         </TabsList>
 
         {loading ? (
-          <p className="py-12 text-center text-sm text-muted-foreground">
-            Loading tasks…
-          </p>
+          <WorkspaceSkeleton />
         ) : (
           <>
             <TabsContent value="overview">
@@ -315,10 +378,7 @@ export function ProjectWorkspace({
               />
             </TabsContent>
             <TabsContent value="risks">
-              <RiskRegister
-                projectId={project.id}
-                permissions={permissions}
-              />
+              <RiskRegister projectId={project.id} permissions={permissions} />
             </TabsContent>
             <TabsContent value="meetings">
               <MeetingNotes
@@ -331,21 +391,24 @@ export function ProjectWorkspace({
         )}
       </Tabs>
 
-      <TaskDialog
-        open={dialogOpen}
-        onClose={() => {
-          setDialogOpen(false);
-          if (searchParams.get("task"))
-            router.replace(`/projects/${project.id}`);
-        }}
-        task={activeTask}
-        defaultStatus={createStatus}
-        projectId={project.id}
-        users={allUsers}
-        siblingTasks={tasks}
-        permissions={permissions}
-        onSaved={loadTasks}
-      />
+      {/* Task dialog — only mounted when open to keep DOM lean */}
+      {dialogOpen && (
+        <TaskDialog
+          open={dialogOpen}
+          onClose={() => {
+            setDialogOpen(false);
+            if (searchParams.get("task"))
+              router.replace(`/projects/${project.id}`);
+          }}
+          task={activeTask}
+          defaultStatus={createStatus}
+          projectId={project.id}
+          users={allUsers}
+          siblingTasks={tasks}
+          permissions={permissions}
+          onSaved={loadTasks}
+        />
+      )}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { unstable_cache } from "next/cache";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { projectAccessWhere } from "@/lib/projects";
@@ -13,6 +14,18 @@ import { format } from "date-fns";
 
 export const metadata: Metadata = { title: "Projects" };
 
+// The active-users list changes rarely — cache for 5 min
+const getActiveUsers = unstable_cache(
+  () =>
+    prisma.user.findMany({
+      where: { isActive: true },
+      select: { id: true, name: true, email: true, image: true },
+      orderBy: { name: "asc" },
+    }),
+  ["active-users"],
+  { revalidate: 300 },
+);
+
 export default async function ProjectsPage() {
   const user = await requireUser();
   const where = projectAccessWhere(user.id, user.role);
@@ -20,23 +33,24 @@ export default async function ProjectsPage() {
   const [projects, users] = await Promise.all([
     prisma.project.findMany({
       where: { ...where, isArchived: false },
-      include: {
+      select: {
+        id: true,
+        name: true,
+        key: true,
+        entity: true,
+        department: true,
+        status: true,
+        priority: true,
+        color: true,
+        startDate: true,
+        endDate: true,
         owner: { select: { id: true, name: true, image: true } },
         projectManager: { select: { id: true, name: true, image: true } },
-        members: {
-          select: { user: { select: { id: true, name: true, image: true } } },
-        },
         tasks: { select: { status: true, progress: true } },
       },
       orderBy: { updatedAt: "desc" },
     }),
-    can(user.role, "project:create")
-      ? prisma.user.findMany({
-          where: { isActive: true },
-          select: { id: true, name: true, email: true, image: true },
-          orderBy: { name: "asc" },
-        })
-      : Promise.resolve([]),
+    can(user.role, "project:create") ? getActiveUsers() : Promise.resolve([]),
   ]);
 
   return (

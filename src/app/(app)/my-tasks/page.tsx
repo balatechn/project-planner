@@ -14,10 +14,18 @@ export const metadata: Metadata = { title: "My Tasks" };
 
 export default async function MyTasksPage() {
   const user = await requireUser();
+  // select only the columns rendered in the UI — smaller payload & faster scan
   const tasks = await prisma.task.findMany({
     where: { assignees: { some: { userId: user.id } } },
-    include: { project: { select: { id: true, name: true, color: true } } },
-    orderBy: [{ dueDate: "asc" }],
+    select: {
+      id: true,
+      title: true,
+      status: true,
+      priority: true,
+      dueDate: true,
+      project: { select: { id: true, name: true, color: true } },
+    },
+    orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }],
   });
 
   return (
