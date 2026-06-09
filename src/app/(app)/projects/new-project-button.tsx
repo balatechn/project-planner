@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { Loader2, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,10 +35,10 @@ type UserOption = {
 
 const TIMELINE_PRESETS = [
   { label: "6 months", months: 6 },
-  { label: "1 year", months: 12 },
-  { label: "2 years", months: 24 },
-  { label: "3 years", months: 36 },
-  { label: "Custom", months: 0 },
+  { label: "1 year",   months: 12 },
+  { label: "2 years",  months: 24 },
+  { label: "3 years",  months: 36 },
+  { label: "Custom",   months: 0 },
 ];
 
 function addMonths(date: Date, months: number): Date {
@@ -54,23 +54,39 @@ function toDateInput(d: Date): string {
 export function NewProjectButton({
   users,
   currentUserId,
+  currentUserName,
+  currentUserEmail,
+  autoOpen = false,
 }: {
   users: UserOption[];
   currentUserId: string;
+  currentUserName?: string | null;
+  currentUserEmail?: string | null;
+  autoOpen?: boolean;
 }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { toast } = useToast();
-  const [open, setOpen] = React.useState(false);
-  const [loading, setLoading] = React.useState(false);
-  const [timelinePreset, setTimelinePreset] = React.useState("12");
 
-  React.useEffect(() => {
-    if (searchParams.get("new") === "1") setOpen(true);
-  }, [searchParams]);
+  // ── Ensure the logged-in user always appears in the picker ──────────────
+  const allUsers: UserOption[] = React.useMemo(() => {
+    const alreadyIn = users.some((u) => u.id === currentUserId);
+    if (alreadyIn) return users;
+    return [
+      {
+        id: currentUserId,
+        name: currentUserName ?? null,
+        email: currentUserEmail ?? "me",
+        image: null,
+      },
+      ...users,
+    ];
+  }, [users, currentUserId, currentUserName, currentUserEmail]);
 
   const today = toDateInput(new Date());
 
+  const [open, setOpen] = React.useState(autoOpen);
+  const [loading, setLoading] = React.useState(false);
+  const [timelinePreset, setTimelinePreset] = React.useState("12");
   const [form, setForm] = React.useState({
     name: "",
     description: "",
@@ -99,9 +115,17 @@ export function NewProjectButton({
     }
   }
 
+  function handleOpenChange(next: boolean) {
+    setOpen(next);
+    // Clean up ?new=1 from the URL when the dialog closes
+    if (!next && autoOpen) {
+      router.replace("/projects");
+    }
+  }
+
   async function submit() {
     if (form.name.trim().length < 2) {
-      toast({ title: "Project name is too short", variant: "error" });
+      toast({ title: "Project name must be at least 2 characters", variant: "error" });
       return;
     }
     setLoading(true);
@@ -120,25 +144,25 @@ export function NewProjectButton({
           color: form.color,
           ownerId: form.ownerId,
           projectManagerId: form.projectManagerId || null,
-          startDate: form.startDate
-            ? new Date(form.startDate).toISOString()
-            : null,
+          startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
           endDate: form.endDate ? new Date(form.endDate).toISOString() : null,
         }),
       });
+
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.error ?? "Failed to create project");
+        throw new Error(err.error ?? `Server error ${res.status}`);
       }
+
       const { project } = await res.json();
-      toast({ title: "Project created", variant: "success" });
+      toast({ title: "Project created!", variant: "success" });
       setOpen(false);
       router.push(`/projects/${project.id}?view=gantt`);
       router.refresh();
     } catch (e) {
       toast({
         title: "Could not create project",
-        description: e instanceof Error ? e.message : undefined,
+        description: e instanceof Error ? e.message : "Unknown error",
         variant: "error",
       });
     } finally {
@@ -147,18 +171,13 @@ export function NewProjectButton({
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        setOpen(o);
-        if (!o && searchParams.get("new")) router.replace("/projects");
-      }}
-    >
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="brand">
           <Plus /> New Project
         </Button>
       </DialogTrigger>
+
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create a new project</DialogTitle>
@@ -170,20 +189,21 @@ export function NewProjectButton({
         <div className="grid gap-4 sm:grid-cols-2">
           {/* Project name */}
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="name">Project name *</Label>
+            <Label htmlFor="np-name">Project name *</Label>
             <Input
-              id="name"
+              id="np-name"
               value={form.name}
               onChange={(e) => update("name", e.target.value)}
-              placeholder="Q3 Marketing Campaign"
+              placeholder="e.g. Q3 Marketing Campaign"
+              autoFocus
             />
           </div>
 
           {/* Description */}
           <div className="space-y-1.5 sm:col-span-2">
-            <Label htmlFor="description">Description</Label>
+            <Label htmlFor="np-desc">Description</Label>
             <Textarea
-              id="description"
+              id="np-desc"
               value={form.description}
               onChange={(e) => update("description", e.target.value)}
               placeholder="What is this project about?"
@@ -193,30 +213,25 @@ export function NewProjectButton({
 
           {/* Entity */}
           <div className="space-y-1.5">
-            <Label htmlFor="entity">Entity / Division</Label>
+            <Label htmlFor="np-entity">Entity / Division</Label>
             <Input
-              id="entity"
+              id="np-entity"
               value={form.entity}
               onChange={(e) => update("entity", e.target.value)}
-              placeholder="ACME Corp — APAC"
+              placeholder="National Group India"
             />
           </div>
 
           {/* Department */}
           <div className="space-y-1.5">
             <Label>Department</Label>
-            <Select
-              value={form.department}
-              onValueChange={(v) => update("department", v)}
-            >
+            <Select value={form.department} onValueChange={(v) => update("department", v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select department" />
               </SelectTrigger>
               <SelectContent>
                 {DEPARTMENTS.map((d) => (
-                  <SelectItem key={d} value={d}>
-                    {d}
-                  </SelectItem>
+                  <SelectItem key={d} value={d}>{d}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -225,15 +240,12 @@ export function NewProjectButton({
           {/* Project Manager */}
           <div className="space-y-1.5">
             <Label>Project Manager</Label>
-            <Select
-              value={form.projectManagerId}
-              onValueChange={(v) => update("projectManagerId", v)}
-            >
+            <Select value={form.projectManagerId} onValueChange={(v) => update("projectManagerId", v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Select PM" />
               </SelectTrigger>
               <SelectContent>
-                {users.map((u) => (
+                {allUsers.map((u) => (
                   <SelectItem key={u.id} value={u.id}>
                     {u.name ?? u.email}
                   </SelectItem>
@@ -244,16 +256,13 @@ export function NewProjectButton({
 
           {/* Owner */}
           <div className="space-y-1.5">
-            <Label>Project owner</Label>
-            <Select
-              value={form.ownerId}
-              onValueChange={(v) => update("ownerId", v)}
-            >
+            <Label>Project Owner</Label>
+            <Select value={form.ownerId} onValueChange={(v) => update("ownerId", v)}>
               <SelectTrigger>
                 <SelectValue placeholder="Owner" />
               </SelectTrigger>
               <SelectContent>
-                {users.map((u) => (
+                {allUsers.map((u) => (
                   <SelectItem key={u.id} value={u.id}>
                     {u.name ?? u.email}
                   </SelectItem>
@@ -265,13 +274,8 @@ export function NewProjectButton({
           {/* Priority */}
           <div className="space-y-1.5">
             <Label>Priority</Label>
-            <Select
-              value={form.priority}
-              onValueChange={(v) => update("priority", v)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+            <Select value={form.priority} onValueChange={(v) => update("priority", v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((p) => (
                   <SelectItem key={p} value={p}>
@@ -285,13 +289,8 @@ export function NewProjectButton({
           {/* Status */}
           <div className="space-y-1.5">
             <Label>Status</Label>
-            <Select
-              value={form.status}
-              onValueChange={(v) => update("status", v)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
+            <Select value={form.status} onValueChange={(v) => update("status", v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {["PLANNING", "ACTIVE", "ON_HOLD"].map((s) => (
                   <SelectItem key={s} value={s}>
@@ -325,9 +324,9 @@ export function NewProjectButton({
 
           {/* Start date */}
           <div className="space-y-1.5">
-            <Label htmlFor="start">Start date</Label>
+            <Label htmlFor="np-start">Start date</Label>
             <Input
-              id="start"
+              id="np-start"
               type="date"
               value={form.startDate}
               onChange={(e) => {
@@ -342,23 +341,23 @@ export function NewProjectButton({
 
           {/* End date */}
           <div className="space-y-1.5">
-            <Label htmlFor="end">End date</Label>
+            <Label htmlFor="np-end">End date</Label>
             <Input
-              id="end"
+              id="np-end"
               type="date"
               value={form.endDate}
               onChange={(e) => {
                 update("endDate", e.target.value);
-                setTimelinePreset("0"); // custom
+                setTimelinePreset("0");
               }}
             />
           </div>
 
           {/* Budget */}
           <div className="space-y-1.5">
-            <Label htmlFor="budget">Budget (USD)</Label>
+            <Label htmlFor="np-budget">Budget (USD)</Label>
             <Input
-              id="budget"
+              id="np-budget"
               type="number"
               min={0}
               value={form.budget}
@@ -367,11 +366,11 @@ export function NewProjectButton({
             />
           </div>
 
-          {/* Color */}
+          {/* Colour */}
           <div className="space-y-1.5">
-            <Label htmlFor="color">Color</Label>
+            <Label htmlFor="np-color">Colour</Label>
             <Input
-              id="color"
+              id="np-color"
               type="color"
               value={form.color}
               onChange={(e) => update("color", e.target.value)}
@@ -381,7 +380,7 @@ export function NewProjectButton({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>
             Cancel
           </Button>
           <Button variant="brand" onClick={submit} disabled={loading}>

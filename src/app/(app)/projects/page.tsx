@@ -14,7 +14,7 @@ import { format } from "date-fns";
 
 export const metadata: Metadata = { title: "Projects" };
 
-// The active-users list changes rarely — cache for 5 min
+// The active-users list rarely changes — cache for 5 min across requests
 const getActiveUsers = unstable_cache(
   () =>
     prisma.user.findMany({
@@ -26,9 +26,19 @@ const getActiveUsers = unstable_cache(
   { revalidate: 300 },
 );
 
-export default async function ProjectsPage() {
+export default async function ProjectsPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ new?: string }>;
+}) {
   const user = await requireUser();
   const where = projectAccessWhere(user.id, user.role);
+
+  // Resolve ?new=1 on the server — no useSearchParams() needed in client
+  const params = searchParams ? await searchParams : {};
+  const autoOpen = params.new === "1";
+
+  const canCreate = can(user.role, "project:create");
 
   const [projects, users] = await Promise.all([
     prisma.project.findMany({
@@ -50,8 +60,17 @@ export default async function ProjectsPage() {
       },
       orderBy: { updatedAt: "desc" },
     }),
-    can(user.role, "project:create") ? getActiveUsers() : Promise.resolve([]),
+    canCreate ? getActiveUsers() : Promise.resolve([]),
   ]);
+
+  // Common props shared by both instances of NewProjectButton
+  const newProjectProps = {
+    users,
+    currentUserId: user.id,
+    currentUserName: user.name,
+    currentUserEmail: user.email,
+    autoOpen,
+  };
 
   return (
     <div className="space-y-6">
@@ -59,9 +78,7 @@ export default async function ProjectsPage() {
         title="Projects"
         description={`${projects.length} active ${projects.length === 1 ? "project" : "projects"} in your workspace.`}
       >
-        {can(user.role, "project:create") && (
-          <NewProjectButton users={users} currentUserId={user.id} />
-        )}
+        {canCreate && <NewProjectButton {...newProjectProps} />}
       </PageHeader>
 
       {projects.length === 0 ? (
@@ -75,9 +92,7 @@ export default async function ProjectsPage() {
               Create your first project to start planning tasks, tracking
               progress and collaborating with your team.
             </p>
-            {can(user.role, "project:create") && (
-              <NewProjectButton users={users} currentUserId={user.id} />
-            )}
+            {canCreate && <NewProjectButton {...newProjectProps} />}
           </CardContent>
         </Card>
       ) : (
@@ -118,10 +133,7 @@ export default async function ProjectsPage() {
                       : "—";
 
                   return (
-                    <tr
-                      key={p.id}
-                      className="group hover:bg-muted/30 transition-colors"
-                    >
+                    <tr key={p.id} className="group hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3">
                         <Link
                           href={`/projects/${p.id}?view=gantt`}
