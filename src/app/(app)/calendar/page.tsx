@@ -19,7 +19,7 @@ export default async function CalendarPage() {
       assignees: {
         select: { user: { select: { id: true, name: true, image: true } } },
       },
-      _count: { select: { subtasks: true, comments: true, attachments: true } },
+      _count: { select: { subtasks: true, comments: true, attachments: true, checklistItems: true } },
       dependsOn: { select: { prerequisiteId: true } },
     },
     orderBy: { dueDate: "asc" },

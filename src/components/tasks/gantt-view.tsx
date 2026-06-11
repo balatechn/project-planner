@@ -10,7 +10,7 @@ import {
   max as maxDate,
   min as minDate,
 } from "date-fns";
-import { Loader2, Plus } from "lucide-react";
+import { CheckSquare, ChevronDown, ChevronRight, Loader2, Plus } from "lucide-react";
 import type { TaskListItem, Person } from "@/types/app";
 import { TASK_STATUS_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
@@ -127,6 +127,33 @@ export function GanttView({
   const weeks = eachWeekOfInterval({ start, end });
   const todayOffset = differenceInCalendarDays(today, start);
 
+  // ── Subtask collapse state ────────────────────────────────────────────────
+  const [collapsedParents, setCollapsedParents] = React.useState<Set<string>>(new Set());
+
+  function toggleCollapse(taskId: string) {
+    setCollapsedParents((prev) => {
+      const next = new Set(prev);
+      if (next.has(taskId)) next.delete(taskId);
+      else next.add(taskId);
+      return next;
+    });
+  }
+
+  // Build set of task IDs that have children in the scheduled list
+  const parentIds = React.useMemo(
+    () => new Set(scheduled.filter((t) => t.parentId).map((t) => t.parentId!)),
+    [scheduled],
+  );
+
+  // Visible rows: hide subtasks whose parent is collapsed
+  const visibleScheduled = React.useMemo(
+    () =>
+      scheduled.filter(
+        (t) => !t.parentId || !collapsedParents.has(t.parentId),
+      ),
+    [scheduled, collapsedParents],
+  );
+
   async function addTask() {
     if (!form.title.trim() || !projectId) return;
     setSaving(true);
@@ -165,7 +192,7 @@ export function GanttView({
   }
 
   // Ghost rows to always show grid lines even when few / no tasks
-  const ghostCount = Math.max(0, MIN_ROWS - (scheduled.length > 0 ? scheduled.length : tasks.length > 0 ? tasks.length : 0));
+  const ghostCount = Math.max(0, MIN_ROWS - (visibleScheduled.length > 0 ? visibleScheduled.length : tasks.length > 0 ? tasks.length : 0));
 
   return (
     <div className="space-y-3 pt-1">
@@ -410,7 +437,7 @@ export function GanttView({
             {/* CASE 3: Tasks with dates — render bars */}
             {scheduled.length > 0 && (
               <>
-                {scheduled.map((task) => {
+                {visibleScheduled.map((task) => {
                   const s = task.startDate ? new Date(task.startDate) : new Date(task.dueDate!);
                   const e = task.dueDate ? new Date(task.dueDate) : addDays(new Date(task.startDate!), 1);
                   const offset = Math.max(0, differenceInCalendarDays(s, start));
@@ -426,21 +453,47 @@ export function GanttView({
                       style={{ height: ROW_HEIGHT }}
                     >
                       {/* Label column */}
-                      <button
-                        onClick={() => onOpenTask(task)}
-                        className="shrink-0 border-r border-border/60 px-3 text-left text-xs hover:text-primary transition-colors overflow-hidden"
+                      <div
+                        className="shrink-0 border-r border-border/60 flex items-center overflow-hidden"
                         style={{ width: LABEL_WIDTH, height: ROW_HEIGHT }}
                       >
-                        <div className="flex items-center gap-1.5 h-full">
+                        {/* Collapse toggle for parent tasks */}
+                        {parentIds.has(task.id) ? (
+                          <button
+                            onClick={() => toggleCollapse(task.id)}
+                            className="flex-shrink-0 ml-1 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            title={collapsedParents.has(task.id) ? "Expand subtasks" : "Collapse subtasks"}
+                          >
+                            {collapsedParents.has(task.id) ? (
+                              <ChevronRight className="h-3 w-3" />
+                            ) : (
+                              <ChevronDown className="h-3 w-3" />
+                            )}
+                          </button>
+                        ) : (
+                          <span className="flex-shrink-0 w-5" />
+                        )}
+
+                        <button
+                          onClick={() => onOpenTask(task)}
+                          className={cn(
+                            "flex-1 px-1.5 text-left text-xs hover:text-primary transition-colors overflow-hidden h-full flex items-center gap-1",
+                            task.parentId && "pl-3 text-muted-foreground",
+                          )}
+                        >
+                          {task.parentId && (
+                            <span className="flex-shrink-0 text-border text-[10px]">└</span>
+                          )}
                           {task.isMilestone && (
                             <span className="text-amber-500 flex-shrink-0">◆</span>
                           )}
                           {task.wbsNumber && (
-                            <span className="text-xs text-muted-foreground flex-shrink-0 font-mono">
+                            <span className="text-[10px] text-muted-foreground flex-shrink-0 font-mono">
                               {task.wbsNumber}
                             </span>
                           )}
                           <span className="truncate">{task.title}</span>
+                          {/* Subtask count badge */}
                           {task._count.subtasks > 0 && (
                             <span
                               className="flex-shrink-0 rounded-full bg-muted px-1 text-[9px] font-medium text-muted-foreground"
@@ -449,14 +502,24 @@ export function GanttView({
                               ⊞{task._count.subtasks}
                             </span>
                           )}
+                          {/* Checklist badge */}
+                          {task._count.checklistItems > 0 && (
+                            <span
+                              className="flex-shrink-0 flex items-center gap-0.5 text-[9px] text-muted-foreground"
+                              title={`${task._count.checklistItems} checklist items`}
+                            >
+                              <CheckSquare className="h-2.5 w-2.5" />
+                              {task._count.checklistItems}
+                            </span>
+                          )}
                           {isCritical && (
                             <span
                               className="ml-auto flex-shrink-0 h-2 w-2 rounded-full bg-red-500"
                               title="Critical path"
                             />
                           )}
-                        </div>
-                      </button>
+                        </button>
+                      </div>
 
                       {/* Timeline column */}
                       <div

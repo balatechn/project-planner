@@ -387,7 +387,6 @@ export function ProjectWorkspace({
           open={dialogOpen}
           onClose={() => {
             setDialogOpen(false);
-            // If we landed here via a ?task= link, clean the URL
             if (initialTaskId)
               router.replace(`/projects/${project.id}?view=${defaultView}`);
           }}
@@ -398,6 +397,12 @@ export function ProjectWorkspace({
           siblingTasks={tasks}
           permissions={permissions}
           onSaved={loadTasks}
+          onOpenSubtask={(id) => {
+            const t = tasks.find((x) => x.id === id);
+            if (t) {
+              setActiveTask(t);
+            }
+          }}
         />
       )}
     </div>

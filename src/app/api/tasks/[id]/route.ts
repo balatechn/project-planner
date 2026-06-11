@@ -59,6 +59,7 @@ export async function GET(_req: Request, { params }: Params) {
         },
         createdBy: { select: { id: true, name: true, image: true } },
         project: { select: { id: true, name: true, color: true } },
+        parent: { select: { id: true, title: true } },
       },
     });
     return json({ task });

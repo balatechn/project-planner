@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { format } from "date-fns";
-import { CheckCircle2, CheckSquare, Circle, Clock, ListTree, Loader2, Paperclip, Plus, Send, Square, Trash2 } from "lucide-react";
+import { ArrowUpLeft, CheckCircle2, CheckSquare, Circle, Clock, ExternalLink, ListTree, Loader2, Paperclip, Plus, Send, Square, Trash2 } from "lucide-react";
 import type { Priority, TaskStatus } from "@prisma/client";
 import type { Person, TaskListItem, WorkspacePermissions } from "@/types/app";
 import {
@@ -82,6 +82,7 @@ export function TaskDialog({
   siblingTasks,
   permissions,
   onSaved,
+  onOpenSubtask,
 }: {
   open: boolean;
   onClose: () => void;
@@ -92,6 +93,7 @@ export function TaskDialog({
   siblingTasks: TaskListItem[];
   permissions: WorkspacePermissions;
   onSaved: () => void;
+  onOpenSubtask?: (id: string) => void;
 }) {
   const { toast } = useToast();
   const isEdit = !!task;
@@ -103,6 +105,7 @@ export function TaskDialog({
   const [subtasks, setSubtasks] = React.useState<SubTask[]>([]);
   const [newSubtaskTitle, setNewSubtaskTitle] = React.useState("");
   const [subtaskSaving, setSubtaskSaving] = React.useState(false);
+  const [parentInfo, setParentInfo] = React.useState<{ id: string; title: string } | null>(null);
   const [newComment, setNewComment] = React.useState("");
   const [newCheckItem, setNewCheckItem] = React.useState("");
   const [logHours, setLogHours] = React.useState("");
@@ -119,6 +122,7 @@ export function TaskDialog({
     setAssignees(task?.assignees.map((a) => a.user.id) ?? []);
     setSubtasks([]);
     setNewSubtaskTitle("");
+    setParentInfo(null);
     if (task) {
       fetch(`/api/tasks/${task.id}`)
         .then((r) => r.json())
@@ -127,6 +131,7 @@ export function TaskDialog({
           setAttachments(d.task?.attachments ?? []);
           setChecklist(d.task?.checklistItems ?? []);
           setTimeLogs(d.task?.timeLogs ?? []);
+          if (d.task?.parent) setParentInfo(d.task.parent);
         })
         .catch(() => undefined);
       // Fetch subtasks separately
@@ -276,9 +281,22 @@ export function TaskDialog({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: newStatus }),
     });
-    setSubtasks((s) =>
-      s.map((t) => (t.id === subtaskId ? { ...t, status: newStatus } : t)),
+    const updated = subtasks.map((t) =>
+      t.id === subtaskId ? { ...t, status: newStatus } : t,
     );
+    setSubtasks(updated);
+
+    // ── Progress rollup: update parent task progress based on subtask completion ──
+    if (task && updated.length > 0) {
+      const completedCount = updated.filter((s) => s.status === "COMPLETED").length;
+      const newProgress = Math.round((completedCount / updated.length) * 100);
+      await fetch(`/api/tasks/${task.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ progress: newProgress }),
+      });
+      set("progress", String(newProgress));
+    }
     onSaved();
   }
 
@@ -334,6 +352,17 @@ export function TaskDialog({
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>{isEdit ? "Task details" : "New task"}</DialogTitle>
+          {/* Parent breadcrumb — shown when this task is a subtask */}
+          {parentInfo && (
+            <button
+              type="button"
+              onClick={() => onOpenSubtask?.(parentInfo.id)}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors mt-0.5"
+            >
+              <ArrowUpLeft className="h-3 w-3" />
+              Part of: <span className="font-medium ml-0.5">{parentInfo.title}</span>
+            </button>
+          )}
         </DialogHeader>
 
         <div className="grid gap-5 lg:grid-cols-[1fr_260px]">
@@ -458,6 +487,15 @@ export function TaskDialog({
                           </AvatarFallback>
                         </Avatar>
                       )}
+                      {/* Open subtask button */}
+                      <button
+                        type="button"
+                        onClick={() => onOpenSubtask?.(sub.id)}
+                        className="flex-shrink-0 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-primary transition-all"
+                        title="Open subtask"
+                      >
+                        <ExternalLink className="h-3.5 w-3.5" />
+                      </button>
                     </div>
                   ))}
                 </div>

@@ -30,7 +30,7 @@ export async function GET(req: Request) {
             user: { select: { id: true, name: true, image: true } },
           },
         },
-        _count: { select: { subtasks: true, comments: true, attachments: true } },
+        _count: { select: { subtasks: true, comments: true, attachments: true, checklistItems: true } },
         dependsOn: { select: { prerequisiteId: true } },
       },
       orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],

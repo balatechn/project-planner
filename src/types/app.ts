@@ -31,7 +31,7 @@ export type TaskListItem = {
   baselineEnd?: string | null;
   assignees: { user: Person }[];
   dependsOn: { prerequisiteId: string }[];
-  _count: { subtasks: number; comments: number; attachments: number };
+  _count: { subtasks: number; comments: number; attachments: number; checklistItems: number };
 };
 
 export type ProjectSummary = {
