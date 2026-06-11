@@ -21,17 +21,15 @@ export default async function LoginPage({
       <div className="brand-gradient relative hidden flex-col justify-between p-12 text-white lg:flex">
 
         {/* Logo + company name */}
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/15 backdrop-blur p-1.5">
-            <Image
-              src="https://nationalgroupindia.com/logo_full.webp"
-              alt="National Group India"
-              width={40}
-              height={40}
-              className="object-contain brightness-0 invert"
-              priority
-            />
-          </div>
+        <div className="flex items-center gap-4">
+          <Image
+            src="https://nationalgroupindia.com/logo_full.webp"
+            alt="National Group India"
+            width={64}
+            height={64}
+            className="object-contain brightness-0 invert flex-shrink-0"
+            priority
+          />
           <div>
             <p className="text-base font-bold leading-tight tracking-wide">
               National Group India
@@ -48,15 +46,16 @@ export default async function LoginPage({
             Plan, track and deliver work — all in one place.
           </h1>
           <p className="max-w-md text-white/80">
-            A premium, enterprise-grade workspace built for National Group India —
-            combining the best of Microsoft Planner, Asana, Monday and Jira.
-            Secure single sign-on with your Microsoft 365 account.
+            Your all-in-one workspace for projects, tasks, training and meeting
+            rooms — powered by Microsoft 365.
           </p>
           <ul className="space-y-2 pt-4 text-sm text-white/90">
-            <li>✓ Kanban, Gantt, Calendar &amp; List views</li>
-            <li>✓ Role-based access &amp; audit logging</li>
-            <li>✓ OneDrive / SharePoint file integration</li>
-            <li>✓ Email notifications via Microsoft Graph</li>
+            <li>✓ Project Planning — Kanban, Gantt, Calendar &amp; List views</li>
+            <li>✓ Task Management — assignments, priorities &amp; deadlines</li>
+            <li>✓ Training — structured learning &amp; resource management</li>
+            <li>✓ Meeting Room Booking — auto Teams sync &amp; guest invites</li>
+            <li>✓ Microsoft 365 SSO — secure, no separate password needed</li>
+            <li>✓ Role-based access — Admin, PM &amp; Team Member levels</li>
           </ul>
         </div>
 
