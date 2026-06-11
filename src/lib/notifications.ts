@@ -26,7 +26,7 @@ export async function notify(params: {
       html: renderEmail({
         heading: params.title,
         body: params.body ?? "",
-        ctaLabel: params.link ? "Open in Project Planner" : undefined,
+        ctaLabel: params.link ? "Open in Sharepoint" : undefined,
         ctaUrl: params.link ? `${baseUrl}${params.link}` : undefined,
       }),
     });

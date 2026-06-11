@@ -103,7 +103,7 @@ export function AppSidebar({
             <div className="brand-gradient flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold text-white">
               ◆
             </div>
-            <span className="font-semibold tracking-tight">Project Planner</span>
+            <span className="font-semibold tracking-tight">Sharepoint</span>
           </Link>
           <button className="lg:hidden" onClick={onClose} aria-label="Close menu">
             <X className="h-5 w-5" />

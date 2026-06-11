@@ -1,5 +1,5 @@
 // ============================================================
-// Project Planner — Prisma schema
+// Sharepoint — Prisma schema
 // PostgreSQL. Covers auth, RBAC, projects, tasks, collaboration,
 // notifications, templates, audit logging and reporting entities.
 // ============================================================

@@ -66,7 +66,7 @@ export function buildICS(event: ICSEvent): string {
   const lines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//National Group India//Project Planner//EN",
+    "PRODID:-//National Group India//Sharepoint//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:REQUEST",
     "BEGIN:VEVENT",

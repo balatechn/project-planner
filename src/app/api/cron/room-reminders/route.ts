@@ -63,7 +63,7 @@ export async function GET(req: Request) {
   <p>Date: ${dateStr}</p>
   <p>Time: ${startStr}</p>
   ${booking.teamsJoinUrl ? `<p><a href="${booking.teamsJoinUrl}" style="background:#5558af;color:#fff;padding:8px 16px;border-radius:4px;text-decoration:none;">Join Teams Meeting</a></p>` : ""}
-  <p style="color:#94a3b8;font-size:12px">Reminder from National Group India · Project Planner</p>
+  <p style="color:#94a3b8;font-size:12px">Reminder from National Group India · Sharepoint</p>
 </div>`;
 
     const subject = `Tomorrow: ${booking.title} at ${startStr}`;

@@ -85,7 +85,7 @@ export function LoginForm({
           <div>
             <p className="text-sm font-bold leading-tight">National Group India</p>
             <p className="text-[11px] text-muted-foreground uppercase tracking-wider">
-              Project Planner
+              Sharepoint
             </p>
           </div>
         </div>

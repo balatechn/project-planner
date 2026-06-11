@@ -58,7 +58,7 @@ export async function GET(req: Request) {
 
     // Excel via ExcelJS
     const wb = new ExcelJS.Workbook();
-    wb.creator = "Project Planner";
+    wb.creator = "Sharepoint";
     const ws = wb.addWorksheet("Projects");
     ws.columns = [
       { header: "Project", key: "name", width: 32 },

@@ -35,7 +35,7 @@ export default async function LoginPage({
               National Group India
             </p>
             <p className="text-xs text-white/70 font-medium tracking-wider uppercase">
-              Project Planner
+              Sharepoint
             </p>
           </div>
         </div>

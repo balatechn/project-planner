@@ -1,6 +1,6 @@
 {
-  "name": "National Group India — Project Planner",
-  "short_name": "NGI Planner",
+  "name": "National Group India — Sharepoint",
+  "short_name": "NGI Sharepoint",
   "description": "Enterprise project & task management for National Group India",
   "start_url": "/dashboard",
   "display": "standalone",

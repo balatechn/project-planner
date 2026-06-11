@@ -14,8 +14,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "Project Planner",
-    template: "%s · Project Planner",
+    default: "Sharepoint",
+    template: "%s · Sharepoint",
   },
   description:
     "Enterprise project & task management with Microsoft 365 single sign-on.",

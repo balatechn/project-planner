@@ -226,6 +226,6 @@ export function buildBookingEmailHtml(params: {
     <tr><td style="padding:6px 0;color:#64748b">Organizer</td><td>${params.organizerName}</td></tr>
   </table>
   <br>${teamsBtn}
-  <p style="color:#94a3b8;font-size:12px">Booked via National Group India · Project Planner</p>
+  <p style="color:#94a3b8;font-size:12px">Booked via National Group India · Sharepoint</p>
 </div>`;
 }

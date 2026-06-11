@@ -128,7 +128,7 @@ export function AppTopNav({
                 National Group India
               </p>
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none mt-0.5">
-                Project Planner
+                Sharepoint
               </p>
             </div>
           </Link>
