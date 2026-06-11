@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { format } from "date-fns";
-import { CheckSquare, Clock, Loader2, Paperclip, Plus, Send, Square, Trash2 } from "lucide-react";
+import { CheckCircle2, CheckSquare, Circle, Clock, ListTree, Loader2, Paperclip, Plus, Send, Square, Trash2 } from "lucide-react";
 import type { Priority, TaskStatus } from "@prisma/client";
 import type { Person, TaskListItem, WorkspacePermissions } from "@/types/app";
 import {
@@ -56,6 +56,21 @@ type TimeLogEntry = {
   description: string | null;
   user: Person;
 };
+type SubTask = {
+  id: string;
+  title: string;
+  status: TaskStatus;
+  priority: string;
+  assignees: { user: Person }[];
+};
+
+const SUBTASK_STATUS_COLORS: Partial<Record<TaskStatus, string>> = {
+  NOT_STARTED: "bg-zinc-500/10 text-zinc-500",
+  IN_PROGRESS: "bg-blue-500/10 text-blue-600",
+  COMPLETED:   "bg-green-500/10 text-green-600",
+  ON_HOLD:     "bg-amber-500/10 text-amber-600",
+  DELAYED:     "bg-red-500/10 text-red-500",
+};
 
 export function TaskDialog({
   open,
@@ -85,6 +100,9 @@ export function TaskDialog({
   const [attachments, setAttachments] = React.useState<Attachment[]>([]);
   const [checklist, setChecklist] = React.useState<ChecklistItem[]>([]);
   const [timeLogs, setTimeLogs] = React.useState<TimeLogEntry[]>([]);
+  const [subtasks, setSubtasks] = React.useState<SubTask[]>([]);
+  const [newSubtaskTitle, setNewSubtaskTitle] = React.useState("");
+  const [subtaskSaving, setSubtaskSaving] = React.useState(false);
   const [newComment, setNewComment] = React.useState("");
   const [newCheckItem, setNewCheckItem] = React.useState("");
   const [logHours, setLogHours] = React.useState("");
@@ -99,6 +117,8 @@ export function TaskDialog({
   React.useEffect(() => {
     setForm(initialForm(task, defaultStatus));
     setAssignees(task?.assignees.map((a) => a.user.id) ?? []);
+    setSubtasks([]);
+    setNewSubtaskTitle("");
     if (task) {
       fetch(`/api/tasks/${task.id}`)
         .then((r) => r.json())
@@ -109,13 +129,18 @@ export function TaskDialog({
           setTimeLogs(d.task?.timeLogs ?? []);
         })
         .catch(() => undefined);
+      // Fetch subtasks separately
+      fetch(`/api/tasks?projectId=${projectId}&parentId=${task.id}`)
+        .then((r) => r.json())
+        .then((d) => setSubtasks(d.tasks ?? []))
+        .catch(() => undefined);
     } else {
       setComments([]);
       setAttachments([]);
       setChecklist([]);
       setTimeLogs([]);
     }
-  }, [task, defaultStatus]);
+  }, [task, defaultStatus, projectId]);
 
   const readOnly = isEdit ? !permissions.canEditTask : !permissions.canCreateTask;
 
@@ -214,6 +239,49 @@ export function TaskDialog({
     }
   }
 
+  async function createSubtask() {
+    if (!task || !newSubtaskTitle.trim()) return;
+    setSubtaskSaving(true);
+    try {
+      const res = await fetch("/api/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          projectId,
+          parentId: task.id,
+          title: newSubtaskTitle.trim(),
+          status: "NOT_STARTED",
+          priority: "MEDIUM",
+          progress: 0,
+        }),
+      });
+      if (res.ok) {
+        const { task: created } = await res.json();
+        setSubtasks((s) => [...s, created]);
+        setNewSubtaskTitle("");
+        toast({ title: "Subtask added", variant: "success" });
+        onSaved();
+      }
+    } catch {
+      toast({ title: "Could not add subtask", variant: "error" });
+    } finally {
+      setSubtaskSaving(false);
+    }
+  }
+
+  async function toggleSubtask(subtaskId: string, done: boolean) {
+    const newStatus: TaskStatus = done ? "COMPLETED" : "NOT_STARTED";
+    await fetch(`/api/tasks/${subtaskId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    setSubtasks((s) =>
+      s.map((t) => (t.id === subtaskId ? { ...t, status: newStatus } : t)),
+    );
+    onSaved();
+  }
+
   async function toggleChecklistItem(itemId: string, done: boolean) {
     if (!task) return;
     await fetch(`/api/tasks/${task.id}/checklist/${itemId}`, {
@@ -290,6 +358,137 @@ export function TaskDialog({
                 className="min-h-24"
               />
             </div>
+
+            {/* ── Subtasks ──────────────────────────────────────── */}
+            {isEdit && (
+              <div className="space-y-2 rounded-lg border bg-muted/20 p-3">
+                {/* Header */}
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center gap-1.5 text-sm font-medium">
+                    <ListTree className="h-3.5 w-3.5 text-muted-foreground" />
+                    Subtasks
+                    {subtasks.length > 0 && (
+                      <span className="ml-1 text-xs text-muted-foreground">
+                        {subtasks.filter((s) => s.status === "COMPLETED").length}/
+                        {subtasks.length} done
+                      </span>
+                    )}
+                  </span>
+                  {subtasks.length > 0 && (
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {Math.round(
+                        (subtasks.filter((s) => s.status === "COMPLETED").length /
+                          subtasks.length) *
+                          100,
+                      )}
+                      %
+                    </span>
+                  )}
+                </div>
+
+                {/* Progress bar */}
+                {subtasks.length > 0 && (
+                  <div className="h-1 overflow-hidden rounded-full bg-border">
+                    <div
+                      className="h-full rounded-full bg-green-500 transition-all"
+                      style={{
+                        width: `${Math.round(
+                          (subtasks.filter((s) => s.status === "COMPLETED").length /
+                            subtasks.length) *
+                            100,
+                        )}%`,
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Subtask rows */}
+                <div className="space-y-0.5">
+                  {subtasks.length === 0 && (
+                    <p className="text-xs text-muted-foreground py-1">
+                      No subtasks yet — add one below.
+                    </p>
+                  )}
+                  {subtasks.map((sub) => (
+                    <div
+                      key={sub.id}
+                      className="flex items-center gap-2 rounded-md px-1.5 py-1.5 hover:bg-muted/60 transition-colors"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => toggleSubtask(sub.id, sub.status !== "COMPLETED")}
+                        className={cn(
+                          "flex-shrink-0 transition-colors",
+                          sub.status === "COMPLETED"
+                            ? "text-green-500"
+                            : "text-muted-foreground hover:text-primary",
+                        )}
+                      >
+                        {sub.status === "COMPLETED" ? (
+                          <CheckCircle2 className="h-4 w-4" />
+                        ) : (
+                          <Circle className="h-4 w-4" />
+                        )}
+                      </button>
+                      <span
+                        className={cn(
+                          "flex-1 text-sm truncate",
+                          sub.status === "COMPLETED" &&
+                            "line-through text-muted-foreground",
+                        )}
+                      >
+                        {sub.title}
+                      </span>
+                      <span
+                        className={cn(
+                          "flex-shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                          SUBTASK_STATUS_COLORS[sub.status] ??
+                            "bg-zinc-500/10 text-zinc-500",
+                        )}
+                      >
+                        {TASK_STATUS_LABELS[sub.status]}
+                      </span>
+                      {sub.assignees[0] && (
+                        <Avatar className="h-5 w-5 flex-shrink-0">
+                          {sub.assignees[0].user.image && (
+                            <AvatarImage src={sub.assignees[0].user.image} alt="" />
+                          )}
+                          <AvatarFallback className="text-[9px]">
+                            {initials(sub.assignees[0].user.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add subtask input */}
+                {!readOnly && (
+                  <div className="flex gap-2">
+                    <Input
+                      value={newSubtaskTitle}
+                      onChange={(e) => setNewSubtaskTitle(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && createSubtask()}
+                      placeholder="Add subtask…"
+                      className="h-8 text-sm"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8"
+                      onClick={createSubtask}
+                      disabled={subtaskSaving || !newSubtaskTitle.trim()}
+                    >
+                      {subtaskSaving ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Plus className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Checklist */}
             {isEdit && (

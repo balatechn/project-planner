@@ -12,11 +12,11 @@ import {
   Clock,
   FolderKanban,
   GanttChartSquare,
+  GraduationCap,
   LayoutDashboard,
   Layers,
   Menu,
   Megaphone,
-  PlayCircle,
   Search,
   Settings,
   ShieldCheck,
@@ -36,18 +36,19 @@ type NavItem = {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   show?: (role: Role) => boolean;
+  accent?: "amber";
 };
 
 const PRIMARY_NAV: NavItem[] = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/projects", label: "Projects", icon: FolderKanban },
-  { href: "/portfolio", label: "Portfolio", icon: GanttChartSquare },
-  { href: "/my-tasks", label: "My Tasks", icon: CheckSquare },
-  { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/dashboard", label: "Dashboard",  icon: LayoutDashboard },
+  { href: "/projects",  label: "Projects",   icon: FolderKanban    },
+  { href: "/portfolio", label: "Portfolio",  icon: GanttChartSquare },
+  { href: "/my-tasks",  label: "My Tasks",   icon: CheckSquare     },
+  { href: "/training",  label: "Training",   icon: GraduationCap, accent: "amber" },
+  { href: "/calendar",  label: "Calendar",   icon: CalendarDays    },
 ];
 
 const MORE_NAV: NavItem[] = [
-  { href: "/training",      label: "Training",       icon: PlayCircle  },
   { href: "/team",          label: "Team Directory", icon: Users       },
   { href: "/my-timesheets", label: "My Timesheets",  icon: Clock       },
   { href: "/templates",     label: "Templates",      icon: Layers      },
@@ -137,6 +138,7 @@ export function AppTopNav({
             {PRIMARY_NAV.map((item) => {
               const active = isActive(item.href);
               const Icon = item.icon;
+              const isAmber = item.accent === "amber";
               return (
                 <Link
                   key={item.href}
@@ -144,12 +146,16 @@ export function AppTopNav({
                   prefetch={true}
                   className={cn(
                     "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors whitespace-nowrap",
-                    active
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    isAmber
+                      ? active
+                        ? "bg-amber-500/15 text-amber-600 ring-1 ring-amber-500/30"
+                        : "text-amber-600/70 hover:bg-amber-500/10 hover:text-amber-600"
+                      : active
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
                   )}
                 >
-                  <Icon className="h-4 w-4 flex-shrink-0" />
+                  <Icon className={cn("h-4 w-4 flex-shrink-0", isAmber && "text-amber-500")} />
                   <span className="hidden lg:inline">{item.label}</span>
                 </Link>
               );

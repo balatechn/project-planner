@@ -16,8 +16,14 @@ export async function GET(req: Request) {
     if (!(await canAccessProject(projectId, user.id, user.role)))
       throw new ApiError(404, "Project not found");
 
+    // Optional parentId filter — if provided, return subtasks of that task only
+    const parentIdParam = searchParams.get("parentId");
+
     const tasks = await prisma.task.findMany({
-      where: { projectId },
+      where: {
+        projectId,
+        ...(parentIdParam !== null ? { parentId: parentIdParam } : {}),
+      },
       include: {
         assignees: {
           select: {

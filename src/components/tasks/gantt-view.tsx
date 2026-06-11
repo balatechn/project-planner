@@ -441,6 +441,14 @@ export function GanttView({
                             </span>
                           )}
                           <span className="truncate">{task.title}</span>
+                          {task._count.subtasks > 0 && (
+                            <span
+                              className="flex-shrink-0 rounded-full bg-muted px-1 text-[9px] font-medium text-muted-foreground"
+                              title={`${task._count.subtasks} subtask${task._count.subtasks !== 1 ? "s" : ""}`}
+                            >
+                              ⊞{task._count.subtasks}
+                            </span>
+                          )}
                           {isCritical && (
                             <span
                               className="ml-auto flex-shrink-0 h-2 w-2 rounded-full bg-red-500"
