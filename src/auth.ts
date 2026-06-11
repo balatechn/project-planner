@@ -38,7 +38,9 @@ if (entraConfigured) {
         ? `https://login.microsoftonline.com/${process.env.AUTH_MICROSOFT_ENTRA_ID_TENANT_ID}/v2.0`
         : undefined,
       authorization: {
-        params: { scope: "openid profile email User.Read offline_access" },
+        params: {
+          scope: "openid profile email User.Read OnlineMeetings.ReadWrite Calendars.Read Mail.Send offline_access",
+        },
       },
     }),
   );

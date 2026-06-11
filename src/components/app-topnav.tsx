@@ -21,6 +21,7 @@ import {
   Settings,
   ShieldCheck,
   Users,
+  Video,
   X,
 } from "lucide-react";
 import type { Role } from "@prisma/client";
@@ -44,8 +45,9 @@ const PRIMARY_NAV: NavItem[] = [
   { href: "/projects",  label: "Projects",   icon: FolderKanban    },
   { href: "/portfolio", label: "Portfolio",  icon: GanttChartSquare },
   { href: "/my-tasks",  label: "My Tasks",   icon: CheckSquare     },
-  { href: "/training",  label: "Training",   icon: GraduationCap, accent: "amber" },
-  { href: "/calendar",  label: "Calendar",   icon: CalendarDays    },
+  { href: "/training",       label: "Training",     icon: GraduationCap, accent: "amber" },
+  { href: "/meeting-rooms",  label: "Rooms",        icon: Video          },
+  { href: "/calendar",       label: "Calendar",     icon: CalendarDays   },
 ];
 
 const MORE_NAV: NavItem[] = [

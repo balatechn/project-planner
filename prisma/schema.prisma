@@ -114,6 +114,12 @@ enum AnnouncementType {
   URGENT
 }
 
+enum RoomBookingStatus {
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
 // ----------------------------------------------------------------
 // Auth.js models (Account / Session / VerificationToken)
 // ----------------------------------------------------------------
@@ -196,6 +202,8 @@ model User {
   approvals         TaskApproval[]
   announcements     Announcement[]
   trainingVideos    TrainingVideo[]
+  organizedBookings RoomBooking[]  @relation("RoomBookingOrganizer")
+  bookedForMeetings RoomBooking[]  @relation("RoomBookingFor")
 
   @@index([department])
   @@index([role])
@@ -773,4 +781,64 @@ model CustomFieldValue {
 
   @@unique([projectId, fieldDefId])
   @@index([fieldDefId])
+}
+
+// ----------------------------------------------------------------
+// Meeting Room Booking
+// ----------------------------------------------------------------
+
+model Room {
+  id          String   @id @default(cuid())
+  name        String
+  floor       String?
+  building    String?
+  capacity    Int      @default(4)
+  amenities   String[] // e.g. ["projector","whiteboard","videoConf","ac","phone"]
+  description String?
+  photoUrl    String?
+  isActive    Boolean  @default(true)
+  color       String   @default("#3b82f6")
+  orderIndex  Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  bookings RoomBooking[]
+
+  @@index([isActive])
+}
+
+model RoomBooking {
+  id               String            @id @default(cuid())
+  roomId           String
+  organizerId      String
+  bookedForId      String?           // book on behalf of another user
+  title            String
+  description      String?           @db.Text
+  startTime        DateTime
+  endTime          DateTime
+  attendeeIds      String[]          // user ids of attendees
+  // Teams / Graph integration
+  teamsJoinUrl     String?
+  teamsMeetingId   String?
+  teamsEventId     String?
+  // Recurring
+  isRecurring      Boolean           @default(false)
+  recurringType    String?           // "daily" | "weekly" | "monthly"
+  recurringDays    String?           // csv weekday nums "1,3,5"
+  recurringEnd     DateTime?
+  recurringGroupId String?
+  status           RoomBookingStatus @default(CONFIRMED)
+  reminderSent     Boolean           @default(false)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  room      Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  organizer User  @relation("RoomBookingOrganizer", fields: [organizerId], references: [id])
+  bookedFor User? @relation("RoomBookingFor", fields: [bookedForId], references: [id])
+
+  @@index([roomId])
+  @@index([organizerId])
+  @@index([startTime, endTime])
+  @@index([status])
+  @@index([recurringGroupId])
 }
