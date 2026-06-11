@@ -1,7 +1,11 @@
 /**
- * Cron job: send 15-minute room booking reminders via email.
- * Triggered by Vercel Cron every 5 minutes.
+ * Cron job: send next-day meeting room reminders via email.
+ * Triggered by Vercel Cron daily at 01:00 UTC (06:30 IST).
+ * Sends reminders for all confirmed bookings happening tomorrow.
  * Only runs if CRON_SECRET matches the Authorization header.
+ *
+ * Note: For real-time 15-min reminders, upgrade to Vercel Pro
+ * and change the cron expression to "* /5 * * * *".
  */
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -16,11 +20,12 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Send reminders for all of tomorrow's confirmed bookings
   const now = new Date();
-  const windowStart = new Date(now.getTime() + 14 * 60 * 1000); // 14 min from now
-  const windowEnd = new Date(now.getTime() + 16 * 60 * 1000);   // 16 min from now
+  const windowStart = new Date(now.getTime() + 22 * 60 * 60 * 1000); // +22h
+  const windowEnd = new Date(now.getTime() + 26 * 60 * 60 * 1000);   // +26h (covers full next day)
 
-  // Find confirmed bookings starting in ~15 min that haven't had a reminder
+  // Find confirmed bookings starting tomorrow that haven't had a reminder
   const upcoming = await prisma.roomBooking.findMany({
     where: {
       status: "CONFIRMED",
@@ -45,12 +50,18 @@ export async function GET(req: Request) {
       ? `${booking.room.name} (Floor ${booking.room.floor})`
       : booking.room.name;
 
+    const dateStr = booking.startTime.toLocaleString("en-IN", {
+      dateStyle: "full",
+      timeZone: "Asia/Kolkata",
+    });
+
     const html = `
 <div style="font-family:sans-serif;max-width:480px;padding:20px">
-  <h2 style="color:#f59e0b">⏰ Meeting in 15 minutes</h2>
+  <h2 style="color:#f59e0b">📅 Meeting Tomorrow</h2>
   <p><strong>${booking.title}</strong></p>
   <p>Room: ${roomInfo}</p>
-  <p>Starts at: ${startStr}</p>
+  <p>Date: ${dateStr}</p>
+  <p>Time: ${startStr}</p>
   ${booking.teamsJoinUrl ? `<p><a href="${booking.teamsJoinUrl}" style="background:#5558af;color:#fff;padding:8px 16px;border-radius:4px;text-decoration:none;">Join Teams Meeting</a></p>` : ""}
   <p style="color:#94a3b8;font-size:12px">Reminder from National Group India · Project Planner</p>
 </div>`;
@@ -58,7 +69,7 @@ export async function GET(req: Request) {
     const ok = await sendBookingEmail(
       booking.organizer.id,
       booking.organizer.email,
-      `Reminder: ${booking.title} in 15 min`,
+      `Tomorrow: ${booking.title} at ${startStr}`,
       html,
     );
 
