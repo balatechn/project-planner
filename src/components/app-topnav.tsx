@@ -110,7 +110,7 @@ export function AppTopNav({
   return (
     <>
       {/* ── Main top bar ── */}
-      <header className="sticky top-0 z-40 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 shadow-sm">
+      <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-card/90 backdrop-blur-xl supports-[backdrop-filter]:bg-card/75 shadow-[0_1px_0_0_hsl(var(--border)/0.6),0_4px_20px_-4px_rgba(0,0,0,0.08)]">
         <div className="mx-auto flex h-14 max-w-screen-2xl items-center gap-2 px-4 lg:px-6">
 
           {/* Logo — National Group India */}
@@ -145,18 +145,21 @@ export function AppTopNav({
                   href={item.href}
                   prefetch={true}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors whitespace-nowrap",
+                    "relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all whitespace-nowrap",
                     isAmber
                       ? active
-                        ? "bg-amber-500/15 text-amber-600 ring-1 ring-amber-500/30"
-                        : "text-amber-600/70 hover:bg-amber-500/10 hover:text-amber-600"
+                        ? "bg-amber-500/12 text-amber-600 dark:text-amber-400 shadow-[0_0_12px_-2px_hsl(38_92%_50%/0.3)]"
+                        : "text-amber-600/60 dark:text-amber-500/70 hover:bg-amber-500/10 hover:text-amber-600"
                       : active
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                        ? "bg-primary/12 text-primary font-semibold shadow-[0_0_12px_-2px_hsl(var(--primary)/0.3)]"
+                        : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
                   )}
                 >
-                  <Icon className={cn("h-4 w-4 flex-shrink-0", isAmber && "text-amber-500")} />
+                  <Icon className={cn("h-4 w-4 flex-shrink-0")} />
                   <span className="hidden lg:inline">{item.label}</span>
+                  {active && (
+                    <span className="absolute bottom-0 left-1/2 h-0.5 w-4/5 -translate-x-1/2 rounded-full bg-primary opacity-60" />
+                  )}
                 </Link>
               );
             })}

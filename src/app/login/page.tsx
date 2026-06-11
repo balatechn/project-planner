@@ -6,6 +6,34 @@ import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Sign in" };
 
+const FEATURES = [
+  {
+    icon: "📋",
+    title: "Project Planning",
+    desc: "Kanban, Gantt, Calendar & List views",
+  },
+  {
+    icon: "✅",
+    title: "Task Management",
+    desc: "Assignments, priorities & deadlines",
+  },
+  {
+    icon: "🎓",
+    title: "Training & Learning",
+    desc: "Structured resources & progress tracking",
+  },
+  {
+    icon: "🏢",
+    title: "Meeting Room Booking",
+    desc: "Auto Teams sync & guest invites",
+  },
+  {
+    icon: "🔐",
+    title: "Microsoft 365 SSO",
+    desc: "Secure login, no extra password",
+  },
+];
+
 export default async function LoginPage({
   searchParams,
 }: {
@@ -16,63 +44,104 @@ export default async function LoginPage({
   const params = await searchParams;
 
   return (
-    <div className="relative grid min-h-screen lg:grid-cols-2">
-      {/* ── Brand panel ─────────────────────────────────────────────── */}
-      <div className="brand-gradient relative hidden flex-col justify-between p-12 text-white lg:flex">
+    <div className="login-bg">
+      {/* Animated ambient orbs */}
+      <div className="login-orb login-orb-1" aria-hidden="true" />
+      <div className="login-orb login-orb-2" aria-hidden="true" />
+      <div className="login-orb login-orb-3" aria-hidden="true" />
 
-        {/* Logo + company name */}
-        <div className="flex items-center gap-4">
-          <Image
-            src="https://nationalgroupindia.com/logo_full.webp"
-            alt="National Group India"
-            width={64}
-            height={64}
-            className="object-contain brightness-0 invert flex-shrink-0"
-            priority
-          />
-          <div>
-            <p className="text-base font-bold leading-tight tracking-wide">
-              National Group India
-            </p>
-            <p className="text-xs text-white/70 font-medium tracking-wider uppercase">
-              Sharepoint
-            </p>
+      {/* Subtle grid overlay */}
+      <div
+        className="pointer-events-none absolute inset-0 z-0 opacity-[0.03]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px)",
+          backgroundSize: "64px 64px",
+        }}
+        aria-hidden="true"
+      />
+
+      {/* Content */}
+      <div className="relative z-10 grid min-h-screen lg:grid-cols-[1fr_500px]">
+
+        {/* ── Brand panel ─────────────────────────────────────────── */}
+        <div className="hidden lg:flex flex-col justify-between p-14 xl:p-16">
+
+          {/* Logo */}
+          <div className="animate-fade-in flex items-center gap-4">
+            <div className="animate-float">
+              <Image
+                src="https://nationalgroupindia.com/logo_full.webp"
+                alt="National Group India"
+                width={56}
+                height={56}
+                className="object-contain brightness-0 invert drop-shadow-[0_0_20px_rgba(245,158,11,0.5)]"
+                priority
+              />
+            </div>
+            <div>
+              <p className="text-lg font-bold text-white leading-tight tracking-wide">
+                National Group India
+              </p>
+              <p className="text-xs font-semibold tracking-[0.2em] uppercase text-white/50 mt-0.5">
+                Sharepoint
+              </p>
+            </div>
           </div>
-        </div>
 
-        {/* Hero copy */}
-        <div className="space-y-4">
-          <h1 className="text-4xl font-bold leading-tight">
-            Plan, track and deliver work — all in one place.
-          </h1>
-          <p className="max-w-md text-white/80">
-            Your all-in-one workspace for projects, tasks, training and meeting
-            rooms — powered by Microsoft 365.
+          {/* Hero headline */}
+          <div className="space-y-8">
+            <div className="space-y-4 animate-slide-up delay-75">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60 font-medium backdrop-blur-sm">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+                Enterprise Platform · v2.0
+              </div>
+              <h1 className="text-5xl xl:text-6xl font-bold leading-[1.08] text-white tracking-tight">
+                Your work,{" "}
+                <span className="text-gradient-gold">unified</span>
+                <br />in one place.
+              </h1>
+              <p className="text-lg text-white/55 max-w-md leading-relaxed">
+                A premium workspace built for National Group India — projects,
+                tasks, training, and meeting rooms, all powered by Microsoft 365.
+              </p>
+            </div>
+
+            {/* Feature list */}
+            <ul className="space-y-3">
+              {FEATURES.map((f, i) => (
+                <li
+                  key={f.title}
+                  className="animate-slide-up flex items-center gap-3 group"
+                  style={{ animationDelay: `${(i + 2) * 80}ms` }}
+                >
+                  <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white/5 border border-white/8 text-base group-hover:bg-white/10 transition-colors">
+                    {f.icon}
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-white/90">{f.title}</p>
+                    <p className="text-xs text-white/45">{f.desc}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Footer */}
+          <p className="animate-fade-in delay-600 text-xs text-white/30">
+            © {new Date().getFullYear()} National Group India. All rights reserved.
           </p>
-          <ul className="space-y-2 pt-4 text-sm text-white/90">
-            <li>✓ Project Planning — Kanban, Gantt, Calendar &amp; List views</li>
-            <li>✓ Task Management — assignments, priorities &amp; deadlines</li>
-            <li>✓ Training — structured learning &amp; resource management</li>
-            <li>✓ Meeting Room Booking — auto Teams sync &amp; guest invites</li>
-            <li>✓ Microsoft 365 SSO — secure, no separate password needed</li>
-            <li>✓ Role-based access — Admin, PM &amp; Team Member levels</li>
-          </ul>
         </div>
 
-        {/* Footer */}
-        <p className="text-xs text-white/60">
-          © {new Date().getFullYear()} National Group India. All rights reserved.
-        </p>
-      </div>
-
-      {/* ── Form panel ──────────────────────────────────────────────── */}
-      <div className="flex items-center justify-center p-6">
-        <LoginForm
-          entraConfigured={authMeta.entraConfigured}
-          devLoginEnabled={authMeta.enableDevLogin}
-          callbackUrl={params.callbackUrl ?? "/dashboard"}
-          error={params.error}
-        />
+        {/* ── Form panel ──────────────────────────────────────────── */}
+        <div className="flex min-h-screen items-center justify-center p-6 lg:min-h-0 lg:p-10">
+          <LoginForm
+            entraConfigured={authMeta.entraConfigured}
+            devLoginEnabled={authMeta.enableDevLogin}
+            callbackUrl={params.callbackUrl ?? "/dashboard"}
+            error={params.error}
+          />
+        </div>
       </div>
     </div>
   );

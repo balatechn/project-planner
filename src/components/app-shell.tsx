@@ -17,9 +17,9 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex min-h-screen flex-col bg-background">
       <AppTopNav user={user} />
-      <main className="flex-1 animate-fade-in p-4 lg:p-6 max-w-screen-2xl mx-auto w-full">
+      <main className="flex-1 p-4 lg:p-6 max-w-screen-2xl mx-auto w-full">
         {children}
       </main>
     </div>

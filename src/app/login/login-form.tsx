@@ -4,17 +4,6 @@ import * as React from "react";
 import Image from "next/image";
 import { signIn } from "next-auth/react";
 import { Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 
 function MicrosoftLogo() {
   return (
@@ -54,121 +43,154 @@ export function LoginForm({
     e.preventDefault();
     setFormError(null);
     setLoading("dev");
-    const res = await signIn("dev-login", {
-      email,
-      password,
-      redirect: false,
-    });
+    const res = await signIn("dev-login", { email, password, redirect: false });
     setLoading(null);
-    if (res?.error) {
-      setFormError("Invalid email or password.");
-    } else {
-      window.location.href = callbackUrl;
-    }
+    if (res?.error) setFormError("Invalid email or password.");
+    else window.location.href = callbackUrl;
   }
 
   return (
-    <Card className="w-full max-w-md shadow-lg">
-      <CardHeader className="space-y-1">
-        {/* Mobile-only logo — shown when the brand panel is hidden */}
-        <div className="mb-3 flex items-center gap-3 lg:hidden">
-          <div className="brand-gradient flex h-10 w-10 items-center justify-center rounded-xl p-1.5">
-            <Image
-              src="https://nationalgroupindia.com/logo_full.webp"
-              alt="National Group India"
-              width={32}
-              height={32}
-              className="object-contain brightness-0 invert"
-              priority
-            />
-          </div>
+    <div className="animate-scale-in w-full max-w-[420px]">
+
+      {/* Glass card */}
+      <div
+        className="rounded-2xl p-8 sm:p-10"
+        style={{
+          background: "rgba(255,255,255,0.04)",
+          backdropFilter: "blur(24px) saturate(180%)",
+          WebkitBackdropFilter: "blur(24px) saturate(180%)",
+          border: "1px solid rgba(255,255,255,0.10)",
+          boxShadow:
+            "0 25px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(245,158,11,0.08) inset",
+        }}
+      >
+        {/* Mobile logo */}
+        <div className="mb-7 flex items-center gap-3 lg:hidden">
+          <Image
+            src="https://nationalgroupindia.com/logo_full.webp"
+            alt="National Group India"
+            width={40}
+            height={40}
+            className="object-contain brightness-0 invert"
+            priority
+          />
           <div>
-            <p className="text-sm font-bold leading-tight">National Group India</p>
-            <p className="text-[11px] text-muted-foreground uppercase tracking-wider">
+            <p className="text-sm font-bold text-white leading-tight">
+              National Group India
+            </p>
+            <p className="text-[10px] font-semibold tracking-[0.18em] uppercase text-white/50 mt-0.5">
               Sharepoint
             </p>
           </div>
         </div>
 
-        <CardTitle className="text-2xl">Welcome back</CardTitle>
-        <CardDescription>
-          Sign in to your corporate workspace to continue.
-        </CardDescription>
-      </CardHeader>
+        {/* Heading */}
+        <div className="mb-8 space-y-1.5">
+          <h2 className="text-2xl font-bold text-white tracking-tight">
+            Welcome back
+          </h2>
+          <p className="text-sm text-white/50">
+            Sign in to your corporate workspace to continue.
+          </p>
+        </div>
 
-      <CardContent className="space-y-4">
+        {/* Error */}
         {formError && (
-          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
             {formError}
           </div>
         )}
 
-        {entraConfigured ? (
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={onMicrosoft}
-            disabled={loading !== null}
-          >
-            {loading === "sso" ? (
-              <Loader2 className="animate-spin" />
-            ) : (
-              <MicrosoftLogo />
-            )}
-            Sign in with Microsoft
-          </Button>
-        ) : (
-          <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
-            Microsoft Entra ID SSO is not configured yet. Use the developer
-            login below to explore the app.
-          </div>
-        )}
-
-        {devLoginEnabled && (
-          <>
-            <div className="relative">
-              <Separator />
-              <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-card px-2 text-xs text-muted-foreground">
-                or developer login
-              </span>
+        <div className="space-y-4">
+          {/* Microsoft SSO */}
+          {entraConfigured ? (
+            <button
+              type="button"
+              onClick={onMicrosoft}
+              disabled={loading !== null}
+              className="btn-microsoft flex w-full items-center justify-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold disabled:opacity-60"
+            >
+              {loading === "sso" ? (
+                <Loader2 className="h-4 w-4 animate-spin text-white/70" />
+              ) : (
+                <MicrosoftLogo />
+              )}
+              Sign in with Microsoft
+            </button>
+          ) : (
+            <div className="rounded-xl border border-amber-500/20 bg-amber-500/8 px-4 py-3 text-xs text-amber-400/80">
+              Microsoft Entra ID SSO is not configured yet. Use the developer
+              login below to explore the app.
             </div>
+          )}
 
-            <form onSubmit={onDevLogin} className="space-y-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@nationalgroupindia.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
+          {/* Dev login divider + form */}
+          {devLoginEnabled && (
+            <>
+              <div className="relative flex items-center gap-3 py-1">
+                <div className="flex-1 border-t border-white/8" />
+                <span className="text-xs text-white/30 font-medium">
+                  or developer login
+                </span>
+                <div className="flex-1 border-t border-white/8" />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                />
-              </div>
-              <Button
-                type="submit"
-                variant="brand"
-                className="w-full"
-                disabled={loading !== null}
-              >
-                {loading === "dev" && <Loader2 className="animate-spin" />}
-                Sign in
-              </Button>
-            </form>
-          </>
-        )}
-      </CardContent>
-    </Card>
+
+              <form onSubmit={onDevLogin} className="space-y-3.5">
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="email"
+                    className="text-xs font-semibold text-white/60 uppercase tracking-wider"
+                  >
+                    Email
+                  </label>
+                  <input
+                    id="email"
+                    type="email"
+                    placeholder="you@nationalgroupindia.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    className="login-input w-full rounded-xl px-4 py-2.5 text-sm"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor="password"
+                    className="text-xs font-semibold text-white/60 uppercase tracking-wider"
+                  >
+                    Password
+                  </label>
+                  <input
+                    id="password"
+                    type="password"
+                    placeholder="••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="login-input w-full rounded-xl px-4 py-2.5 text-sm"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading !== null}
+                  className="btn-premium mt-1 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-white shadow-lg disabled:opacity-60"
+                >
+                  {loading === "dev" && (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  )}
+                  Sign in
+                </button>
+              </form>
+            </>
+          )}
+        </div>
+
+        {/* Bottom note */}
+        <p className="mt-8 text-center text-[11px] text-white/25">
+          Secured with Microsoft 365 · National Group India
+        </p>
+      </div>
+    </div>
   );
 }
