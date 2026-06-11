@@ -2,16 +2,21 @@
 
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   BarChart3,
   CalendarDays,
   CheckSquare,
   ChevronDown,
+  Clock,
   FolderKanban,
   GanttChartSquare,
   LayoutDashboard,
+  Layers,
   Menu,
+  Megaphone,
+  PlayCircle,
   Search,
   Settings,
   ShieldCheck,
@@ -42,10 +47,14 @@ const PRIMARY_NAV: NavItem[] = [
 ];
 
 const MORE_NAV: NavItem[] = [
-  { href: "/reports", label: "Reports", icon: BarChart3, show: (r) => can(r, "report:view") },
-  { href: "/team", label: "Team Workload", icon: Users, show: (r) => can(r, "report:view") },
-  { href: "/admin/users", label: "Users & Roles", icon: ShieldCheck, show: (r) => can(r, "admin:users") },
-  { href: "/admin/audit", label: "Audit Log", icon: Settings, show: (r) => can(r, "admin:audit") },
+  { href: "/training",      label: "Training",       icon: PlayCircle  },
+  { href: "/team",          label: "Team Directory", icon: Users       },
+  { href: "/my-timesheets", label: "My Timesheets",  icon: Clock       },
+  { href: "/templates",     label: "Templates",      icon: Layers      },
+  { href: "/reports",       label: "Reports",        icon: BarChart3,  show: (r) => can(r, "report:view") },
+  { href: "/announcements", label: "Announcements",  icon: Megaphone,  show: (r) => can(r, "admin:users") },
+  { href: "/admin/users",   label: "Users & Roles",  icon: ShieldCheck, show: (r) => can(r, "admin:users") },
+  { href: "/admin/audit",   label: "Audit Log",      icon: Settings,   show: (r) => can(r, "admin:audit") },
 ];
 
 export function AppTopNav({
@@ -101,14 +110,26 @@ export function AppTopNav({
       <header className="sticky top-0 z-40 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80 shadow-sm">
         <div className="mx-auto flex h-14 max-w-screen-2xl items-center gap-2 px-4 lg:px-6">
 
-          {/* Logo */}
+          {/* Logo — National Group India */}
           <Link href="/dashboard" className="flex items-center gap-2 mr-3 flex-shrink-0">
-            <div className="brand-gradient flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold text-white shadow-sm">
-              ◆
+            <div className="brand-gradient flex h-9 w-9 items-center justify-center rounded-lg shadow-sm p-1.5">
+              <Image
+                src="https://nationalgroupindia.com/logo_full.webp"
+                alt="National Group India"
+                width={28}
+                height={28}
+                className="object-contain brightness-0 invert"
+                priority
+              />
             </div>
-            <span className="hidden font-semibold tracking-tight sm:inline-block">
-              Project Planner
-            </span>
+            <div className="hidden sm:block leading-tight">
+              <p className="text-sm font-bold tracking-tight text-foreground leading-none">
+                National Group India
+              </p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none mt-0.5">
+                Project Planner
+              </p>
+            </div>
           </Link>
 
           {/* Desktop nav links — prefetch=true triggers route prefetch on hover */}

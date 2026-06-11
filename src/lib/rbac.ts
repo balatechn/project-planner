@@ -62,8 +62,13 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "template:manage",
   ],
   TEAM_MEMBER: [
+    "project:create",
+    "project:edit",
+    "project:manageMembers",
     "task:create",
     "task:edit",
+    "task:delete",
+    "task:assign",
     "task:updateStatus",
     "comment:create",
     "attachment:upload",

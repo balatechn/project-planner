@@ -107,6 +107,13 @@ enum ApprovalStatus {
   REJECTED
 }
 
+enum AnnouncementType {
+  INFO
+  SUCCESS
+  WARNING
+  URGENT
+}
+
 // ----------------------------------------------------------------
 // Auth.js models (Account / Session / VerificationToken)
 // ----------------------------------------------------------------
@@ -187,6 +194,8 @@ model User {
   discussionPosts   DiscussionPost[]
   timeLogs          TimeLog[]
   approvals         TaskApproval[]
+  announcements     Announcement[]
+  trainingVideos    TrainingVideo[]
 
   @@index([department])
   @@index([role])
@@ -703,6 +712,52 @@ model CustomFieldDefinition {
   values CustomFieldValue[]
 
   @@index([projectId])
+}
+
+// ----------------------------------------------------------------
+// Announcements (admin broadcasts to all users)
+// ----------------------------------------------------------------
+
+model Announcement {
+  id        String           @id @default(cuid())
+  title     String
+  body      String           @db.Text
+  type      AnnouncementType @default(INFO)
+  isActive  Boolean          @default(true)
+  isPinned  Boolean          @default(false)
+  expiresAt DateTime?
+  authorId  String
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  author User @relation(fields: [authorId], references: [id])
+
+  @@index([isActive, isPinned])
+  @@index([createdAt])
+}
+
+// ----------------------------------------------------------------
+// Training Videos
+// ----------------------------------------------------------------
+
+model TrainingVideo {
+  id           String   @id @default(cuid())
+  title        String
+  description  String?  @db.Text
+  videoUrl     String   // YouTube / Vimeo URL or direct MP4
+  thumbnail    String?
+  category     String?
+  duration     String?  // display string e.g. "12:34"
+  isPublished  Boolean  @default(false)
+  orderIndex   Int      @default(0)
+  uploadedById String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  uploadedBy User @relation(fields: [uploadedById], references: [id])
+
+  @@index([isPublished])
+  @@index([category])
 }
 
 model CustomFieldValue {

@@ -15,6 +15,7 @@ import { prisma } from "@/lib/prisma";
 import { projectAccessWhere } from "@/lib/projects";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
+import { AnnouncementBanner } from "@/components/announcement-banner";
 import {
   Card,
   CardContent,
@@ -83,7 +84,8 @@ export default async function DashboardPage() {
   const where = projectAccessWhere(user.id, user.role);
 
   // Per-user real-time task counts run fresh every request (cheap queries)
-  const [{ projects, recentActivity }, myTasks, overdueCount, completedThisWeek] =
+  const now = new Date();
+  const [{ projects, recentActivity }, myTasks, overdueCount, completedThisWeek, activeAnnouncements] =
     await Promise.all([
       getDashboardData(user.id, user.role, JSON.stringify(where)),
       prisma.task.findMany({
@@ -118,6 +120,15 @@ export default async function DashboardPage() {
           },
         },
       }),
+      prisma.announcement.findMany({
+        where: {
+          isActive: true,
+          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
+        },
+        select: { id: true, title: true, body: true, type: true, isPinned: true },
+        orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
+        take: 5,
+      }),
     ]);
 
   const activeProjects = projects.length;
@@ -125,6 +136,10 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {activeAnnouncements.length > 0 && (
+        <AnnouncementBanner announcements={activeAnnouncements} />
+      )}
+
       <PageHeader
         title={`Welcome back, ${user.name?.split(" ")[0] ?? "there"} 👋`}
         description="Here's what's happening across your workspace today."
