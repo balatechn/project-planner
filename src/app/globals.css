@@ -4,29 +4,30 @@
 
 @layer base {
   :root {
-    --background: 38 33% 97%;
-    --foreground: 24 10% 15%;
+    /* Navy & Gold — ivory canvas, deep navy primary, brand gold accent */
+    --background: 42 28% 96%;
+    --foreground: 215 35% 14%;
     --card: 0 0% 100%;
-    --card-foreground: 24 10% 15%;
+    --card-foreground: 215 35% 14%;
     --popover: 0 0% 100%;
-    --popover-foreground: 24 10% 15%;
-    --primary: 38 92% 50%;
+    --popover-foreground: 215 35% 14%;
+    --primary: 213 52% 24%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 38 20% 92%;
-    --secondary-foreground: 24 10% 25%;
-    --muted: 38 15% 93%;
-    --muted-foreground: 24 8% 48%;
-    --accent: 32 95% 44%;
+    --secondary: 214 20% 92%;
+    --secondary-foreground: 215 30% 22%;
+    --muted: 214 16% 93%;
+    --muted-foreground: 215 12% 44%;
+    --accent: 44 56% 45%;
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 38 20% 88%;
-    --input: 38 20% 88%;
-    --ring: 38 92% 50%;
+    --border: 214 18% 87%;
+    --input: 214 18% 87%;
+    --ring: 213 52% 30%;
     --radius: 0.6rem;
-    --brand-orange: 38 92% 50%;
-    --brand-gold: 43 96% 56%;
-    --brand-gray: 24 8% 48%;
+    --brand-orange: 44 60% 48%;
+    --brand-gold: 44 65% 52%;
+    --brand-gray: 215 12% 44%;
     --status-notstarted: 215 16% 55%;
     --status-inprogress: 214 89% 52%;
     --status-onhold: 38 92% 50%;
@@ -35,28 +36,29 @@
   }
 
   .dark {
-    --background: 24 10% 7%;
-    --foreground: 38 20% 94%;
-    --card: 24 10% 10%;
-    --card-foreground: 38 20% 94%;
-    --popover: 24 10% 10%;
-    --popover-foreground: 38 20% 94%;
-    --primary: 38 92% 52%;
-    --primary-foreground: 24 10% 8%;
-    --secondary: 24 10% 17%;
-    --secondary-foreground: 38 20% 90%;
-    --muted: 24 10% 17%;
-    --muted-foreground: 38 10% 58%;
-    --accent: 32 95% 48%;
-    --accent-foreground: 24 10% 8%;
+    /* Deep navy surfaces with gold as the hero highlight */
+    --background: 215 38% 7%;
+    --foreground: 214 25% 94%;
+    --card: 215 34% 10%;
+    --card-foreground: 214 25% 94%;
+    --popover: 215 34% 10%;
+    --popover-foreground: 214 25% 94%;
+    --primary: 44 70% 55%;
+    --primary-foreground: 218 45% 10%;
+    --secondary: 215 28% 16%;
+    --secondary-foreground: 214 20% 90%;
+    --muted: 215 28% 15%;
+    --muted-foreground: 214 14% 62%;
+    --accent: 44 70% 58%;
+    --accent-foreground: 218 45% 10%;
     --destructive: 0 63% 50%;
     --destructive-foreground: 0 0% 100%;
-    --border: 24 10% 18%;
-    --input: 24 10% 20%;
-    --ring: 38 92% 52%;
-    --brand-orange: 38 92% 52%;
-    --brand-gold: 43 96% 58%;
-    --brand-gray: 38 10% 60%;
+    --border: 215 26% 17%;
+    --input: 215 26% 19%;
+    --ring: 44 70% 55%;
+    --brand-orange: 44 70% 55%;
+    --brand-gold: 44 80% 60%;
+    --brand-gray: 214 14% 62%;
     --status-notstarted: 215 20% 60%;
     --status-inprogress: 214 89% 58%;
     --status-onhold: 38 92% 55%;
@@ -80,9 +82,9 @@
 /* ── Brand gradients ──────────────────────────────────────────────────── */
 .brand-gradient {
   background-image: linear-gradient(135deg,
-    hsl(38 92% 50%) 0%,
-    hsl(43 96% 56%) 50%,
-    hsl(32 95% 44%) 100%);
+    hsl(213 52% 24%) 0%,
+    hsl(213 48% 34%) 55%,
+    hsl(44 60% 48%) 100%);
 }
 .brand-gradient-subtle {
   background-image: linear-gradient(135deg,
@@ -91,14 +93,14 @@
 }
 .text-gradient {
   background-image: linear-gradient(135deg,
-    hsl(38 92% 50%), hsl(32 95% 44%));
+    hsl(213 52% 28%), hsl(44 60% 45%));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
 .text-gradient-gold {
   background-image: linear-gradient(135deg,
-    hsl(43 96% 60%), hsl(38 92% 50%), hsl(32 95% 44%));
+    hsl(46 90% 64%), hsl(44 65% 52%), hsl(40 55% 42%));
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -113,7 +115,7 @@
 .glass-dark {
   backdrop-filter: blur(20px) saturate(160%);
   -webkit-backdrop-filter: blur(20px) saturate(160%);
-  background: rgba(10, 8, 6, 0.55);
+  background: rgba(6, 11, 20, 0.55);
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 .glass-card {
@@ -125,7 +127,7 @@
 
 /* ── Login page ────────────────────────────────────────────────────────── */
 .login-bg {
-  background: #070604;
+  background: #060b14;
   min-height: 100vh;
   overflow: hidden;
   position: relative;
@@ -141,19 +143,19 @@
 }
 .login-orb-1 {
   width: 600px; height: 600px;
-  background: radial-gradient(circle, rgba(245,158,11,0.28) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(201,162,58,0.26) 0%, transparent 70%);
   top: -150px; left: -100px;
   animation: orb-drift-1 18s ease-in-out infinite;
 }
 .login-orb-2 {
   width: 500px; height: 500px;
-  background: radial-gradient(circle, rgba(234,88,12,0.18) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(30,58,95,0.55) 0%, transparent 70%);
   bottom: -100px; right: -80px;
   animation: orb-drift-2 22s ease-in-out infinite;
 }
 .login-orb-3 {
   width: 400px; height: 400px;
-  background: radial-gradient(circle, rgba(251,191,36,0.12) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(212,175,55,0.12) 0%, transparent 70%);
   top: 40%; left: 30%;
   animation: orb-drift-3 15s ease-in-out infinite;
 }
@@ -311,22 +313,22 @@ a, button, [role="button"] {
 .login-input::placeholder { color: rgba(255,255,255,0.35) !important; }
 .login-input:focus {
   background: rgba(255,255,255,0.09) !important;
-  border-color: hsl(38 92% 52% / 0.7) !important;
-  box-shadow: 0 0 0 3px hsl(38 92% 52% / 0.18) !important;
+  border-color: hsl(44 70% 55% / 0.7) !important;
+  box-shadow: 0 0 0 3px hsl(44 70% 55% / 0.18) !important;
   outline: none !important;
 }
 
 /* ── Premium button shimmer ────────────────────────────────────────────── */
 .btn-premium {
   background: linear-gradient(135deg,
-    hsl(38 92% 50%), hsl(43 96% 56%), hsl(32 95% 44%));
+    hsl(44 65% 48%), hsl(46 80% 58%), hsl(40 55% 42%));
   background-size: 200% auto;
   transition: background-position 0.4s ease, transform 0.12s ease, box-shadow 0.12s ease;
 }
 .btn-premium:hover {
   background-position: right center;
   transform: translateY(-1px);
-  box-shadow: 0 8px 25px hsl(38 92% 50% / 0.4);
+  box-shadow: 0 8px 25px hsl(44 65% 50% / 0.4);
 }
 .btn-premium:active { transform: translateY(0); }
 

@@ -98,11 +98,11 @@ export function renderEmail(opts: {
 }): string {
   const cta =
     opts.ctaLabel && opts.ctaUrl
-      ? `<a href="${opts.ctaUrl}" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:16px">${opts.ctaLabel}</a>`
+      ? `<a href="${opts.ctaUrl}" style="display:inline-block;background:#1e3a5f;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;font-weight:600;margin-top:16px">${opts.ctaLabel}</a>`
       : "";
   return `
-  <div style="font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#0f172a">
-    <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#2563eb;font-weight:700">Sharepoint</div>
+  <div style="font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#16283e">
+    <div style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#a07f1f;font-weight:700">Sharepoint</div>
     <h2 style="font-size:20px;margin:8px 0 12px">${opts.heading}</h2>
     <div style="font-size:14px;line-height:1.6;color:#334155">${opts.body}</div>
     ${cta}
