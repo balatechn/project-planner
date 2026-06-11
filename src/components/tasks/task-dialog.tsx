@@ -351,8 +351,9 @@ export function TaskDialog({
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl">
-        <DialogHeader>
+      {/* max-h + flex-col so the dialog never exceeds the viewport */}
+      <DialogContent className="max-w-3xl max-h-[92vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle>{isEdit ? "Task details" : "New task"}</DialogTitle>
           {/* Parent breadcrumb — shown when this task is a subtask */}
           {parentInfo && (
@@ -367,6 +368,8 @@ export function TaskDialog({
           )}
         </DialogHeader>
 
+        {/* Scrollable form body */}
+        <div className="flex-1 min-h-0 overflow-y-auto thin-scroll -mx-6 px-6 py-1">
         <div className="grid gap-5 lg:grid-cols-[1fr_260px]">
           {/* Main column */}
           <div className="space-y-4">
@@ -824,6 +827,14 @@ export function TaskDialog({
               </div>
             </div>
 
+            {/* Email notification hint — only when creating a new task/subtask with assignees selected */}
+            {!isEdit && assignees.length > 0 && (
+              <p className="flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50/60 px-2.5 py-1.5 text-xs text-blue-700 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-400">
+                <span>📧</span>
+                Assignees will receive an email notification when this task is created
+              </p>
+            )}
+
             {/* Attachments */}
             {isEdit && (
               <div className="space-y-1.5">
@@ -864,8 +875,9 @@ export function TaskDialog({
             )}
           </div>
         </div>
+        </div>{/* end scrollable body */}
 
-        <div className="mt-2 flex items-center justify-between border-t pt-4">
+        <div className="flex-shrink-0 mt-2 flex items-center justify-between border-t pt-4">
           <div>
             {isEdit && (task?.createdById === currentUserId || permissions.canDelete) && (
               <Button variant="ghost" size="sm" onClick={remove}>
