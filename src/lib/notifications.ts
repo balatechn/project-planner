@@ -16,10 +16,18 @@ export async function notify(params: {
     where: { id: params.userId },
     select: { email: true, isActive: true },
   });
-  if (!user || !user.isActive) return;
+
+  // Diagnostic logging — visible in Vercel Function logs
+  console.log(`[notify] userId=${params.userId} type=${params.type} wantEmail=${params.email} userFound=${!!user} isActive=${user?.isActive} hasEmail=${!!user?.email}`);
+
+  if (!user || !user.isActive) {
+    console.warn(`[notify] skipped — user not found or inactive. userId=${params.userId}`);
+    return;
+  }
 
   let emailSent = false;
   if (params.email && user.email) {
+    console.log(`[notify] sending email to ${user.email} subject="${params.title}"`);
     emailSent = await sendEmail({
       to: user.email,
       subject: params.title,
@@ -30,6 +38,9 @@ export async function notify(params: {
         ctaUrl: params.link ? `${baseUrl}${params.link}` : undefined,
       }),
     });
+    console.log(`[notify] emailSent=${emailSent} to=${user.email}`);
+  } else {
+    console.log(`[notify] email skipped — wantEmail=${params.email} hasEmail=${!!user.email}`);
   }
 
   await prisma.notification.create({

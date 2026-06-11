@@ -24,7 +24,10 @@ export type EmailMessage = {
 };
 
 function graphEmailEnabled(): boolean {
-  return process.env.EMAIL_DRIVER === "graph" && isGraphConfigured();
+  const driver = process.env.EMAIL_DRIVER;
+  const configured = isGraphConfigured();
+  console.log(`[email] graphEmailEnabled check: EMAIL_DRIVER=${driver} isGraphConfigured=${configured}`);
+  return driver === "graph" && configured;
 }
 
 export async function sendEmail(message: EmailMessage): Promise<boolean> {
@@ -43,9 +46,10 @@ export async function sendEmail(message: EmailMessage): Promise<boolean> {
 
   const sender = process.env.GRAPH_SENDER_UPN;
   if (!sender) {
-    console.warn("GRAPH_SENDER_UPN not set; cannot send email via Graph.");
+    console.warn("[email] GRAPH_SENDER_UPN not set; cannot send email via Graph.");
     return false;
   }
+  console.log(`[email] sending via Graph from=${sender} to=${Array.isArray(message.to) ? message.to.join(",") : message.to}`);
 
   try {
     const graphMessage: Record<string, unknown> = {

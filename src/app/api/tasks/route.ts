@@ -118,10 +118,10 @@ export async function POST(req: Request) {
       metadata: { title: task.title },
     });
 
-    // Notify assignees (excluding the creator).
-    const assigneeIds = task.assignees
-      .map((a) => a.userId)
-      .filter((uid) => uid !== user.id);
+    // Notify assignees (excluding the creator to avoid self-spam).
+    const allAssigneeIds = task.assignees.map((a) => a.userId);
+    const assigneeIds = allAssigneeIds.filter((uid) => uid !== user.id);
+    console.log(`[tasks] created taskId=${task.id} creatorId=${user.id} allAssignees=[${allAssigneeIds.join(",")}] notifyIds=[${assigneeIds.join(",")}]`);
     if (assigneeIds.length > 0) {
       await notifyMany(assigneeIds, {
         type: "TASK_ASSIGNED",
@@ -130,6 +130,8 @@ export async function POST(req: Request) {
         link: `/projects/${data.projectId}?task=${task.id}`,
         email: true,
       });
+    } else {
+      console.log(`[tasks] no assignees to notify (either no assignees or all are the creator)`);
     }
 
     return json({ task }, { status: 201 });
