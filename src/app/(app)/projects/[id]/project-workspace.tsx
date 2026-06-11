@@ -238,55 +238,41 @@ export function ProjectWorkspace({
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div className="flex flex-col gap-4 border-b pb-5 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex gap-3">
-          <span
-            className="mt-1 h-12 w-1.5 shrink-0 rounded-full"
-            style={{ backgroundColor: project.color }}
-          />
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold tracking-tight">{project.name}</h1>
-              <ProjectStatusBadge status={project.status} />
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {project.key} · {project.department ?? "No department"} ·{" "}
-              {formatCurrency(project.budget, project.currency)}
-            </p>
-            {project.description && (
-              <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
-                {project.description}
-              </p>
-            )}
-            <div className="mt-3 flex items-center gap-4">
-              <PriorityBadge priority={project.priority} />
-              <AvatarStack people={members} max={6} size="h-7 w-7" />
-            </div>
-          </div>
-        </div>
+    <div className="space-y-3">
+      {/* Compact single-row header */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b pb-3">
+        <span
+          className="h-7 w-1.5 shrink-0 rounded-full"
+          style={{ backgroundColor: project.color }}
+        />
+        <h1 className="text-base font-bold tracking-tight">{project.name}</h1>
+        <ProjectStatusBadge status={project.status} />
+        <span className="hidden text-xs text-muted-foreground sm:inline">{project.key}</span>
+        {project.department && (
+          <span className="hidden text-xs text-muted-foreground sm:inline">
+            · {project.department}
+          </span>
+        )}
+        <PriorityBadge priority={project.priority} />
+        <AvatarStack people={members} max={5} size="h-6 w-6" />
 
-        <div className="flex items-center gap-2">
-          <div className="hidden w-44 sm:block">
-            <div className="mb-1 flex justify-between text-xs">
-              <span className="text-muted-foreground">Progress</span>
-              <span className="font-medium">{pct}%</span>
-            </div>
-            <Progress value={pct} className="h-1.5" />
-            <p className="mt-1 text-xs text-muted-foreground">
-              {completed}/{tasks.length} tasks done
-            </p>
+        {/* Right side: progress + actions */}
+        <div className="ml-auto flex items-center gap-2">
+          <div className="hidden items-center gap-2 md:flex">
+            <Progress value={pct} className="h-1.5 w-24" />
+            <span className="whitespace-nowrap text-xs text-muted-foreground">
+              {pct}% · {completed}/{tasks.length} tasks
+            </span>
           </div>
           {permissions.canCreateTask && (
-            <Button variant="brand" onClick={() => openCreate("NOT_STARTED")}>
-              <Plus /> Add Task
+            <Button variant="brand" size="sm" onClick={() => openCreate("NOT_STARTED")}>
+              <Plus className="h-4 w-4" /> Add Task
             </Button>
           )}
           {(permissions.canArchive || permissions.canDelete) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
+                <Button variant="outline" size="icon" className="h-8 w-8">
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
