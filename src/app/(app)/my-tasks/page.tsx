@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { format, isPast } from "date-fns";
-import { Clock } from "lucide-react";
+import { CheckCircle2, Clock } from "lucide-react";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { PriorityBadge, TaskStatusBadge } from "@/components/badges";
+import { EmptyState } from "@/components/empty-state";
 import { TASK_STATUS_LABELS, TASK_STATUS_ORDER } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -37,8 +38,14 @@ export default async function MyTasksPage() {
 
       {tasks.length === 0 ? (
         <Card>
-          <CardContent className="py-16 text-center text-sm text-muted-foreground">
-            You have no assigned tasks.
+          <CardContent>
+            <EmptyState
+              icon={CheckCircle2}
+              title="All caught up!"
+              description="You have no open tasks assigned to you. Enjoy the calm — or browse projects to pick something up."
+              actionLabel="Browse Projects"
+              actionHref="/projects"
+            />
           </CardContent>
         </Card>
       ) : (

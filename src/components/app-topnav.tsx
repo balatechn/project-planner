@@ -214,8 +214,11 @@ export function AppTopNav({
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search…"
-              className="pl-8 h-8 text-sm bg-muted/50 border-0 focus-visible:bg-background focus-visible:border"
+              className="pl-8 pr-12 h-8 text-sm bg-muted/50 border-0 focus-visible:bg-background focus-visible:border"
             />
+            <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border bg-card px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+              Ctrl K
+            </kbd>
           </form>
 
           {/* Right actions */}

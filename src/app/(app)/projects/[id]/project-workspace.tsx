@@ -36,6 +36,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/toast";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PriorityBadge, ProjectStatusBadge } from "@/components/badges";
 import { AvatarStack } from "@/components/avatar-stack";
 import { formatCurrency } from "@/lib/utils";
@@ -224,8 +225,9 @@ export function ProjectWorkspace({
     }
   }, [project.id, project.isArchived, router, toast]);
 
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
+
   const remove = React.useCallback(async () => {
-    if (!confirm(`Delete project "${project.name}" and all its tasks?`)) return;
     const res = await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
     if (res.ok) {
       toast({ title: "Project deleted", variant: "success" });
@@ -234,7 +236,7 @@ export function ProjectWorkspace({
     } else {
       toast({ title: "Delete failed", variant: "error" });
     }
-  }, [project.id, project.name, router, toast]);
+  }, [project.id, router, toast]);
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -285,7 +287,7 @@ export function ProjectWorkspace({
                 )}
                 {permissions.canDelete && (
                   <DropdownMenuItem
-                    onClick={remove}
+                    onClick={() => setConfirmDeleteOpen(true)}
                     className="text-destructive focus:text-destructive"
                   >
                     <Trash2 className="h-4 w-4" /> Delete project
@@ -406,6 +408,15 @@ export function ProjectWorkspace({
           }}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title={`Delete "${project.name}"?`}
+        description="The project and all of its tasks, comments and files will be permanently removed. This cannot be undone."
+        confirmLabel="Delete project"
+        onConfirm={remove}
+      />
     </div>
   );
 }

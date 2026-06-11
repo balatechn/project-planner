@@ -3,6 +3,7 @@
 import * as React from "react";
 import type { Role } from "@prisma/client";
 import { AppTopNav } from "@/components/app-topnav";
+import { CommandPalette } from "@/components/command-palette";
 
 export function AppShell({
   user,
@@ -19,6 +20,7 @@ export function AppShell({
   return (
     <div className="flex min-h-screen flex-col bg-background">
       <AppTopNav user={user} />
+      <CommandPalette />
       <main className="flex-1 p-4 lg:p-6 max-w-screen-2xl mx-auto w-full">
         {children}
       </main>

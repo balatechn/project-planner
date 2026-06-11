@@ -75,6 +75,17 @@ const nextConfig = {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()",
           },
+          {
+            key: "Strict-Transport-Security",
+            value: "max-age=63072000; includeSubDomains; preload",
+          },
+          {
+            // Conservative CSP: blocks plugin embeds, clickjacking and
+            // base-tag hijacks without restricting Next.js inline chunks
+            key: "Content-Security-Policy",
+            value:
+              "frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'",
+          },
         ],
       },
     ];

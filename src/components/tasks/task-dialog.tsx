@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/components/ui/toast";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { initials, cn } from "@/lib/utils";
 import {
   PRIORITY_LABELS,
@@ -205,9 +206,10 @@ export function TaskDialog({
     }
   }
 
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = React.useState(false);
+
   async function remove() {
     if (!task) return;
-    if (!confirm("Delete this task? This cannot be undone.")) return;
     const res = await fetch(`/api/tasks/${task.id}`, { method: "DELETE" });
     if (res.ok) {
       toast({ title: "Task deleted", variant: "success" });
@@ -880,7 +882,7 @@ export function TaskDialog({
         <div className="flex-shrink-0 mt-2 flex items-center justify-between border-t pt-4">
           <div>
             {isEdit && (task?.createdById === currentUserId || permissions.canDelete) && (
-              <Button variant="ghost" size="sm" onClick={remove}>
+              <Button variant="ghost" size="sm" onClick={() => setConfirmDeleteOpen(true)}>
                 <Trash2 className="h-4 w-4 text-destructive" /> Delete
               </Button>
             )}
@@ -898,6 +900,15 @@ export function TaskDialog({
           </div>
         </div>
       </DialogContent>
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="Delete this task?"
+        description="The task, its subtasks, comments and attachments will be permanently removed. This cannot be undone."
+        confirmLabel="Delete task"
+        onConfirm={remove}
+      />
     </Dialog>
   );
 }

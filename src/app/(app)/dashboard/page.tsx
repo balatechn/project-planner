@@ -15,6 +15,8 @@ import { prisma } from "@/lib/prisma";
 import { projectAccessWhere } from "@/lib/projects";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
+import { Sparkline, Donut } from "@/components/dashboard-charts";
+import { EmptyState } from "@/components/empty-state";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import {
   Card,
@@ -131,8 +133,33 @@ export default async function DashboardPage() {
       }),
     ]);
 
+  // 14-day completion trend for the sparkline (one cheap indexed query)
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  const recentCompletions = await prisma.task.findMany({
+    where: {
+      assignees: { some: { userId: user.id } },
+      status: "COMPLETED",
+      completedAt: { gte: fourteenDaysAgo },
+    },
+    select: { completedAt: true },
+  });
+  const trendPoints: number[] = Array.from({ length: 14 }, (_, i) => {
+    const dayStart = new Date(now);
+    dayStart.setHours(0, 0, 0, 0);
+    dayStart.setDate(dayStart.getDate() - (13 - i));
+    const dayEnd = new Date(dayStart);
+    dayEnd.setDate(dayEnd.getDate() + 1);
+    return recentCompletions.filter(
+      (t) => t.completedAt && t.completedAt >= dayStart && t.completedAt < dayEnd,
+    ).length;
+  });
+
   const activeProjects = projects.length;
   const openTasks = myTasks.length;
+  const weekRatio =
+    completedThisWeek + openTasks > 0
+      ? Math.round((completedThisWeek / (completedThisWeek + openTasks)) * 100)
+      : 0;
 
   return (
     <div className="space-y-6">
@@ -177,6 +204,27 @@ export default async function DashboardPage() {
           icon={CheckCircle2}
           accent="green"
         />
+      </div>
+
+      {/* ── My productivity: 14-day trend + weekly completion ratio ── */}
+      <div className="grid gap-4 sm:grid-cols-[1fr_auto] items-center rounded-xl border bg-card p-5">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Completion Trend — last 14 days
+          </p>
+          <div className="mt-3">
+            <Sparkline points={trendPoints} />
+          </div>
+        </div>
+        <div className="flex items-center gap-4 sm:border-l sm:pl-6">
+          <Donut percent={weekRatio} />
+          <div className="space-y-0.5">
+            <p className="text-sm font-semibold">This week</p>
+            <p className="text-xs text-muted-foreground">
+              {completedThisWeek} done · {openTasks} open
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* ── Microsoft 365 Quick Access ──────────────────────────────── */}
@@ -242,9 +290,14 @@ export default async function DashboardPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {projects.length === 0 && (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                No projects yet. Create your first project to get started.
-              </p>
+              <EmptyState
+                icon={FolderKanban}
+                title="No projects yet"
+                description="Create your first project to start planning tasks and tracking progress."
+                actionLabel="New Project"
+                actionHref="/projects?new=1"
+                compact
+              />
             )}
             {projects.map((p) => {
               const tasks = p.tasks;
