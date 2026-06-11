@@ -21,27 +21,30 @@ export default async function MeetingRoomsPage() {
     }),
   ]);
 
+  // Fixed-height container so the month calendar fills the viewport without page-level scroll
   return (
-    <RoomBookingClient
-      rooms={rooms.map((r) => ({
-        id: r.id,
-        name: r.name,
-        floor: r.floor,
-        building: r.building,
-        capacity: r.capacity,
-        amenities: r.amenities,
-        description: r.description,
-        color: r.color,
-      }))}
-      allUsers={allUsers.map((u) => ({
-        id: u.id,
-        name: u.name,
-        email: u.email,
-        image: u.image,
-        department: u.department,
-      }))}
-      currentUserId={user.id}
-      currentUserRole={user.role}
-    />
+    <div className="h-[calc(100vh-3.5rem-2rem)] lg:h-[calc(100vh-3.5rem-3rem)] flex flex-col">
+      <RoomBookingClient
+        rooms={rooms.map((r) => ({
+          id: r.id,
+          name: r.name,
+          floor: r.floor,
+          building: r.building,
+          capacity: r.capacity,
+          amenities: r.amenities,
+          description: r.description,
+          color: r.color,
+        }))}
+        allUsers={allUsers.map((u) => ({
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          image: u.image,
+          department: u.department,
+        }))}
+        currentUserId={user.id}
+        currentUserRole={user.role}
+      />
+    </div>
   );
 }

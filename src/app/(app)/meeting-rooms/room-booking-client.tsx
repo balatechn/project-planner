@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { addDays, subDays, format, isSameDay } from "date-fns";
+import { addDays, subDays, format, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
 import {
   Building2,
   CalendarDays,
@@ -18,6 +18,7 @@ import { RoomTimeline } from "./room-timeline";
 import { BookRoomDialog } from "./book-room-dialog";
 import { MyBookingsPanel } from "./my-bookings-panel";
 import { QuickBookPanel } from "./quick-book-panel";
+import { RoomMonthCalendar } from "./room-month-calendar";
 
 export type RoomInfo = {
   id: string;
@@ -73,7 +74,7 @@ type DialogState =
   | { mode: "create"; prefill?: { roomId?: string; startTime?: string; endTime?: string } }
   | { mode: "edit"; booking: BookingInfo };
 
-type PanelView = "timeline" | "my-bookings" | "quick-book";
+type PanelView = "timeline" | "my-bookings" | "quick-book" | "month";
 
 export function RoomBookingClient({
   rooms,
@@ -94,9 +95,14 @@ export function RoomBookingClient({
   const [dialog, setDialog] = React.useState<DialogState>({ mode: "closed" });
   const [panel, setPanel] = React.useState<PanelView>("timeline");
 
+  // Month calendar state
+  const [monthDate, setMonthDate] = React.useState<Date>(() => startOfMonth(new Date()));
+  const [monthBookings, setMonthBookings] = React.useState<BookingInfo[]>([]);
+  const [monthLoading, setMonthLoading] = React.useState(false);
+
   const dateStr = format(selectedDate, "yyyy-MM-dd");
 
-  // Load bookings + Teams calendar
+  // Load bookings + Teams calendar (single day — used by timeline)
   const load = React.useCallback(async () => {
     setLoading(true);
     try {
@@ -117,9 +123,30 @@ export function RoomBookingClient({
     }
   }, [dateStr]);
 
+  // Load all bookings for the current month (used by month calendar)
+  const loadMonth = React.useCallback(async () => {
+    setMonthLoading(true);
+    try {
+      const start = format(startOfMonth(monthDate), "yyyy-MM-dd");
+      const end = format(endOfMonth(monthDate), "yyyy-MM-dd");
+      const res = await fetch(`/api/room-bookings?startDate=${start}&endDate=${end}`, { cache: "no-store" });
+      if (res.ok) {
+        const { bookings } = await res.json();
+        setMonthBookings(bookings);
+      }
+    } finally {
+      setMonthLoading(false);
+    }
+  }, [monthDate]);
+
   React.useEffect(() => {
     load();
   }, [load]);
+
+  // Reload month bookings whenever month changes or when in month view after a booking action
+  React.useEffect(() => {
+    if (panel === "month") loadMonth();
+  }, [panel, loadMonth]);
 
   function prevDay() { setSelectedDate((d) => subDays(d, 1)); }
   function nextDay() { setSelectedDate((d) => addDays(d, 1)); }
@@ -141,6 +168,7 @@ export function RoomBookingClient({
     if (res.ok) {
       toast({ title: cancelAll ? "Series cancelled" : "Booking cancelled", variant: "success" });
       load();
+      loadMonth();
     } else {
       toast({ title: "Failed to cancel", variant: "error" });
     }
@@ -182,7 +210,7 @@ export function RoomBookingClient({
         {/* View tabs */}
         <div className="flex items-center gap-1 ml-auto">
           <div className="flex rounded-lg border p-0.5 text-xs">
-            {(["timeline", "my-bookings", "quick-book"] as const).map((v) => (
+            {(["timeline", "month", "my-bookings", "quick-book"] as const).map((v) => (
               <button
                 key={v}
                 onClick={() => setPanel(v)}
@@ -190,7 +218,10 @@ export function RoomBookingClient({
                   panel === v ? "bg-primary text-primary-foreground" : "hover:bg-muted"
                 }`}
               >
-                {v === "timeline" ? "Timeline" : v === "my-bookings" ? "My Bookings" : "Quick Book"}
+                {v === "timeline" ? "Timeline"
+                  : v === "month" ? "Month"
+                  : v === "my-bookings" ? "My Bookings"
+                  : "Quick Book"}
               </button>
             ))}
           </div>
@@ -223,6 +254,21 @@ export function RoomBookingClient({
             openCreate({ roomId, startTime, endTime })
           }
           onOpenBooking={openEdit}
+        />
+      )}
+
+      {panel === "month" && (
+        <RoomMonthCalendar
+          rooms={rooms}
+          bookings={monthBookings}
+          currentMonth={monthDate}
+          loading={monthLoading}
+          onPrevMonth={() => setMonthDate((d) => subMonths(d, 1))}
+          onNextMonth={() => setMonthDate((d) => addMonths(d, 1))}
+          onSelectDay={(date) => {
+            setSelectedDate(date);
+            setPanel("timeline");
+          }}
         />
       )}
 
@@ -261,6 +307,7 @@ export function RoomBookingClient({
           onSaved={() => {
             setDialog({ mode: "closed" });
             load();
+            loadMonth();
           }}
           onCancel={cancelBooking}
         />

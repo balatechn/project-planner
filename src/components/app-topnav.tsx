@@ -115,16 +115,14 @@ export function AppTopNav({
 
           {/* Logo — National Group India */}
           <Link href="/dashboard" className="flex items-center gap-2 mr-3 flex-shrink-0">
-            <div className="brand-gradient flex h-9 w-9 items-center justify-center rounded-lg shadow-sm p-1.5">
-              <Image
-                src="https://nationalgroupindia.com/logo_full.webp"
-                alt="National Group India"
-                width={28}
-                height={28}
-                className="object-contain brightness-0 invert"
-                priority
-              />
-            </div>
+            <Image
+              src="https://nationalgroupindia.com/logo_full.webp"
+              alt="National Group India"
+              width={36}
+              height={36}
+              className="object-contain dark:brightness-0 dark:invert flex-shrink-0"
+              priority
+            />
             <div className="hidden sm:block leading-tight">
               <p className="text-sm font-bold tracking-tight text-foreground leading-none">
                 National Group India

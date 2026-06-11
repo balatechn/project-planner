@@ -7,21 +7,32 @@ import { sendEmail } from "@/lib/email";
 import { buildICS, icsToBase64 } from "@/lib/ics";
 
 // GET /api/room-bookings?date=YYYY-MM-DD[&roomId=]
-// Returns all bookings for the given date (default = today)
+// GET /api/room-bookings?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD  ← month-range query
 export async function GET(req: Request) {
   await requireUser();
   const { searchParams } = new URL(req.url);
-  const date = searchParams.get("date") ?? new Date().toISOString().slice(0, 10);
   const roomId = searchParams.get("roomId");
 
-  const dayStart = new Date(`${date}T00:00:00.000Z`);
-  const dayEnd = new Date(`${date}T23:59:59.999Z`);
+  // Support date-range query for month calendar
+  const startDateParam = searchParams.get("startDate");
+  const endDateParam = searchParams.get("endDate");
+
+  let rangeStart: Date;
+  let rangeEnd: Date;
+
+  if (startDateParam && endDateParam) {
+    rangeStart = new Date(`${startDateParam}T00:00:00.000Z`);
+    rangeEnd = new Date(`${endDateParam}T23:59:59.999Z`);
+  } else {
+    const date = searchParams.get("date") ?? new Date().toISOString().slice(0, 10);
+    rangeStart = new Date(`${date}T00:00:00.000Z`);
+    rangeEnd = new Date(`${date}T23:59:59.999Z`);
+  }
 
   const bookings = await prisma.roomBooking.findMany({
     where: {
       status: { not: "CANCELLED" },
-      startTime: { gte: dayStart },
-      endTime: { lte: dayEnd },
+      startTime: { gte: rangeStart, lte: rangeEnd },
       ...(roomId ? { roomId } : {}),
     },
     include: {
