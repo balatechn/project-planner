@@ -51,13 +51,13 @@ function computeCriticalPath(tasks: TaskListItem[]): Set<string> {
     visited.add(id);
     const t = byId.get(id);
     if (!t) return;
-    for (const dep of t.dependsOn) visit(dep.prerequisiteId);
+    for (const dep of (t.dependsOn ?? [])) visit(dep.prerequisiteId);
     sorted.push(t);
   }
   tasks.forEach((t) => visit(t.id));
 
   for (const t of sorted) {
-    const prereqFinishes = t.dependsOn.map((d) => ef.get(d.prerequisiteId) ?? 0);
+    const prereqFinishes = (t.dependsOn ?? []).map((d) => ef.get(d.prerequisiteId) ?? 0);
     const start = prereqFinishes.length > 0 ? Math.max(...prereqFinishes) : 0;
     es.set(t.id, start);
     ef.set(t.id, start + taskDur(t));
@@ -105,7 +105,7 @@ export function GanttView({
   const [form, setForm] = React.useState<InlineForm>({
     title: "",
     priority: "MEDIUM",
-    assigneeId: "",
+    assigneeId: "__none__",
     startDate: today.toISOString().split("T")[0],
     dueDate: addDays(today, 7).toISOString().split("T")[0],
     isMilestone: false,
@@ -137,7 +137,7 @@ export function GanttView({
         title: form.title,
         priority: form.priority,
         isMilestone: form.isMilestone,
-        assigneeIds: form.assigneeId ? [form.assigneeId] : [],
+        assigneeIds: form.assigneeId && form.assigneeId !== "__none__" ? [form.assigneeId] : [],
         startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
         dueDate: form.dueDate ? new Date(form.dueDate).toISOString() : null,
       };
@@ -149,7 +149,7 @@ export function GanttView({
       if (!res.ok) throw new Error();
       toast({ title: "Task added", variant: "success" });
       setAddOpen(false);
-      setForm({ title: "", priority: "MEDIUM", assigneeId: "", startDate: today.toISOString().split("T")[0], dueDate: addDays(today, 7).toISOString().split("T")[0], isMilestone: false });
+      setForm({ title: "", priority: "MEDIUM", assigneeId: "__none__", startDate: today.toISOString().split("T")[0], dueDate: addDays(today, 7).toISOString().split("T")[0], isMilestone: false });
       onSaved?.();
     } catch {
       toast({ title: "Could not add task", variant: "error" });
@@ -209,7 +209,7 @@ export function GanttView({
                     <SelectValue placeholder="Unassigned" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Unassigned</SelectItem>
+                    <SelectItem value="__none__">Unassigned</SelectItem>
                     {allUsers.map((u) => (
                       <SelectItem key={u.id} value={u.id}>{u.name ?? u.email}</SelectItem>
                     ))}

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
   Archive,
@@ -109,17 +109,19 @@ export function ProjectWorkspace({
   allUsers,
   permissions,
   currentUserId,
+  defaultView = "gantt",
+  initialTaskId = null,
 }: {
   project: ProjectSummary;
   members: Person[];
   allUsers: Person[];
   permissions: WorkspacePermissions;
   currentUserId: string;
+  defaultView?: string;
+  initialTaskId?: string | null;
 }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { toast } = useToast();
-  const defaultView = searchParams.get("view") ?? "gantt";
 
   const [tasks, setTasks] = React.useState<TaskListItem[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -158,17 +160,19 @@ export function ProjectWorkspace({
     loadTasks();
   }, [loadTasks]);
 
-  // Open a task automatically if ?task=ID is present.
+  // Open a task automatically if initialTaskId prop is set (from ?task= URL param).
+  const didAutoOpen = React.useRef(false);
   React.useEffect(() => {
-    const taskId = searchParams.get("task");
-    if (taskId && tasks.length > 0) {
-      const t = tasks.find((x) => x.id === taskId);
+    if (didAutoOpen.current) return;
+    if (initialTaskId && tasks.length > 0) {
+      const t = tasks.find((x) => x.id === initialTaskId);
       if (t) {
         setActiveTask(t);
         setDialogOpen(true);
+        didAutoOpen.current = true;
       }
     }
-  }, [searchParams, tasks]);
+  }, [initialTaskId, tasks]);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
   const openCreate = React.useCallback((status: TaskStatus) => {
@@ -397,8 +401,9 @@ export function ProjectWorkspace({
           open={dialogOpen}
           onClose={() => {
             setDialogOpen(false);
-            if (searchParams.get("task"))
-              router.replace(`/projects/${project.id}`);
+            // If we landed here via a ?task= link, clean the URL
+            if (initialTaskId)
+              router.replace(`/projects/${project.id}?view=${defaultView}`);
           }}
           task={activeTask}
           defaultStatus={createStatus}

@@ -10,10 +10,13 @@ export const metadata: Metadata = { title: "Project" };
 
 export default async function ProjectDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ view?: string; task?: string }>;
 }) {
   const { id } = await params;
+  const sp = await searchParams;
   const user = await requireUser();
 
   if (!(await canAccessProject(id, user.id, user.role))) notFound();
@@ -50,6 +53,8 @@ export default async function ProjectDetailPage({
 
   return (
     <ProjectWorkspace
+      defaultView={sp.view ?? "gantt"}
+      initialTaskId={sp.task ?? null}
       project={{
         id: project.id,
         name: project.name,
