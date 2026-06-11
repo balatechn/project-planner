@@ -179,6 +179,58 @@ export default async function DashboardPage() {
         />
       </div>
 
+      {/* ── Microsoft 365 Quick Access ──────────────────────────────── */}
+      <div className="flex items-center gap-3">
+        <span className="text-xs font-medium text-muted-foreground select-none">
+          Quick Access
+        </span>
+        <div className="flex items-center gap-2">
+
+          {/* Outlook */}
+          <a
+            href="https://outlook.office.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Outlook"
+            className="flex h-9 w-9 items-center justify-center rounded-xl shadow-sm transition-transform hover:scale-110 hover:shadow-md"
+            style={{ backgroundColor: "#0078D4" }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+              <path d="M20 4H4C2.9 4 2 4.9 2 6v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z" />
+            </svg>
+          </a>
+
+          {/* OneDrive */}
+          <a
+            href="https://onedrive.live.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="OneDrive"
+            className="flex h-9 w-9 items-center justify-center rounded-xl shadow-sm transition-transform hover:scale-110 hover:shadow-md"
+            style={{ backgroundColor: "#0364B8" }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+              <path d="M19.35 10.04A7.49 7.49 0 0 0 12 4C9.11 4 6.6 5.64 5.35 8.04A5.994 5.994 0 0 0 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96z" />
+            </svg>
+          </a>
+
+          {/* Microsoft Teams */}
+          <a
+            href="https://teams.microsoft.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Microsoft Teams"
+            className="flex h-9 w-9 items-center justify-center rounded-xl shadow-sm transition-transform hover:scale-110 hover:shadow-md"
+            style={{ backgroundColor: "#6264A7" }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="white" aria-hidden="true">
+              <path d="M17 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm-9 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4zm9.93.19C19.43 14.71 22 15.73 22 18v2h-4v-2c0-1.27-.62-2.36-1.56-3.16A9.16 9.16 0 0 1 17.93 14.19z" />
+            </svg>
+          </a>
+
+        </div>
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Projects */}
         <Card className="lg:col-span-2">
