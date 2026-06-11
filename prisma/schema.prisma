@@ -817,7 +817,8 @@ model RoomBooking {
   description      String?           @db.Text
   startTime        DateTime
   endTime          DateTime
-  attendeeIds      String[]          // user ids of attendees
+  attendeeIds      String[]          // internal user ids
+  guestEmails      String[]          // external vendor / guest email addresses
   // Teams / Graph integration
   teamsJoinUrl     String?
   teamsMeetingId   String?

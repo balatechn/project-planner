@@ -154,13 +154,26 @@ export async function DELETE(_req: Request, { params }: Params) {
     const user = await getAuthedUser();
     requirePermission(user.role, "task:delete");
     const { id } = await params;
-    const existing = await loadTaskForUser(id, user.id, user.role);
+
+    // Load with createdById for ownership check
+    const task = await prisma.task.findUnique({
+      where: { id },
+      select: { id: true, projectId: true, title: true, createdById: true },
+    });
+    if (!task) throw new ApiError(404, "Task not found");
+    if (!(await canAccessProject(task.projectId, user.id, user.role)))
+      throw new ApiError(404, "Task not found");
+
+    // Only the creator or an ADMIN can delete a task
+    if (task.createdById !== user.id && user.role !== "ADMIN") {
+      throw new ApiError(403, "Only the task creator or an Admin can delete this task");
+    }
 
     await prisma.task.delete({ where: { id } });
     await logActivity({
       userId: user.id,
       action: "task.deleted",
-      projectId: existing.projectId,
+      projectId: task.projectId,
       entityType: "task",
       entityId: id,
     });

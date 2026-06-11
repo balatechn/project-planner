@@ -48,6 +48,7 @@ export type BookingInfo = {
   startTime: string;
   endTime: string;
   attendeeIds: string[];
+  guestEmails: string[];
   teamsJoinUrl: string | null;
   teamsMeetingId: string | null;
   isRecurring: boolean;

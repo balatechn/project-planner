@@ -81,6 +81,7 @@ export function TaskDialog({
   users,
   siblingTasks,
   permissions,
+  currentUserId,
   onSaved,
   onOpenSubtask,
 }: {
@@ -92,6 +93,7 @@ export function TaskDialog({
   users: Person[];
   siblingTasks: TaskListItem[];
   permissions: WorkspacePermissions;
+  currentUserId: string;
   onSaved: () => void;
   onOpenSubtask?: (id: string) => void;
 }) {
@@ -865,7 +867,7 @@ export function TaskDialog({
 
         <div className="mt-2 flex items-center justify-between border-t pt-4">
           <div>
-            {isEdit && permissions.canEditTask && (
+            {isEdit && (task?.createdById === currentUserId || permissions.canDelete) && (
               <Button variant="ghost" size="sm" onClick={remove}>
                 <Trash2 className="h-4 w-4 text-destructive" /> Delete
               </Button>

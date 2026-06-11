@@ -21,6 +21,7 @@ export default async function CalendarPage() {
       },
       _count: { select: { subtasks: true, comments: true, attachments: true, checklistItems: true } },
       dependsOn: { select: { prerequisiteId: true } },
+      createdBy: { select: { id: true } },
     },
     orderBy: { dueDate: "asc" },
   });
@@ -41,6 +42,7 @@ export default async function CalendarPage() {
     orderIndex: t.orderIndex,
     isMilestone: t.isMilestone,
     wbsNumber: t.wbsNumber,
+    createdById: t.createdBy.id,
     assignees: t.assignees,
     dependsOn: t.dependsOn,
     _count: t._count,

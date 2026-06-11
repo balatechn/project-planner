@@ -396,6 +396,7 @@ export function ProjectWorkspace({
           users={allUsers}
           siblingTasks={tasks}
           permissions={permissions}
+          currentUserId={currentUserId}
           onSaved={loadTasks}
           onOpenSubtask={(id) => {
             const t = tasks.find((x) => x.id === id);

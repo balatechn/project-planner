@@ -7,6 +7,7 @@ import {
   Calendar,
   Clock,
   Loader2,
+  MailPlus,
   RefreshCw,
   Repeat2,
   Trash2,
@@ -111,6 +112,11 @@ export function BookRoomDialog({
   const [bookedForId, setBookedForId] = React.useState<string>(
     editBooking?.bookedForId ?? "",
   );
+  // Guest / external invite emails (newline or comma separated)
+  const [guestEmailsRaw, setGuestEmailsRaw] = React.useState(
+    editBooking?.guestEmails?.join("\n") ?? "",
+  );
+
   // Recurrence
   const [recurring, setRecurring] = React.useState(editBooking?.isRecurring ?? false);
   const [recurringType, setRecurringType] = React.useState<"daily" | "weekly" | "monthly">("weekly");
@@ -146,6 +152,12 @@ export function BookRoomDialog({
         toast({ title: "Booking updated", variant: "success" });
         onSaved();
       } else {
+        // Parse guest emails from the textarea (comma or newline separated)
+        const guestEmails = guestEmailsRaw
+          .split(/[\n,]+/)
+          .map((e) => e.trim())
+          .filter((e) => e.includes("@"));
+
         const res = await fetch("/api/room-bookings", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -156,6 +168,7 @@ export function BookRoomDialog({
             startTime: start.toISOString(),
             endTime: end.toISOString(),
             attendeeIds,
+            guestEmails,
             bookedForId: bookedForId || null,
             isRecurring: recurring,
             recurringType: recurring ? recurringType : undefined,
@@ -358,6 +371,26 @@ export function BookRoomDialog({
                     </label>
                   ))}
               </div>
+            </div>
+          )}
+
+          {/* External / Guest email invites */}
+          {!isEdit && (
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1">
+                <MailPlus className="h-3.5 w-3.5" /> External guests
+                <span className="ml-1 text-xs text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <Textarea
+                placeholder={"vendor@example.com\nclient@company.com"}
+                value={guestEmailsRaw}
+                onChange={(e) => setGuestEmailsRaw(e.target.value)}
+                rows={2}
+                className="text-sm font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                One email per line (or comma-separated). Each guest receives a calendar invite (.ics) with the Teams meeting link.
+              </p>
             </div>
           )}
 

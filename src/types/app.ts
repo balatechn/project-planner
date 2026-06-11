@@ -29,6 +29,7 @@ export type TaskListItem = {
   wbsNumber: string | null;
   baselineStart?: string | null;
   baselineEnd?: string | null;
+  createdById: string;
   assignees: { user: Person }[];
   dependsOn: { prerequisiteId: string }[];
   _count: { subtasks: number; comments: number; attachments: number; checklistItems: number };

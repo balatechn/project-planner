@@ -32,11 +32,13 @@ export async function GET(req: Request) {
         },
         _count: { select: { subtasks: true, comments: true, attachments: true, checklistItems: true } },
         dependsOn: { select: { prerequisiteId: true } },
+        createdBy: { select: { id: true } },
       },
       orderBy: [{ orderIndex: "asc" }, { createdAt: "asc" }],
     });
     return json({ tasks: tasks.map((t) => ({
       ...t,
+      createdById: t.createdBy.id,
       startDate: t.startDate?.toISOString() ?? null,
       dueDate: t.dueDate?.toISOString() ?? null,
       completedAt: t.completedAt?.toISOString() ?? null,

@@ -4,10 +4,23 @@ import { graphFetch, isGraphConfigured } from "@/lib/graph";
 // sends via Microsoft Graph (sendMail). Otherwise logs to the console
 // so local development works without a tenant.
 
+export type EmailAttachment = {
+  /** Filename shown in the email (e.g. "invite.ics") */
+  name: string;
+  /** Base64-encoded file content */
+  contentBytes: string;
+  /** MIME type (e.g. "text/calendar") */
+  contentType: string;
+};
+
 export type EmailMessage = {
   to: string | string[];
   subject: string;
   html: string;
+  /** Optional reply-to address */
+  replyTo?: string;
+  /** Optional file attachments */
+  attachments?: EmailAttachment[];
 };
 
 function graphEmailEnabled(): boolean {
@@ -23,7 +36,7 @@ export async function sendEmail(message: EmailMessage): Promise<boolean> {
 
   if (!graphEmailEnabled()) {
     console.info(
-      `[email:console] To: ${recipients.map((r) => r.emailAddress.address).join(", ")} | ${message.subject}`,
+      `[email:console] To: ${recipients.map((r) => r.emailAddress.address).join(", ")} | ${message.subject}${message.attachments?.length ? ` | attachments: ${message.attachments.map((a) => a.name).join(", ")}` : ""}`,
     );
     return true;
   }
@@ -35,14 +48,29 @@ export async function sendEmail(message: EmailMessage): Promise<boolean> {
   }
 
   try {
+    const graphMessage: Record<string, unknown> = {
+      subject: message.subject,
+      body: { contentType: "HTML", content: message.html },
+      toRecipients: recipients,
+    };
+
+    if (message.replyTo) {
+      graphMessage.replyTo = [{ emailAddress: { address: message.replyTo } }];
+    }
+
+    if (message.attachments && message.attachments.length > 0) {
+      graphMessage.attachments = message.attachments.map((a) => ({
+        "@odata.type": "#microsoft.graph.fileAttachment",
+        name: a.name,
+        contentType: a.contentType,
+        contentBytes: a.contentBytes,
+      }));
+    }
+
     const res = await graphFetch(`/users/${encodeURIComponent(sender)}/sendMail`, {
       method: "POST",
       body: JSON.stringify({
-        message: {
-          subject: message.subject,
-          body: { contentType: "HTML", content: message.html },
-          toRecipients: recipients,
-        },
+        message: graphMessage,
         saveToSentItems: true,
       }),
     });

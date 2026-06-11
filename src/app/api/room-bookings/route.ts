@@ -3,6 +3,8 @@ import { addDays, addWeeks, addMonths, parseISO, isAfter } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { createTeamsMeeting, sendBookingEmail, buildBookingEmailHtml } from "@/lib/teams-graph";
+import { sendEmail } from "@/lib/email";
+import { buildICS, icsToBase64 } from "@/lib/ics";
 
 // GET /api/room-bookings?date=YYYY-MM-DD[&roomId=]
 // Returns all bookings for the given date (default = today)
@@ -45,6 +47,7 @@ export async function POST(req: Request) {
     startTime,
     endTime,
     attendeeIds = [],
+    guestEmails = [],
     isRecurring = false,
     recurringType,
     recurringDays,
@@ -96,6 +99,11 @@ export async function POST(req: Request) {
 
   const groupId = isRecurring && instances.length > 0 ? crypto.randomUUID() : undefined;
 
+  // Sanitise guest emails
+  const sanitisedGuestEmails: string[] = Array.isArray(guestEmails)
+    ? guestEmails.map((e: string) => e.trim()).filter((e: string) => e.includes("@"))
+    : [];
+
   // Create the first (or only) booking
   const booking = await prisma.roomBooking.create({
     data: {
@@ -107,6 +115,7 @@ export async function POST(req: Request) {
       startTime: new Date(startTime),
       endTime: new Date(endTime),
       attendeeIds: attendeeIds ?? [],
+      guestEmails: sanitisedGuestEmails,
       teamsJoinUrl: teamsMeeting?.joinUrl ?? null,
       teamsMeetingId: teamsMeeting?.meetingId ?? null,
       isRecurring: isRecurring && instances.length > 0,
@@ -133,6 +142,7 @@ export async function POST(req: Request) {
         startTime: inst.startTime,
         endTime: inst.endTime,
         attendeeIds: attendeeIds ?? [],
+        guestEmails: sanitisedGuestEmails,
         teamsJoinUrl: teamsMeeting?.joinUrl ?? null,
         teamsMeetingId: teamsMeeting?.meetingId ?? null,
         isRecurring: true,
@@ -175,6 +185,49 @@ export async function POST(req: Request) {
       organizerName: booking.organizer.name ?? user.id,
     });
     sendBookingEmail(user.id, roomEmail, emailSubject, roomHtml).catch(() => undefined);
+  }
+
+  // 3️⃣ External guest invites with ICS calendar attachment
+  if (sanitisedGuestEmails.length > 0) {
+    const icsContent = buildICS({
+      uid: `booking-${booking.id}@nationalgroupindia.com`,
+      summary: `${title} — ${booking.room.name}`,
+      description: description ?? undefined,
+      location: `${booking.room.name}${booking.room.floor ? `, Floor ${booking.room.floor}` : ""}`,
+      startTime: new Date(startTime),
+      endTime: new Date(endTime),
+      organiserEmail: roomEmail ?? "nationalmr@nationalgroupindia.com",
+      organiserName: "National Group India — Meeting Rooms",
+      attendeeEmails: sanitisedGuestEmails,
+      teamsJoinUrl: teamsMeeting?.joinUrl,
+    });
+
+    const icsAttachment = {
+      name: "invite.ics",
+      contentBytes: icsToBase64(icsContent),
+      contentType: "text/calendar; method=REQUEST",
+    };
+
+    const guestHtml = buildBookingEmailHtml({
+      title,
+      roomName: booking.room.name,
+      startTime,
+      endTime,
+      teamsJoinUrl: teamsMeeting?.joinUrl,
+      organizerName: booking.organizer.name ?? "National Group India",
+    });
+
+    const guestSubject = `Meeting Invitation: ${title} — ${booking.room.name}`;
+
+    for (const guestEmail of sanitisedGuestEmails) {
+      sendEmail({
+        to: guestEmail,
+        subject: guestSubject,
+        html: guestHtml,
+        replyTo: roomEmail ?? "nationalmr@nationalgroupindia.com",
+        attachments: [icsAttachment],
+      }).catch(() => undefined);
+    }
   }
 
   return NextResponse.json({ booking }, { status: 201 });
