@@ -26,9 +26,9 @@ import {
 } from "@/components/ui/select";
 
 const DAY_WIDTH = 28;
-const ROW_HEIGHT = 40;
+const ROW_HEIGHT = 30;
 const LABEL_WIDTH = 240;
-const MIN_ROWS = 10; // minimum ghost rows to always show grid
+const MIN_ROWS = 15; // minimum ghost rows to always show grid
 
 // Compute critical path: longest duration chain through dependencies
 function computeCriticalPath(tasks: TaskListItem[]): Set<string> {
@@ -293,7 +293,7 @@ export function GanttView({
                 <div
                   key={w.toISOString()}
                   className={cn(
-                    "px-2 py-2 text-xs font-medium text-muted-foreground border-r border-border/50",
+                    "px-2 py-1.5 text-xs font-medium text-muted-foreground border-r border-border/50",
                     i % 2 !== 0 ? "bg-muted/30" : "bg-muted/10",
                     isToday(w) && "text-primary font-semibold",
                   )}
@@ -379,7 +379,7 @@ export function GanttView({
                   >
                     <button
                       onClick={() => onOpenTask(task)}
-                      className="shrink-0 border-r border-border/60 px-3 text-left text-sm hover:text-primary transition-colors overflow-hidden flex items-center"
+                      className="shrink-0 border-r border-border/60 px-3 text-left text-xs hover:text-primary transition-colors overflow-hidden flex items-center"
                       style={{ width: LABEL_WIDTH, height: ROW_HEIGHT }}
                     >
                       <span className="truncate">{task.title}</span>
@@ -428,7 +428,7 @@ export function GanttView({
                       {/* Label column */}
                       <button
                         onClick={() => onOpenTask(task)}
-                        className="shrink-0 border-r border-border/60 px-3 text-left text-sm hover:text-primary transition-colors overflow-hidden"
+                        className="shrink-0 border-r border-border/60 px-3 text-left text-xs hover:text-primary transition-colors overflow-hidden"
                         style={{ width: LABEL_WIDTH, height: ROW_HEIGHT }}
                       >
                         <div className="flex items-center gap-1.5 h-full">
@@ -501,7 +501,7 @@ export function GanttView({
                               style={{
                                 left: offset * DAY_WIDTH,
                                 width: span * DAY_WIDTH,
-                                height: 22,
+                                height: 16,
                                 backgroundColor: barColor,
                               }}
                               title={`${task.title} · ${span} day(s)${isCritical ? " · Critical path" : ""}`}
@@ -511,8 +511,8 @@ export function GanttView({
                                 className="absolute inset-y-0 left-0 bg-black/20 rounded-l-sm"
                                 style={{ width: `${task.progress}%` }}
                               />
-                              {span * DAY_WIDTH > 40 && (
-                                <span className="relative px-1.5 text-[10px] font-medium text-white truncate">
+                              {span * DAY_WIDTH > 44 && (
+                                <span className="relative px-1.5 text-[9px] font-medium text-white truncate">
                                   {task.progress}%
                                 </span>
                               )}
