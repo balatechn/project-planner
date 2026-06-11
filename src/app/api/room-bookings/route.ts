@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { addDays, addWeeks, addMonths, parseISO, formatISO, isAfter } from "date-fns";
+import { addDays, addWeeks, addMonths, parseISO, isAfter } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { createTeamsMeeting, sendBookingEmail, buildBookingEmailHtml } from "@/lib/teams-graph";
@@ -116,7 +116,7 @@ export async function POST(req: Request) {
       recurringGroupId: groupId ?? null,
     },
     include: {
-      room: { select: { id: true, name: true, color: true, capacity: true, floor: true } },
+      room: { select: { id: true, name: true, color: true, capacity: true, floor: true, contactEmail: true } },
       organizer: { select: { id: true, name: true, email: true, image: true } },
     },
   });
@@ -145,19 +145,36 @@ export async function POST(req: Request) {
     });
   }
 
-  // Send confirmation email (non-blocking)
+  // Send confirmation emails (non-blocking)
+  const emailSubject = `Room Booked: ${title} — ${booking.room.name}`;
+  const html = buildBookingEmailHtml({
+    title,
+    roomName: booking.room.name,
+    startTime,
+    endTime,
+    teamsJoinUrl: teamsMeeting?.joinUrl,
+    organizerName: booking.organizer.name ?? "You",
+  });
+
   if (booking.organizer.email) {
-    const html = buildBookingEmailHtml({
+    // 1️⃣ Organiser confirmation
+    sendBookingEmail(user.id, booking.organizer.email, emailSubject, html).catch(
+      () => undefined,
+    );
+  }
+
+  // 2️⃣ Room mailbox notification (nationalmr@nationalgroupindia.com)
+  const roomEmail = booking.room.contactEmail;
+  if (roomEmail && roomEmail !== booking.organizer.email) {
+    const roomHtml = buildBookingEmailHtml({
       title,
       roomName: booking.room.name,
       startTime,
       endTime,
       teamsJoinUrl: teamsMeeting?.joinUrl,
-      organizerName: booking.organizer.name ?? "You",
+      organizerName: booking.organizer.name ?? user.id,
     });
-    sendBookingEmail(user.id, booking.organizer.email, `Room Booked: ${title}`, html).catch(
-      () => undefined,
-    );
+    sendBookingEmail(user.id, roomEmail, emailSubject, roomHtml).catch(() => undefined);
   }
 
   return NextResponse.json({ booking }, { status: 201 });

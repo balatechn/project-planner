@@ -33,7 +33,7 @@ export async function GET(req: Request) {
       startTime: { gte: windowStart, lte: windowEnd },
     },
     include: {
-      room: { select: { name: true, floor: true } },
+      room: { select: { name: true, floor: true, contactEmail: true } },
       organizer: { select: { id: true, name: true, email: true } },
     },
   });
@@ -66,12 +66,21 @@ export async function GET(req: Request) {
   <p style="color:#94a3b8;font-size:12px">Reminder from National Group India · Project Planner</p>
 </div>`;
 
+    const subject = `Tomorrow: ${booking.title} at ${startStr}`;
+
+    // Send to organiser
     const ok = await sendBookingEmail(
       booking.organizer.id,
       booking.organizer.email,
-      `Tomorrow: ${booking.title} at ${startStr}`,
+      subject,
       html,
     );
+
+    // Also notify the room mailbox
+    const roomEmail = booking.room.contactEmail;
+    if (roomEmail && roomEmail !== booking.organizer.email) {
+      sendBookingEmail(booking.organizer.id, roomEmail, subject, html).catch(() => undefined);
+    }
 
     if (ok) {
       await prisma.roomBooking.update({
