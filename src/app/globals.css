@@ -131,7 +131,7 @@
 
 /* ── Login page ────────────────────────────────────────────────────────── */
 .login-bg {
-  background: #060b14;
+  background: #f4f1ea;
   min-height: 100vh;
   overflow: hidden;
   position: relative;
@@ -147,19 +147,19 @@
 }
 .login-orb-1 {
   width: 600px; height: 600px;
-  background: radial-gradient(circle, rgba(201,162,58,0.26) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(201,162,58,0.22) 0%, transparent 70%);
   top: -150px; left: -100px;
   animation: orb-drift-1 18s ease-in-out infinite;
 }
 .login-orb-2 {
   width: 500px; height: 500px;
-  background: radial-gradient(circle, rgba(30,58,95,0.55) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(30,58,95,0.16) 0%, transparent 70%);
   bottom: -100px; right: -80px;
   animation: orb-drift-2 22s ease-in-out infinite;
 }
 .login-orb-3 {
   width: 400px; height: 400px;
-  background: radial-gradient(circle, rgba(212,175,55,0.12) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(212,175,55,0.14) 0%, transparent 70%);
   top: 40%; left: 30%;
   animation: orb-drift-3 15s ease-in-out infinite;
 }
@@ -309,16 +309,16 @@ a, button, [role="button"] {
 
 /* ── Login form input styling ─────────────────────────────────────────── */
 .login-input {
-  background: rgba(255,255,255,0.06) !important;
-  border: 1px solid rgba(255,255,255,0.12) !important;
-  color: #fff !important;
+  background: rgba(255,255,255,0.85) !important;
+  border: 1px solid rgba(30,58,95,0.18) !important;
+  color: #16283e !important;
   transition: border-color 0.2s, background-color 0.2s, box-shadow 0.2s;
 }
-.login-input::placeholder { color: rgba(255,255,255,0.35) !important; }
+.login-input::placeholder { color: rgba(22,40,62,0.35) !important; }
 .login-input:focus {
-  background: rgba(255,255,255,0.09) !important;
-  border-color: hsl(44 70% 55% / 0.7) !important;
-  box-shadow: 0 0 0 3px hsl(44 70% 55% / 0.18) !important;
+  background: #fff !important;
+  border-color: hsl(213 52% 34% / 0.6) !important;
+  box-shadow: 0 0 0 3px hsl(213 52% 34% / 0.14) !important;
   outline: none !important;
 }
 
@@ -338,14 +338,15 @@ a, button, [role="button"] {
 
 /* ── Microsoft SSO button ─────────────────────────────────────────────── */
 .btn-microsoft {
-  background: rgba(255,255,255,0.07);
-  border: 1px solid rgba(255,255,255,0.15);
-  color: #fff;
-  transition: background 0.2s, border-color 0.2s, transform 0.12s;
+  background: #fff;
+  border: 1px solid rgba(30,58,95,0.2);
+  color: #16283e;
+  transition: background 0.2s, border-color 0.2s, transform 0.12s, box-shadow 0.12s;
 }
 .btn-microsoft:hover {
-  background: rgba(255,255,255,0.12);
-  border-color: rgba(255,255,255,0.25);
+  background: #fff;
+  border-color: rgba(30,58,95,0.4);
+  box-shadow: 0 4px 14px rgba(22,40,62,0.12);
   transform: translateY(-1px);
 }
 

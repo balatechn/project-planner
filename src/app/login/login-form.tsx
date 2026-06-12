@@ -56,12 +56,12 @@ export function LoginForm({
       <div
         className="rounded-2xl p-8 sm:p-10"
         style={{
-          background: "rgba(255,255,255,0.04)",
+          background: "rgba(255,255,255,0.72)",
           backdropFilter: "blur(24px) saturate(180%)",
           WebkitBackdropFilter: "blur(24px) saturate(180%)",
-          border: "1px solid rgba(255,255,255,0.10)",
+          border: "1px solid rgba(30,58,95,0.12)",
           boxShadow:
-            "0 25px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(245,158,11,0.08) inset",
+            "0 25px 80px rgba(22,40,62,0.16), 0 0 0 1px rgba(201,162,58,0.10) inset",
         }}
       >
         {/* Mobile logo */}
@@ -71,14 +71,14 @@ export function LoginForm({
             alt="National Group India"
             width={40}
             height={40}
-            className="object-contain brightness-0 invert"
+            className="object-contain"
             priority
           />
           <div>
-            <p className="text-sm font-bold text-white leading-tight">
+            <p className="text-sm font-bold text-[#16283e] leading-tight">
               National Group India
             </p>
-            <p className="text-[10px] font-semibold tracking-[0.18em] uppercase text-white/50 mt-0.5">
+            <p className="text-[10px] font-semibold tracking-[0.18em] uppercase text-[#16283e]/55 mt-0.5">
               Sharepoint
             </p>
           </div>
@@ -86,17 +86,17 @@ export function LoginForm({
 
         {/* Heading */}
         <div className="mb-8 space-y-1.5">
-          <h2 className="text-2xl font-bold text-white tracking-tight">
+          <h2 className="text-2xl font-bold text-[#16283e] tracking-tight">
             Welcome back
           </h2>
-          <p className="text-sm text-white/50">
+          <p className="text-sm text-[#16283e]/55">
             Sign in to your corporate workspace to continue.
           </p>
         </div>
 
         {/* Error */}
         {formError && (
-          <div className="mb-5 rounded-xl border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          <div className="mb-5 rounded-xl border border-red-500/25 bg-red-500/10 px-4 py-3 text-sm text-red-600">
             {formError}
           </div>
         )}
@@ -111,14 +111,14 @@ export function LoginForm({
               className="btn-microsoft flex w-full items-center justify-center gap-3 rounded-xl px-4 py-3 text-sm font-semibold disabled:opacity-60"
             >
               {loading === "sso" ? (
-                <Loader2 className="h-4 w-4 animate-spin text-white/70" />
+                <Loader2 className="h-4 w-4 animate-spin text-[#16283e]/60" />
               ) : (
                 <MicrosoftLogo />
               )}
               Sign in with Microsoft
             </button>
           ) : (
-            <div className="rounded-xl border border-amber-500/20 bg-amber-500/8 px-4 py-3 text-xs text-amber-400/80">
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-700">
               Microsoft Entra ID SSO is not configured yet. Use the developer
               login below to explore the app.
             </div>
@@ -128,18 +128,18 @@ export function LoginForm({
           {devLoginEnabled && (
             <>
               <div className="relative flex items-center gap-3 py-1">
-                <div className="flex-1 border-t border-white/8" />
-                <span className="text-xs text-white/30 font-medium">
+                <div className="flex-1 border-t border-[#1e3a5f]/10" />
+                <span className="text-xs text-[#16283e]/40 font-medium">
                   or developer login
                 </span>
-                <div className="flex-1 border-t border-white/8" />
+                <div className="flex-1 border-t border-[#1e3a5f]/10" />
               </div>
 
               <form onSubmit={onDevLogin} className="space-y-3.5">
                 <div className="space-y-1.5">
                   <label
                     htmlFor="email"
-                    className="text-xs font-semibold text-white/60 uppercase tracking-wider"
+                    className="text-xs font-semibold text-[#16283e]/60 uppercase tracking-wider"
                   >
                     Email
                   </label>
@@ -156,7 +156,7 @@ export function LoginForm({
                 <div className="space-y-1.5">
                   <label
                     htmlFor="password"
-                    className="text-xs font-semibold text-white/60 uppercase tracking-wider"
+                    className="text-xs font-semibold text-[#16283e]/60 uppercase tracking-wider"
                   >
                     Password
                   </label>
@@ -187,7 +187,7 @@ export function LoginForm({
         </div>
 
         {/* Bottom note */}
-        <p className="mt-8 text-center text-[11px] text-white/25">
+        <p className="mt-8 text-center text-[11px] text-[#16283e]/40">
           Secured with Microsoft 365 · National Group India
         </p>
       </div>

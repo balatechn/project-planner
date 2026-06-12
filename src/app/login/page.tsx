@@ -61,10 +61,10 @@ export default async function LoginPage({
 
       {/* Subtle grid overlay */}
       <div
-        className="pointer-events-none absolute inset-0 z-0 opacity-[0.03]"
+        className="pointer-events-none absolute inset-0 z-0 opacity-[0.04]"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(255,255,255,.3) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.3) 1px, transparent 1px)",
+            "linear-gradient(rgba(22,40,62,.35) 1px, transparent 1px), linear-gradient(90deg, rgba(22,40,62,.35) 1px, transparent 1px)",
           backgroundSize: "64px 64px",
         }}
         aria-hidden="true"
@@ -84,15 +84,15 @@ export default async function LoginPage({
                 alt="National Group India"
                 width={56}
                 height={56}
-                className="object-contain brightness-0 invert drop-shadow-[0_0_20px_rgba(245,158,11,0.5)]"
+                className="object-contain drop-shadow-[0_4px_14px_rgba(201,162,58,0.35)]"
                 priority
               />
             </div>
             <div>
-              <p className="text-lg font-bold text-white leading-tight tracking-wide">
+              <p className="text-lg font-bold text-[#16283e] leading-tight tracking-wide">
                 National Group India
               </p>
-              <p className="text-xs font-semibold tracking-[0.2em] uppercase text-white/50 mt-0.5">
+              <p className="text-xs font-semibold tracking-[0.2em] uppercase text-[#16283e]/55 mt-0.5">
                 Sharepoint
               </p>
             </div>
@@ -101,16 +101,16 @@ export default async function LoginPage({
           {/* Hero headline */}
           <div className="space-y-8">
             <div className="space-y-4 animate-slide-up delay-75">
-              <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60 font-medium backdrop-blur-sm">
-                <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
+              <div className="inline-flex items-center gap-2 rounded-full border border-[#1e3a5f]/15 bg-white/70 px-3 py-1 text-xs text-[#16283e]/70 font-medium backdrop-blur-sm">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
                 Est. 1949 · 200+ landmark projects
               </div>
-              <h1 className="text-5xl xl:text-6xl font-bold leading-[1.08] text-white tracking-tight">
+              <h1 className="text-5xl xl:text-6xl font-bold leading-[1.08] text-[#16283e] tracking-tight">
                 Pioneering{" "}
-                <span className="text-gradient-gold">infrastructure.</span>
+                <span className="text-gradient">infrastructure.</span>
                 <br />Transforming communities.
               </h1>
-              <p className="text-lg text-white/55 max-w-md leading-relaxed">
+              <p className="text-lg text-[#16283e]/60 max-w-md leading-relaxed">
                 One workspace for the entire group — Infrabuild, iSky Transport,
                 Gold &amp; Diamond, Super Bazar and Rainland Autocorp — powered
                 by Microsoft 365.
@@ -125,12 +125,12 @@ export default async function LoginPage({
                   className="animate-slide-up flex items-center gap-3 group"
                   style={{ animationDelay: `${(i + 2) * 80}ms` }}
                 >
-                  <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white/5 border border-white/8 text-base group-hover:bg-white/10 transition-colors">
+                  <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white/70 border border-[#1e3a5f]/10 text-base shadow-sm group-hover:bg-white transition-colors">
                     {f.icon}
                   </span>
                   <div>
-                    <p className="text-sm font-semibold text-white/90">{f.title}</p>
-                    <p className="text-xs text-white/45">{f.desc}</p>
+                    <p className="text-sm font-semibold text-[#16283e]">{f.title}</p>
+                    <p className="text-xs text-[#16283e]/55">{f.desc}</p>
                   </div>
                 </li>
               ))}
@@ -140,7 +140,7 @@ export default async function LoginPage({
           {/* Group companies + footer */}
           <div className="space-y-4">
             <div className="animate-fade-in delay-450">
-              <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">
+              <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#16283e]/45">
                 The National Group family
               </p>
               <div className="flex flex-wrap gap-2">
@@ -148,7 +148,7 @@ export default async function LoginPage({
                   <span
                     key={c.name}
                     title={c.field}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/65 backdrop-blur-sm transition-colors hover:border-amber-400/30 hover:bg-white/10 hover:text-white/90"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-[#1e3a5f]/12 bg-white/70 px-3 py-1.5 text-xs text-[#16283e]/75 backdrop-blur-sm shadow-sm transition-colors hover:border-amber-500/40 hover:bg-white hover:text-[#16283e]"
                   >
                     <span aria-hidden="true">{c.icon}</span>
                     {c.name}
@@ -156,7 +156,7 @@ export default async function LoginPage({
                 ))}
               </div>
             </div>
-            <p className="animate-fade-in delay-600 text-xs text-white/30">
+            <p className="animate-fade-in delay-600 text-xs text-[#16283e]/40">
               © {new Date().getFullYear()} National Group India. All rights reserved.
             </p>
           </div>
