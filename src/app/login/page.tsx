@@ -34,6 +34,15 @@ const FEATURES = [
   },
 ];
 
+// Group companies — nationalgroupindia.com
+const GROUP_COMPANIES = [
+  { icon: "🏗️", name: "National Infrabuild", field: "Roads, bridges & public infrastructure" },
+  { icon: "🚆", name: "iSky Transport Systems", field: "Smart transport solutions" },
+  { icon: "💎", name: "National Gold & Diamond", field: "Fine jewellery" },
+  { icon: "🛒", name: "National Super Bazar", field: "Retail" },
+  { icon: "🚗", name: "Rainland Autocorp", field: "Automotive" },
+];
+
 export default async function LoginPage({
   searchParams,
 }: {
@@ -94,16 +103,17 @@ export default async function LoginPage({
             <div className="space-y-4 animate-slide-up delay-75">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/60 font-medium backdrop-blur-sm">
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-400 animate-pulse" />
-                Enterprise Platform · v2.0
+                Est. 1949 · 200+ landmark projects
               </div>
               <h1 className="text-5xl xl:text-6xl font-bold leading-[1.08] text-white tracking-tight">
-                Your work,{" "}
-                <span className="text-gradient-gold">unified</span>
-                <br />in one place.
+                Pioneering{" "}
+                <span className="text-gradient-gold">infrastructure.</span>
+                <br />Transforming communities.
               </h1>
               <p className="text-lg text-white/55 max-w-md leading-relaxed">
-                A premium workspace built for National Group India — projects,
-                tasks, training, and meeting rooms, all powered by Microsoft 365.
+                One workspace for the entire group — Infrabuild, iSky Transport,
+                Gold &amp; Diamond, Super Bazar and Rainland Autocorp — powered
+                by Microsoft 365.
               </p>
             </div>
 
@@ -127,10 +137,29 @@ export default async function LoginPage({
             </ul>
           </div>
 
-          {/* Footer */}
-          <p className="animate-fade-in delay-600 text-xs text-white/30">
-            © {new Date().getFullYear()} National Group India. All rights reserved.
-          </p>
+          {/* Group companies + footer */}
+          <div className="space-y-4">
+            <div className="animate-fade-in delay-450">
+              <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">
+                The National Group family
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {GROUP_COMPANIES.map((c) => (
+                  <span
+                    key={c.name}
+                    title={c.field}
+                    className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/65 backdrop-blur-sm transition-colors hover:border-amber-400/30 hover:bg-white/10 hover:text-white/90"
+                  >
+                    <span aria-hidden="true">{c.icon}</span>
+                    {c.name}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <p className="animate-fade-in delay-600 text-xs text-white/30">
+              © {new Date().getFullYear()} National Group India. All rights reserved.
+            </p>
+          </div>
         </div>
 
         {/* ── Form panel ──────────────────────────────────────────── */}

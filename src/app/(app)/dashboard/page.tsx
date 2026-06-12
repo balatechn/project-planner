@@ -83,78 +83,99 @@ const getDashboardData = unstable_cache(
   { revalidate: 30 }, // 30 s cache per user
 );
 
+// Per-user task stats — cached 30 s so repeat dashboard visits skip 4 queries
+const getUserStats = unstable_cache(
+  async (userId: string) => {
+    const now = new Date();
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const [myTasks, overdueCount, completedThisWeek, recentCompletions] =
+      await Promise.all([
+        prisma.task.findMany({
+          where: {
+            assignees: { some: { userId } },
+            status: { not: "COMPLETED" },
+          },
+          select: {
+            id: true,
+            title: true,
+            priority: true,
+            status: true,
+            dueDate: true,
+            project: { select: { id: true, name: true, color: true } },
+          },
+          orderBy: [{ dueDate: "asc" }],
+          take: 8,
+        }),
+        prisma.task.count({
+          where: {
+            assignees: { some: { userId } },
+            status: { notIn: ["COMPLETED"] },
+            dueDate: { lt: now },
+          },
+        }),
+        prisma.task.count({
+          where: {
+            assignees: { some: { userId } },
+            status: "COMPLETED",
+            completedAt: { gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) },
+          },
+        }),
+        prisma.task.findMany({
+          where: {
+            assignees: { some: { userId } },
+            status: "COMPLETED",
+            completedAt: { gte: fourteenDaysAgo },
+          },
+          select: { completedAt: true },
+        }),
+      ]);
+
+    // Compute the trend inside the cache — plain numbers serialize cleanly
+    const trendPoints: number[] = Array.from({ length: 14 }, (_, i) => {
+      const dayStart = new Date(now);
+      dayStart.setHours(0, 0, 0, 0);
+      dayStart.setDate(dayStart.getDate() - (13 - i));
+      const dayEnd = new Date(dayStart);
+      dayEnd.setDate(dayEnd.getDate() + 1);
+      return recentCompletions.filter(
+        (t) => t.completedAt && t.completedAt >= dayStart && t.completedAt < dayEnd,
+      ).length;
+    });
+
+    return { myTasks, overdueCount, completedThisWeek, trendPoints };
+  },
+  ["dashboard-user-stats"],
+  { revalidate: 30 },
+);
+
+// Announcements rarely change — shared cache across all users, 60 s
+const getAnnouncements = unstable_cache(
+  async () =>
+    prisma.announcement.findMany({
+      where: {
+        isActive: true,
+        OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
+      },
+      select: { id: true, title: true, body: true, type: true, isPinned: true },
+      orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
+      take: 5,
+    }),
+  ["dashboard-announcements"],
+  { revalidate: 60 },
+);
+
 export default async function DashboardPage() {
   const user = await requireUser();
   const where = projectAccessWhere(user.id, user.role);
 
-  // Per-user real-time task counts run fresh every request (cheap queries)
-  const now = new Date();
-  const [{ projects, recentActivity }, myTasks, overdueCount, completedThisWeek, activeAnnouncements] =
+  // Single fully-parallel fetch stage — no query waterfalls
+  const [{ projects, recentActivity }, userStats, activeAnnouncements] =
     await Promise.all([
       getDashboardData(user.id, user.role, JSON.stringify(where)),
-      prisma.task.findMany({
-        where: {
-          assignees: { some: { userId: user.id } },
-          status: { not: "COMPLETED" },
-        },
-        select: {
-          id: true,
-          title: true,
-          priority: true,
-          status: true,
-          dueDate: true,
-          project: { select: { id: true, name: true, color: true } },
-        },
-        orderBy: [{ dueDate: "asc" }],
-        take: 8,
-      }),
-      prisma.task.count({
-        where: {
-          assignees: { some: { userId: user.id } },
-          status: { notIn: ["COMPLETED"] },
-          dueDate: { lt: new Date() },
-        },
-      }),
-      prisma.task.count({
-        where: {
-          assignees: { some: { userId: user.id } },
-          status: "COMPLETED",
-          completedAt: {
-            gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-          },
-        },
-      }),
-      prisma.announcement.findMany({
-        where: {
-          isActive: true,
-          OR: [{ expiresAt: null }, { expiresAt: { gt: now } }],
-        },
-        select: { id: true, title: true, body: true, type: true, isPinned: true },
-        orderBy: [{ isPinned: "desc" }, { createdAt: "desc" }],
-        take: 5,
-      }),
+      getUserStats(user.id),
+      getAnnouncements(),
     ]);
-
-  // 14-day completion trend for the sparkline (one cheap indexed query)
-  const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
-  const recentCompletions = await prisma.task.findMany({
-    where: {
-      assignees: { some: { userId: user.id } },
-      status: "COMPLETED",
-      completedAt: { gte: fourteenDaysAgo },
-    },
-    select: { completedAt: true },
-  });
-  const trendPoints: number[] = Array.from({ length: 14 }, (_, i) => {
-    const dayStart = new Date(now);
-    dayStart.setHours(0, 0, 0, 0);
-    dayStart.setDate(dayStart.getDate() - (13 - i));
-    const dayEnd = new Date(dayStart);
-    dayEnd.setDate(dayEnd.getDate() + 1);
-    return recentCompletions.filter(
-      (t) => t.completedAt && t.completedAt >= dayStart && t.completedAt < dayEnd,
-    ).length;
-  });
+  const { myTasks, overdueCount, completedThisWeek, trendPoints } = userStats;
 
   const activeProjects = projects.length;
   const openTasks = myTasks.length;
