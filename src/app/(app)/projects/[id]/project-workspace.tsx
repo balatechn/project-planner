@@ -13,6 +13,7 @@ import {
   KanbanSquare,
   LayoutList,
   MoreVertical,
+  Pencil,
   Plus,
   Timer,
   Trash2,
@@ -39,6 +40,7 @@ import {
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ManageMembersDialog } from "./manage-members-dialog";
+import { EditProjectDialog } from "./edit-project-dialog";
 import { PriorityBadge, ProjectStatusBadge } from "@/components/badges";
 import { AvatarStack } from "@/components/avatar-stack";
 import { formatCurrency } from "@/lib/utils";
@@ -113,6 +115,7 @@ export function ProjectWorkspace({
   allUsers,
   canManageMembers = false,
   projectManagerId = null,
+  masters = { entities: [], departments: [], locations: [] },
   permissions,
   currentUserId,
   defaultView = "gantt",
@@ -125,6 +128,7 @@ export function ProjectWorkspace({
   allUsers: Person[];
   canManageMembers?: boolean;
   projectManagerId?: string | null;
+  masters?: { entities: string[]; departments: string[]; locations: string[] };
   permissions: WorkspacePermissions;
   currentUserId: string;
   defaultView?: string;
@@ -139,6 +143,7 @@ export function ProjectWorkspace({
   const [activeTask, setActiveTask] = React.useState<TaskListItem | null>(null);
   const [createStatus, setCreateStatus] = React.useState<TaskStatus>("NOT_STARTED");
   const [membersOpen, setMembersOpen] = React.useState(false);
+  const [editOpen, setEditOpen] = React.useState(false);
 
   // ── Memoised derived stats ────────────────────────────────────────────────
   const { completed, pct } = React.useMemo(() => {
@@ -296,7 +301,7 @@ export function ProjectWorkspace({
               <Plus className="h-4 w-4" /> Add Task
             </Button>
           )}
-          {(permissions.canArchive || permissions.canDelete) && (
+          {(permissions.canEditProject || permissions.canArchive || permissions.canDelete) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon" className="h-8 w-8">
@@ -304,6 +309,11 @@ export function ProjectWorkspace({
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                {permissions.canEditProject && (
+                  <DropdownMenuItem onClick={() => setEditOpen(true)}>
+                    <Pencil className="h-4 w-4" /> Edit project
+                  </DropdownMenuItem>
+                )}
                 {permissions.canArchive && (
                   <DropdownMenuItem onClick={archive}>
                     <Archive className="h-4 w-4" />
@@ -452,6 +462,17 @@ export function ProjectWorkspace({
           projectManagerId={projectManagerId}
           memberIds={memberOnlyIds}
           allUsers={allUsers}
+        />
+      )}
+
+      {permissions.canEditProject && (
+        <EditProjectDialog
+          open={editOpen}
+          onClose={() => setEditOpen(false)}
+          project={project}
+          projectManagerId={projectManagerId}
+          allUsers={allUsers}
+          masters={masters}
         />
       )}
     </div>

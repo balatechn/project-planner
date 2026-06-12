@@ -40,6 +40,7 @@ export type ProjectSummary = {
   name: string;
   key: string;
   description: string | null;
+  entity: string | null;
   department: string | null;
   location: string | null;
   status: ProjectStatus;

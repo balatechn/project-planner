@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { canAccessProject } from "@/lib/projects";
+import { getActiveMasterNames } from "@/lib/masters";
 import { can } from "@/lib/rbac";
 import { ProjectWorkspace } from "./project-workspace";
 
@@ -59,6 +60,15 @@ export default async function ProjectDetailPage({
   const canManageMembers =
     can(user.role, "project:manageMembers") || project.ownerId === user.id;
 
+  const canEditProject = can(user.role, "project:edit");
+  const [entityOptions, departmentOptions, locationOptions] = canEditProject
+    ? await Promise.all([
+        getActiveMasterNames("ENTITY"),
+        getActiveMasterNames("DEPARTMENT"),
+        getActiveMasterNames("LOCATION"),
+      ])
+    : [[], [], []];
+
   return (
     <ProjectWorkspace
       defaultView={sp.view ?? "gantt"}
@@ -68,6 +78,7 @@ export default async function ProjectDetailPage({
         name: project.name,
         key: project.key,
         description: project.description,
+        entity: project.entity,
         department: project.department,
         location: project.location,
         status: project.status,
@@ -85,6 +96,11 @@ export default async function ProjectDetailPage({
       allUsers={users}
       canManageMembers={canManageMembers}
       projectManagerId={project.projectManagerId}
+      masters={{
+        entities: entityOptions,
+        departments: departmentOptions,
+        locations: locationOptions,
+      }}
       permissions={{
         canCreateTask: can(user.role, "task:create"),
         canEditTask: can(user.role, "task:edit"),
