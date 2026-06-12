@@ -23,11 +23,22 @@ import { cn } from "@/lib/utils";
 export function CalendarView({
   tasks,
   onOpenTask,
+  holidays = [],
 }: {
   tasks: TaskListItem[];
   onOpenTask: (task: TaskListItem) => void;
+  /** Company holidays: date (ISO) + name — rendered as red banners */
+  holidays?: { date: string; name: string }[];
 }) {
   const [cursor, setCursor] = React.useState(new Date());
+
+  const holidaysByDay = React.useMemo(() => {
+    const map = new Map<string, string>();
+    for (const h of holidays) {
+      map.set(format(new Date(h.date), "yyyy-MM-dd"), h.name);
+    }
+    return map;
+  }, [holidays]);
 
   const days = React.useMemo(() => {
     const start = startOfWeek(startOfMonth(cursor), { weekStartsOn: 1 });
@@ -84,12 +95,14 @@ export function CalendarView({
         {days.map((day) => {
           const key = format(day, "yyyy-MM-dd");
           const dayTasks = tasksByDay.get(key) ?? [];
+          const holidayName = holidaysByDay.get(key);
           return (
             <div
               key={key}
               className={cn(
                 "min-h-24 border-b border-r p-1.5 [&:nth-child(7n)]:border-r-0",
                 !isSameMonth(day, cursor) && "bg-muted/30 text-muted-foreground",
+                holidayName && "bg-red-500/5",
               )}
             >
               <div
@@ -101,6 +114,14 @@ export function CalendarView({
                 {format(day, "d")}
               </div>
               <div className="space-y-1">
+                {holidayName && (
+                  <p
+                    className="truncate rounded bg-red-500/10 px-1 py-0.5 text-[10px] font-medium text-red-600 dark:text-red-400"
+                    title={holidayName}
+                  >
+                    🎉 {holidayName}
+                  </p>
+                )}
                 {dayTasks.slice(0, 3).map((t) => (
                   <button
                     key={t.id}

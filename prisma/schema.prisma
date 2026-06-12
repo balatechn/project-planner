@@ -856,3 +856,32 @@ model RoomBooking {
   @@index([status])
   @@index([recurringGroupId])
 }
+
+// ── Master data (admin-managed dropdown values) ─────────────────────────
+enum MasterType {
+  ENTITY
+  LOCATION
+  DEPARTMENT
+  DESIGNATION
+}
+
+model MasterOption {
+  id         String     @id @default(cuid())
+  type       MasterType
+  name       String
+  isActive   Boolean    @default(true)
+  orderIndex Int        @default(0)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  @@unique([type, name])
+  @@index([type, isActive])
+}
+
+// Company holiday calendar (admin-managed)
+model Holiday {
+  id        String   @id @default(cuid())
+  date      DateTime @unique
+  name      String
+  createdAt DateTime @default(now())
+}

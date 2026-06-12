@@ -27,6 +27,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       ...(body.capacity !== undefined && { capacity: body.capacity }),
       ...(body.amenities !== undefined && { amenities: body.amenities }),
       ...(body.description !== undefined && { description: body.description }),
+      ...(body.contactEmail !== undefined && { contactEmail: body.contactEmail }),
       ...(body.color !== undefined && { color: body.color }),
       ...(body.isActive !== undefined && { isActive: body.isActive }),
       ...(body.orderIndex !== undefined && { orderIndex: body.orderIndex }),

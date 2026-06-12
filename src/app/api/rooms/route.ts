@@ -20,7 +20,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const body = await req.json();
-  const { name, floor, building, capacity, amenities, description, color, orderIndex } = body;
+  const { name, floor, building, capacity, amenities, description, color, orderIndex, contactEmail } = body;
   if (!name) return NextResponse.json({ error: "name required" }, { status: 400 });
 
   const room = await prisma.room.create({
@@ -31,6 +31,7 @@ export async function POST(req: Request) {
       capacity: capacity ?? 4,
       amenities: amenities ?? [],
       description: description ?? null,
+      contactEmail: contactEmail ?? null,
       color: color ?? "#3b82f6",
       orderIndex: orderIndex ?? 0,
     },

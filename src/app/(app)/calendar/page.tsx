@@ -10,21 +10,24 @@ export const metadata: Metadata = { title: "Calendar" };
 
 export default async function CalendarPage() {
   const user = await requireUser();
-  const tasks = await prisma.task.findMany({
-    where: {
-      dueDate: { not: null },
-      project: projectAccessWhere(user.id, user.role),
-    },
-    include: {
-      assignees: {
-        select: { user: { select: { id: true, name: true, image: true } } },
+  const [tasks, holidays] = await Promise.all([
+    prisma.task.findMany({
+      where: {
+        dueDate: { not: null },
+        project: projectAccessWhere(user.id, user.role),
       },
-      _count: { select: { subtasks: true, comments: true, attachments: true, checklistItems: true } },
-      dependsOn: { select: { prerequisiteId: true } },
-      createdBy: { select: { id: true } },
-    },
-    orderBy: { dueDate: "asc" },
-  });
+      include: {
+        assignees: {
+          select: { user: { select: { id: true, name: true, image: true } } },
+        },
+        _count: { select: { subtasks: true, comments: true, attachments: true, checklistItems: true } },
+        dependsOn: { select: { prerequisiteId: true } },
+        createdBy: { select: { id: true } },
+      },
+      orderBy: { dueDate: "asc" },
+    }),
+    prisma.holiday.findMany({ orderBy: { date: "asc" } }),
+  ]);
 
   const serialized: TaskListItem[] = tasks.map((t) => ({
     id: t.id,
@@ -54,7 +57,10 @@ export default async function CalendarPage() {
         title="Calendar"
         description="Task due dates across all your projects."
       />
-      <GlobalCalendar tasks={serialized} />
+      <GlobalCalendar
+        tasks={serialized}
+        holidays={holidays.map((h) => ({ date: h.date.toISOString(), name: h.name }))}
+      />
     </div>
   );
 }

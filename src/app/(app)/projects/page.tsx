@@ -4,6 +4,7 @@ import { unstable_cache } from "next/cache";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { projectAccessWhere } from "@/lib/projects";
+import { getActiveMasterNames } from "@/lib/masters";
 import { can } from "@/lib/rbac";
 import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
@@ -74,6 +75,14 @@ export default async function ProjectsPage({
   // Show banner if: not yet an admin AND (pinned in ADMIN_EMAILS OR no admin exists)
   const showClaimBanner = !canCreate && (isPinnedAdmin || adminCount === 0);
 
+  // Master-driven dropdown values for the New Project dialog
+  const [entityOptions, departmentOptions] = canCreate
+    ? await Promise.all([
+        getActiveMasterNames("ENTITY"),
+        getActiveMasterNames("DEPARTMENT"),
+      ])
+    : [[], []];
+
   // Common props for NewProjectButton
   const newProjectProps = {
     users,
@@ -81,6 +90,8 @@ export default async function ProjectsPage({
     currentUserName: user.name,
     currentUserEmail: user.email,
     autoOpen,
+    entities: entityOptions,
+    departments: departmentOptions,
   };
 
   return (

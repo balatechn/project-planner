@@ -17,7 +17,14 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import { initials } from "@/lib/utils";
-import { ROLE_LABELS, ENTITIES } from "@/lib/constants";
+import { ROLE_LABELS } from "@/lib/constants";
+
+type Masters = {
+  entities: string[];
+  locations: string[];
+  departments: string[];
+  designations: string[];
+};
 
 type UserRow = {
   id: string;
@@ -35,7 +42,13 @@ type UserRow = {
 
 const NONE = "__none__";
 
-export function UsersTable({ users }: { users: UserRow[] }) {
+export function UsersTable({
+  users,
+  masters,
+}: {
+  users: UserRow[];
+  masters: Masters;
+}) {
   const { toast } = useToast();
   const [rows, setRows] = React.useState(users);
   const [query, setQuery] = React.useState("");
@@ -85,7 +98,7 @@ export function UsersTable({ users }: { users: UserRow[] }) {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All entities</SelectItem>
-            {ENTITIES.map((e) => (
+            {masters.entities.map((e) => (
               <SelectItem key={e} value={e}>
                 {e}
               </SelectItem>
@@ -124,6 +137,7 @@ export function UsersTable({ users }: { users: UserRow[] }) {
               <th className="px-4 py-3 font-medium">Entity</th>
               <th className="px-4 py-3 font-medium">Location</th>
               <th className="px-4 py-3 font-medium">Department</th>
+              <th className="px-4 py-3 font-medium hidden xl:table-cell">Designation</th>
               <th className="px-4 py-3 font-medium">Role</th>
               <th className="px-4 py-3 font-medium hidden lg:table-cell">Last sign-in</th>
               <th className="px-4 py-3 font-medium">Active</th>
@@ -147,37 +161,35 @@ export function UsersTable({ users }: { users: UserRow[] }) {
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <Select
-                    value={u.entity ?? NONE}
-                    onValueChange={(v) =>
-                      patch(u.id, { entity: v === NONE ? null : v })
-                    }
-                  >
-                    <SelectTrigger className="h-8 w-44 text-sm">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={NONE}>—</SelectItem>
-                      {ENTITIES.map((e) => (
-                        <SelectItem key={e} value={e}>
-                          {e}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </td>
-                <td className="px-4 py-3">
-                  <EditableCell
-                    value={u.location}
-                    placeholder="Location"
-                    onSave={(v) => patch(u.id, { location: v })}
+                  <MasterSelect
+                    value={u.entity}
+                    options={masters.entities}
+                    width="w-44"
+                    onChange={(v) => patch(u.id, { entity: v })}
                   />
                 </td>
                 <td className="px-4 py-3">
-                  <EditableCell
+                  <MasterSelect
+                    value={u.location}
+                    options={masters.locations}
+                    width="w-36"
+                    onChange={(v) => patch(u.id, { location: v })}
+                  />
+                </td>
+                <td className="px-4 py-3">
+                  <MasterSelect
                     value={u.department}
-                    placeholder="Department"
-                    onSave={(v) => patch(u.id, { department: v })}
+                    options={masters.departments}
+                    width="w-40"
+                    onChange={(v) => patch(u.id, { department: v })}
+                  />
+                </td>
+                <td className="px-4 py-3 hidden xl:table-cell">
+                  <MasterSelect
+                    value={u.jobTitle}
+                    options={masters.designations}
+                    width="w-40"
+                    onChange={(v) => patch(u.id, { jobTitle: v })}
                   />
                 </td>
                 <td className="px-4 py-3">
@@ -212,7 +224,7 @@ export function UsersTable({ users }: { users: UserRow[] }) {
             ))}
             {visible.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                <td colSpan={8} className="px-4 py-10 text-center text-sm text-muted-foreground">
                   No users match the current filters.
                 </td>
               </tr>
@@ -224,37 +236,36 @@ export function UsersTable({ users }: { users: UserRow[] }) {
   );
 }
 
-/** Plain-text cell that saves on blur or Enter when changed. */
-function EditableCell({
+/** Dropdown backed by a master list. Keeps legacy values visible. */
+function MasterSelect({
   value,
-  placeholder,
-  onSave,
+  options,
+  width,
+  onChange,
 }: {
   value: string | null;
-  placeholder: string;
-  onSave: (value: string | null) => void;
+  options: string[];
+  width: string;
+  onChange: (value: string | null) => void;
 }) {
-  const [draft, setDraft] = React.useState(value ?? "");
-
-  React.useEffect(() => setDraft(value ?? ""), [value]);
-
-  function commit() {
-    const trimmed = draft.trim();
-    if (trimmed === (value ?? "")) return;
-    onSave(trimmed === "" ? null : trimmed);
-  }
-
+  // A value set before the master existed still shows correctly
+  const all = value && !options.includes(value) ? [value, ...options] : options;
   return (
-    <Input
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
-        if (e.key === "Escape") setDraft(value ?? "");
-      }}
-      placeholder={placeholder}
-      className="h-8 w-32 text-sm"
-    />
+    <Select
+      value={value ?? NONE}
+      onValueChange={(v) => onChange(v === NONE ? null : v)}
+    >
+      <SelectTrigger className={`h-8 ${width} text-sm`}>
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={NONE}>—</SelectItem>
+        {all.map((o) => (
+          <SelectItem key={o} value={o}>
+            {o}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

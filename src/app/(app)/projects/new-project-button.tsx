@@ -57,12 +57,17 @@ export function NewProjectButton({
   currentUserName,
   currentUserEmail,
   autoOpen = false,
+  entities,
+  departments,
 }: {
   users: UserOption[];
   currentUserId: string;
   currentUserName?: string | null;
   currentUserEmail?: string | null;
   autoOpen?: boolean;
+  /** Master-driven dropdown values; fall back to hardcoded lists */
+  entities?: string[];
+  departments?: string[];
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -213,13 +218,26 @@ export function NewProjectButton({
 
           {/* Entity */}
           <div className="space-y-1.5">
-            <Label htmlFor="np-entity">Entity / Division</Label>
-            <Input
-              id="np-entity"
-              value={form.entity}
-              onChange={(e) => update("entity", e.target.value)}
-              placeholder="National Group India"
-            />
+            <Label>Entity / Division</Label>
+            {entities && entities.length > 0 ? (
+              <Select value={form.entity} onValueChange={(v) => update("entity", v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select entity" />
+                </SelectTrigger>
+                <SelectContent>
+                  {entities.map((e) => (
+                    <SelectItem key={e} value={e}>{e}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <Input
+                id="np-entity"
+                value={form.entity}
+                onChange={(e) => update("entity", e.target.value)}
+                placeholder="National Group India"
+              />
+            )}
           </div>
 
           {/* Department */}
@@ -230,7 +248,7 @@ export function NewProjectButton({
                 <SelectValue placeholder="Select department" />
               </SelectTrigger>
               <SelectContent>
-                {DEPARTMENTS.map((d) => (
+                {(departments && departments.length > 0 ? departments : DEPARTMENTS).map((d) => (
                   <SelectItem key={d} value={d}>{d}</SelectItem>
                 ))}
               </SelectContent>

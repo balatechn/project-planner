@@ -126,6 +126,21 @@ export function BookRoomDialog({
   const [saving, setSaving] = React.useState(false);
   const [conflict, setConflict] = React.useState<string | null>(null);
   const [cancelConfirm, setCancelConfirm] = React.useState(false);
+
+  // Company holidays — warn (but don't block) when booking on one
+  const [holidays, setHolidays] = React.useState<{ date: string; name: string }[]>([]);
+  React.useEffect(() => {
+    if (!open) return;
+    fetch("/api/holidays")
+      .then((r) => (r.ok ? r.json() : { holidays: [] }))
+      .then((d) => setHolidays(d.holidays ?? []))
+      .catch(() => undefined);
+  }, [open]);
+  const holidayName = React.useMemo(() => {
+    if (!startTime) return null;
+    const day = startTime.slice(0, 10);
+    return holidays.find((h) => h.date.slice(0, 10) === day)?.name ?? null;
+  }, [holidays, startTime]);
   const [teamsCreating, setTeamsCreating] = React.useState(false);
 
   const selectedRoom = rooms.find((r) => r.id === roomId);
@@ -303,6 +318,16 @@ export function BookRoomDialog({
             <div className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2">
               <AlertTriangle className="h-4 w-4 text-destructive mt-0.5 flex-shrink-0" />
               <p className="text-sm text-destructive">{conflict}</p>
+            </div>
+          )}
+
+          {/* Holiday warning (informational, booking still allowed) */}
+          {holidayName && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
+              <p className="text-sm text-amber-700 dark:text-amber-400">
+                This date is a company holiday — <strong>{holidayName}</strong>.
+              </p>
             </div>
           )}
 
