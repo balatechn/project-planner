@@ -172,11 +172,19 @@ export const authConfig: NextAuthConfig = {
   events: {
     async signIn({ user }) {
       if (!user?.id) return;
-      await prisma.auditLog
-        .create({
-          data: { userId: user.id, action: "auth.login" },
-        })
-        .catch(() => undefined);
+      await Promise.all([
+        prisma.auditLog
+          .create({
+            data: { userId: user.id, action: "auth.login" },
+          })
+          .catch(() => undefined),
+        prisma.user
+          .update({
+            where: { id: user.id },
+            data: { lastLoginAt: new Date() },
+          })
+          .catch(() => undefined),
+      ]);
     },
   },
 };

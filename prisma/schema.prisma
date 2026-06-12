@@ -176,6 +176,12 @@ model User {
   role          Role      @default(TEAM_MEMBER)
   jobTitle      String?
   department    String?
+  // Group company the user belongs to (e.g. National Infrabuild)
+  entity        String?
+  // Office location (e.g. Chennai, Mumbai)
+  location      String?
+  // Updated on every successful sign-in
+  lastLoginAt   DateTime?
   // Microsoft Entra object id, for Graph correlation
   entraOid      String?   @unique
   isActive      Boolean   @default(true)

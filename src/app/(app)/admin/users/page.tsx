@@ -19,6 +19,9 @@ export default async function AdminUsersPage() {
       role: true,
       department: true,
       jobTitle: true,
+      entity: true,
+      location: true,
+      lastLoginAt: true,
       isActive: true,
     },
     orderBy: { name: "asc" },
@@ -32,7 +35,12 @@ export default async function AdminUsersPage() {
       />
       <Card>
         <CardContent className="p-0">
-          <UsersTable users={users} />
+          <UsersTable
+            users={users.map((u) => ({
+              ...u,
+              lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
+            }))}
+          />
         </CardContent>
       </Card>
     </div>

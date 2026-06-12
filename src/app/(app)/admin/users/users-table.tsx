@@ -1,8 +1,12 @@
 "use client";
 
 import * as React from "react";
+import { formatDistanceToNow } from "date-fns";
+import { Download, Search } from "lucide-react";
 import type { Role } from "@prisma/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -13,7 +17,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/components/ui/toast";
 import { initials } from "@/lib/utils";
-import { ROLE_LABELS } from "@/lib/constants";
+import { ROLE_LABELS, ENTITIES } from "@/lib/constants";
 
 type UserRow = {
   id: string;
@@ -23,12 +27,20 @@ type UserRow = {
   role: Role;
   department: string | null;
   jobTitle: string | null;
+  entity: string | null;
+  location: string | null;
+  lastLoginAt: string | null;
   isActive: boolean;
 };
+
+const NONE = "__none__";
 
 export function UsersTable({ users }: { users: UserRow[] }) {
   const { toast } = useToast();
   const [rows, setRows] = React.useState(users);
+  const [query, setQuery] = React.useState("");
+  const [entityFilter, setEntityFilter] = React.useState("all");
+  const [roleFilter, setRoleFilter] = React.useState("all");
 
   async function patch(id: string, data: Partial<UserRow>) {
     const res = await fetch(`/api/admin/users/${id}`, {
@@ -44,64 +56,205 @@ export function UsersTable({ users }: { users: UserRow[] }) {
     }
   }
 
+  const q = query.trim().toLowerCase();
+  const visible = rows.filter((u) => {
+    if (q && !(u.name ?? "").toLowerCase().includes(q) && !u.email.toLowerCase().includes(q))
+      return false;
+    if (entityFilter !== "all" && u.entity !== (entityFilter === NONE ? null : entityFilter))
+      return false;
+    if (roleFilter !== "all" && u.role !== roleFilter) return false;
+    return true;
+  });
+
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b text-left text-xs text-muted-foreground">
-            <th className="px-4 py-3 font-medium">User</th>
-            <th className="px-4 py-3 font-medium">Department</th>
-            <th className="px-4 py-3 font-medium">Role</th>
-            <th className="px-4 py-3 font-medium">Active</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((u) => (
-            <tr key={u.id} className="border-b last:border-0">
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <Avatar className="h-8 w-8">
-                    {u.image && <AvatarImage src={u.image} alt="" />}
-                    <AvatarFallback className="text-[10px]">
-                      {initials(u.name)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <p className="font-medium">{u.name ?? "—"}</p>
-                    <p className="text-xs text-muted-foreground">{u.email}</p>
-                  </div>
-                </div>
-              </td>
-              <td className="px-4 py-3 text-muted-foreground">
-                {u.department ?? "—"}
-              </td>
-              <td className="px-4 py-3">
-                <Select
-                  value={u.role}
-                  onValueChange={(v) => patch(u.id, { role: v as Role })}
-                >
-                  <SelectTrigger className="w-44">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(ROLE_LABELS).map(([v, l]) => (
-                      <SelectItem key={v} value={v}>
-                        {l}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </td>
-              <td className="px-4 py-3">
-                <Switch
-                  checked={u.isActive}
-                  onCheckedChange={(c) => patch(u.id, { isActive: c })}
-                />
-              </td>
+    <div className="space-y-3">
+      {/* Toolbar: search, filters, export */}
+      <div className="flex flex-wrap items-center gap-2 px-4 pt-4">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search name or email…"
+            className="h-8 w-56 pl-8 text-sm"
+          />
+        </div>
+        <Select value={entityFilter} onValueChange={setEntityFilter}>
+          <SelectTrigger className="h-8 w-44 text-sm">
+            <SelectValue placeholder="Entity" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All entities</SelectItem>
+            {ENTITIES.map((e) => (
+              <SelectItem key={e} value={e}>
+                {e}
+              </SelectItem>
+            ))}
+            <SelectItem value={NONE}>Not set</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={roleFilter} onValueChange={setRoleFilter}>
+          <SelectTrigger className="h-8 w-40 text-sm">
+            <SelectValue placeholder="Role" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All roles</SelectItem>
+            {Object.entries(ROLE_LABELS).map(([v, l]) => (
+              <SelectItem key={v} value={v}>
+                {l}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <span className="text-xs text-muted-foreground">
+          {visible.length} of {rows.length}
+        </span>
+        <Button asChild variant="outline" size="sm" className="ml-auto h-8">
+          <a href="/api/admin/users/export" download>
+            <Download className="h-3.5 w-3.5" /> Export Excel
+          </a>
+        </Button>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b text-left text-xs text-muted-foreground">
+              <th className="px-4 py-3 font-medium">User</th>
+              <th className="px-4 py-3 font-medium">Entity</th>
+              <th className="px-4 py-3 font-medium">Location</th>
+              <th className="px-4 py-3 font-medium">Department</th>
+              <th className="px-4 py-3 font-medium">Role</th>
+              <th className="px-4 py-3 font-medium hidden lg:table-cell">Last sign-in</th>
+              <th className="px-4 py-3 font-medium">Active</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {visible.map((u) => (
+              <tr key={u.id} className="border-b last:border-0">
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <Avatar className="h-8 w-8">
+                      {u.image && <AvatarImage src={u.image} alt="" />}
+                      <AvatarFallback className="text-[10px]">
+                        {initials(u.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium whitespace-nowrap">{u.name ?? "—"}</p>
+                      <p className="text-xs text-muted-foreground">{u.email}</p>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <Select
+                    value={u.entity ?? NONE}
+                    onValueChange={(v) =>
+                      patch(u.id, { entity: v === NONE ? null : v })
+                    }
+                  >
+                    <SelectTrigger className="h-8 w-44 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={NONE}>—</SelectItem>
+                      {ENTITIES.map((e) => (
+                        <SelectItem key={e} value={e}>
+                          {e}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </td>
+                <td className="px-4 py-3">
+                  <EditableCell
+                    value={u.location}
+                    placeholder="Location"
+                    onSave={(v) => patch(u.id, { location: v })}
+                  />
+                </td>
+                <td className="px-4 py-3">
+                  <EditableCell
+                    value={u.department}
+                    placeholder="Department"
+                    onSave={(v) => patch(u.id, { department: v })}
+                  />
+                </td>
+                <td className="px-4 py-3">
+                  <Select
+                    value={u.role}
+                    onValueChange={(v) => patch(u.id, { role: v as Role })}
+                  >
+                    <SelectTrigger className="h-8 w-40 text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Object.entries(ROLE_LABELS).map(([v, l]) => (
+                        <SelectItem key={v} value={v}>
+                          {l}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </td>
+                <td className="px-4 py-3 hidden lg:table-cell whitespace-nowrap text-xs text-muted-foreground">
+                  {u.lastLoginAt
+                    ? formatDistanceToNow(new Date(u.lastLoginAt), { addSuffix: true })
+                    : "Never"}
+                </td>
+                <td className="px-4 py-3">
+                  <Switch
+                    checked={u.isActive}
+                    onCheckedChange={(c) => patch(u.id, { isActive: c })}
+                  />
+                </td>
+              </tr>
+            ))}
+            {visible.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                  No users match the current filters.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
+  );
+}
+
+/** Plain-text cell that saves on blur or Enter when changed. */
+function EditableCell({
+  value,
+  placeholder,
+  onSave,
+}: {
+  value: string | null;
+  placeholder: string;
+  onSave: (value: string | null) => void;
+}) {
+  const [draft, setDraft] = React.useState(value ?? "");
+
+  React.useEffect(() => setDraft(value ?? ""), [value]);
+
+  function commit() {
+    const trimmed = draft.trim();
+    if (trimmed === (value ?? "")) return;
+    onSave(trimmed === "" ? null : trimmed);
+  }
+
+  return (
+    <Input
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+        if (e.key === "Escape") setDraft(value ?? "");
+      }}
+      placeholder={placeholder}
+      className="h-8 w-32 text-sm"
+    />
   );
 }

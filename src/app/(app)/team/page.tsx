@@ -18,6 +18,8 @@ export default async function TeamPage() {
       role: true,
       jobTitle: true,
       department: true,
+      entity: true,
+      location: true,
       weeklyCapacity: true,
       createdAt: true,
     },

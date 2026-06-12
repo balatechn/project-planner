@@ -72,3 +72,13 @@ export const DEPARTMENTS = [
   "Customer Success",
   "IT",
 ] as const;
+
+/** Group companies — used for the user Entity field. */
+export const ENTITIES = [
+  "National Group (HO)",
+  "National Infrabuild",
+  "iSky Transport Systems",
+  "National Gold & Diamond",
+  "National Super Bazar",
+  "Rainland Autocorp",
+] as const;

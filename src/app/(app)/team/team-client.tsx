@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Search, Users, Mail, Building2 } from "lucide-react";
+import { Search, Users, Mail, Building2, MapPin } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,8 @@ type Member = {
   role: string;
   jobTitle: string | null;
   department: string | null;
+  entity: string | null;
+  location: string | null;
   weeklyCapacity: number;
   createdAt: string;
 };
@@ -149,10 +151,18 @@ export function TeamDirectoryClient({
                   </a>
                 </div>
               )}
-              {m.department && (
+              {(m.entity || m.department) && (
                 <div className="flex items-center gap-2">
                   <Building2 className="h-3.5 w-3.5 flex-shrink-0" />
-                  <span className="truncate">{m.department}</span>
+                  <span className="truncate">
+                    {[m.entity, m.department].filter(Boolean).join(" · ")}
+                  </span>
+                </div>
+              )}
+              {m.location && (
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-3.5 w-3.5 flex-shrink-0" />
+                  <span className="truncate">{m.location}</span>
                 </div>
               )}
             </div>
