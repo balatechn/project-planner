@@ -16,6 +16,7 @@ import {
   Plus,
   Timer,
   Trash2,
+  UserPlus,
   Zap,
 } from "lucide-react";
 import type { TaskStatus } from "@prisma/client";
@@ -37,6 +38,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/components/ui/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { ManageMembersDialog } from "./manage-members-dialog";
 import { PriorityBadge, ProjectStatusBadge } from "@/components/badges";
 import { AvatarStack } from "@/components/avatar-stack";
 import { formatCurrency } from "@/lib/utils";
@@ -107,7 +109,10 @@ function WorkspaceSkeleton() {
 export function ProjectWorkspace({
   project,
   members,
+  memberOnlyIds = [],
   allUsers,
+  canManageMembers = false,
+  projectManagerId = null,
   permissions,
   currentUserId,
   defaultView = "gantt",
@@ -115,7 +120,11 @@ export function ProjectWorkspace({
 }: {
   project: ProjectSummary;
   members: Person[];
+  /** Explicit ProjectMember ids (without owner/PM) for the manage dialog */
+  memberOnlyIds?: string[];
   allUsers: Person[];
+  canManageMembers?: boolean;
+  projectManagerId?: string | null;
   permissions: WorkspacePermissions;
   currentUserId: string;
   defaultView?: string;
@@ -129,6 +138,7 @@ export function ProjectWorkspace({
   const [dialogOpen, setDialogOpen] = React.useState(false);
   const [activeTask, setActiveTask] = React.useState<TaskListItem | null>(null);
   const [createStatus, setCreateStatus] = React.useState<TaskStatus>("NOT_STARTED");
+  const [membersOpen, setMembersOpen] = React.useState(false);
 
   // ── Memoised derived stats ────────────────────────────────────────────────
   const { completed, pct } = React.useMemo(() => {
@@ -255,8 +265,23 @@ export function ProjectWorkspace({
             · {project.department}
           </span>
         )}
+        {project.location && (
+          <span className="hidden text-xs text-muted-foreground sm:inline">
+            · 📍 {project.location}
+          </span>
+        )}
         <PriorityBadge priority={project.priority} />
         <AvatarStack people={members} max={5} size="h-6 w-6" />
+        {canManageMembers && (
+          <button
+            type="button"
+            onClick={() => setMembersOpen(true)}
+            className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+            title="Manage members"
+          >
+            <UserPlus className="h-3.5 w-3.5" />
+          </button>
+        )}
 
         {/* Right side: progress + actions */}
         <div className="ml-auto flex items-center gap-2">
@@ -395,7 +420,7 @@ export function ProjectWorkspace({
           task={activeTask}
           defaultStatus={createStatus}
           projectId={project.id}
-          users={allUsers}
+          users={members}
           siblingTasks={tasks}
           permissions={permissions}
           currentUserId={currentUserId}
@@ -417,6 +442,18 @@ export function ProjectWorkspace({
         confirmLabel="Delete project"
         onConfirm={remove}
       />
+
+      {canManageMembers && (
+        <ManageMembersDialog
+          open={membersOpen}
+          onClose={() => setMembersOpen(false)}
+          projectId={project.id}
+          ownerId={project.owner.id}
+          projectManagerId={projectManagerId}
+          memberIds={memberOnlyIds}
+          allUsers={allUsers}
+        />
+      )}
     </div>
   );
 }

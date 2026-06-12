@@ -41,6 +41,7 @@ export type ProjectSummary = {
   key: string;
   description: string | null;
   department: string | null;
+  location: string | null;
   status: ProjectStatus;
   priority: Priority;
   color: string;

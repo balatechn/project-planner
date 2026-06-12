@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
 import { DEPARTMENTS } from "@/lib/constants";
 
 type UserOption = {
@@ -59,6 +60,7 @@ export function NewProjectButton({
   autoOpen = false,
   entities,
   departments,
+  locations,
 }: {
   users: UserOption[];
   currentUserId: string;
@@ -68,6 +70,7 @@ export function NewProjectButton({
   /** Master-driven dropdown values; fall back to hardcoded lists */
   entities?: string[];
   departments?: string[];
+  locations?: string[];
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -97,6 +100,7 @@ export function NewProjectButton({
     description: "",
     entity: "",
     department: "",
+    location: "",
     priority: "MEDIUM",
     status: "PLANNING",
     startDate: today,
@@ -106,6 +110,8 @@ export function NewProjectButton({
     ownerId: currentUserId,
     projectManagerId: currentUserId,
   });
+  // Project members — assignees are limited to this list later
+  const [memberIds, setMemberIds] = React.useState<string[]>([]);
 
   function update<K extends keyof typeof form>(key: K, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -143,7 +149,9 @@ export function NewProjectButton({
           description: form.description || null,
           entity: form.entity || null,
           department: form.department || null,
+          location: form.location || null,
           priority: form.priority,
+          memberIds,
           status: form.status,
           budget: form.budget ? Number(form.budget) : null,
           color: form.color,
@@ -255,6 +263,23 @@ export function NewProjectButton({
             </Select>
           </div>
 
+          {/* Location */}
+          {locations && locations.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Location</Label>
+              <Select value={form.location} onValueChange={(v) => update("location", v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select location" />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map((l) => (
+                    <SelectItem key={l} value={l}>{l}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           {/* Project Manager */}
           <div className="space-y-1.5">
             <Label>Project Manager</Label>
@@ -287,6 +312,45 @@ export function NewProjectButton({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Members — task assignees are limited to these people */}
+          <div className="space-y-1.5">
+            <Label>Members</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {allUsers.map((u) => {
+                const isOwnerOrPm =
+                  u.id === form.ownerId || u.id === form.projectManagerId;
+                const active = isOwnerOrPm || memberIds.includes(u.id);
+                return (
+                  <button
+                    key={u.id}
+                    type="button"
+                    disabled={isOwnerOrPm}
+                    onClick={() =>
+                      setMemberIds((m) =>
+                        m.includes(u.id)
+                          ? m.filter((x) => x !== u.id)
+                          : [...m, u.id],
+                      )
+                    }
+                    className={cn(
+                      "rounded-full border px-2.5 py-1 text-xs transition-colors",
+                      active
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "hover:bg-muted",
+                      isOwnerOrPm && "opacity-70 cursor-default",
+                    )}
+                    title={isOwnerOrPm ? "Owner / PM is always a member" : u.email}
+                  >
+                    {u.name?.split(" ")[0] ?? u.email}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Only members appear in the task assignee list. Owner and PM are always included.
+            </p>
           </div>
 
           {/* Priority */}

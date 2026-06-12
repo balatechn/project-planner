@@ -29,6 +29,7 @@ export const createProjectSchema = z.object({
   description: z.string().max(5000).optional().nullable(),
   entity: z.string().max(120).optional().nullable(),
   department: z.string().max(80).optional().nullable(),
+  location: z.string().max(80).optional().nullable(),
   priority: priority.default("MEDIUM"),
   status: projectStatus.default("PLANNING"),
   startDate: optionalDate,

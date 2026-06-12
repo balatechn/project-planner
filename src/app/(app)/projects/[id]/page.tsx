@@ -26,6 +26,9 @@ export default async function ProjectDetailPage({
       where: { id },
       include: {
         owner: { select: { id: true, name: true, image: true, email: true } },
+        projectManager: {
+          select: { id: true, name: true, image: true, email: true },
+        },
         members: {
           select: {
             user: {
@@ -44,12 +47,17 @@ export default async function ProjectDetailPage({
 
   if (!project) notFound();
 
+  // Owner + PM + explicit members — this is the assignable pool
   const memberPeople = [
     project.owner,
+    ...(project.projectManager ? [project.projectManager] : []),
     ...project.members.map((m) => m.user),
   ].filter(
     (p, i, arr) => arr.findIndex((x) => x.id === p.id) === i,
   );
+
+  const canManageMembers =
+    can(user.role, "project:manageMembers") || project.ownerId === user.id;
 
   return (
     <ProjectWorkspace
@@ -61,6 +69,7 @@ export default async function ProjectDetailPage({
         key: project.key,
         description: project.description,
         department: project.department,
+        location: project.location,
         status: project.status,
         priority: project.priority,
         color: project.color,
@@ -72,7 +81,10 @@ export default async function ProjectDetailPage({
         owner: project.owner,
       }}
       members={memberPeople}
+      memberOnlyIds={project.members.map((m) => m.user.id)}
       allUsers={users}
+      canManageMembers={canManageMembers}
+      projectManagerId={project.projectManagerId}
       permissions={{
         canCreateTask: can(user.role, "task:create"),
         canEditTask: can(user.role, "task:edit"),

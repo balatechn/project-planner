@@ -125,6 +125,17 @@ export async function PATCH(req: Request, { params }: Params) {
       include: { assignees: { select: { userId: true } } },
     });
 
+    // Auto-add new assignees as project members so they can open the project
+    if (assigneeIds && assigneeIds.length > 0) {
+      await prisma.projectMember.createMany({
+        data: Array.from(new Set(assigneeIds)).map((userId) => ({
+          projectId: existing.projectId,
+          userId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
     await logActivity({
       userId: user.id,
       action: rest.status ? "task.status_changed" : "task.updated",

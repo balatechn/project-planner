@@ -226,6 +226,7 @@ model Project {
   description      String?       @db.Text
   entity           String?       // business entity / division
   department       String?
+  location         String?       // office location (from Location master)
   priority         Priority      @default(MEDIUM)
   status           ProjectStatus @default(PLANNING)
   startDate        DateTime?

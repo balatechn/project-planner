@@ -118,6 +118,18 @@ export async function POST(req: Request) {
       metadata: { title: task.title },
     });
 
+    // Auto-add assignees as project members so they can open the project
+    const newAssigneeIds = Array.from(new Set(data.assigneeIds ?? []));
+    if (newAssigneeIds.length > 0) {
+      await prisma.projectMember.createMany({
+        data: newAssigneeIds.map((userId) => ({
+          projectId: data.projectId,
+          userId,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
     // Notify assignees (excluding the creator to avoid self-spam).
     const allAssigneeIds = task.assignees.map((a) => a.userId);
     const assigneeIds = allAssigneeIds.filter((uid) => uid !== user.id);
