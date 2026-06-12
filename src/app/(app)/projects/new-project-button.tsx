@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
-import { DEPARTMENTS } from "@/lib/constants";
 
 type UserOption = {
   id: string;
@@ -248,37 +247,26 @@ export function NewProjectButton({
             )}
           </div>
 
-          {/* Department */}
+          {/* Location */}
           <div className="space-y-1.5">
-            <Label>Department</Label>
-            <Select value={form.department} onValueChange={(v) => update("department", v)}>
+            <Label>Location</Label>
+            <Select value={form.location} onValueChange={(v) => update("location", v)}>
               <SelectTrigger>
-                <SelectValue placeholder="Select department" />
+                <SelectValue
+                  placeholder={
+                    locations && locations.length > 0
+                      ? "Select location"
+                      : "Add locations in Masters first"
+                  }
+                />
               </SelectTrigger>
               <SelectContent>
-                {(departments && departments.length > 0 ? departments : DEPARTMENTS).map((d) => (
-                  <SelectItem key={d} value={d}>{d}</SelectItem>
+                {(locations ?? []).map((l) => (
+                  <SelectItem key={l} value={l}>{l}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
-
-          {/* Location */}
-          {locations && locations.length > 0 && (
-            <div className="space-y-1.5">
-              <Label>Location</Label>
-              <Select value={form.location} onValueChange={(v) => update("location", v)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select location" />
-                </SelectTrigger>
-                <SelectContent>
-                  {locations.map((l) => (
-                    <SelectItem key={l} value={l}>{l}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
 
           {/* Project Manager */}
           <div className="space-y-1.5">
