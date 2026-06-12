@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && prisma db push && tsx prisma/init-rooms.ts && next build",
+    "build": "prisma generate && next build",
+    "build:vercel": "prisma generate && prisma db push && tsx prisma/init-rooms.ts && next build",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
@@ -41,6 +42,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "exceljs": "^4.4.0",
+    "ioredis": "^5.11.1",
     "lucide-react": "^0.469.0",
     "next": "^15.5.19",
     "next-auth": "5.0.0-beta.25",

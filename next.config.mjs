@@ -3,6 +3,9 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
 
+  // Self-contained server bundle for Docker/Coolify (small runtime image)
+  output: "standalone",
+
   // ── Image optimisation ─────────────────────────────────────────────────────
   images: {
     remotePatterns: [
