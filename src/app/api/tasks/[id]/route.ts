@@ -32,6 +32,7 @@ export async function GET(_req: Request, { params }: Params) {
           select: { user: { select: { id: true, name: true, image: true } } },
         },
         subtasks: {
+          where: { deletedAt: null },
           include: {
             assignees: {
               select: { user: { select: { id: true, name: true, image: true } } },
@@ -169,7 +170,12 @@ export async function DELETE(_req: Request, { params }: Params) {
       throw new ApiError(403, "Only the task creator or an Admin can delete this task");
     }
 
-    await prisma.task.delete({ where: { id } });
+    // Soft delete — task and its subtasks go to the recycle bin
+    const now = new Date();
+    await prisma.task.updateMany({
+      where: { OR: [{ id }, { parentId: id }] },
+      data: { deletedAt: now },
+    });
     await logActivity({
       userId: user.id,
       action: "task.deleted",

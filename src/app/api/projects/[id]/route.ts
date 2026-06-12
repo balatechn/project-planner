@@ -78,7 +78,11 @@ export async function DELETE(_req: Request, { params }: Params) {
     requirePermission(user.role, "project:delete");
     const { id } = await params;
 
-    await prisma.project.delete({ where: { id } });
+    // Soft delete — project goes to the recycle bin (auto-purged after 30 days)
+    await prisma.project.update({
+      where: { id },
+      data: { deletedAt: new Date() },
+    });
     await logActivity({
       userId: user.id,
       action: "project.deleted",

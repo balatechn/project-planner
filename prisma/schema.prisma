@@ -230,6 +230,8 @@ model Project {
   color            String        @default("#f59e0b")
   isArchived       Boolean       @default(false)
   archivedAt       DateTime?
+  // Soft delete — set means "in recycle bin"; purged permanently after 30 days
+  deletedAt        DateTime?
   ownerId          String
   projectManagerId String?       // designated PM (may differ from owner)
   templateId       String?
@@ -253,6 +255,7 @@ model Project {
   @@index([status])
   @@index([department])
   @@index([isArchived])
+  @@index([deletedAt])
 }
 
 model ProjectMember {
@@ -298,6 +301,8 @@ model Task {
   baselineEnd    DateTime?
   // ordering within a status column / list
   orderIndex     Int        @default(0)
+  // Soft delete — set means "in recycle bin"; purged permanently after 30 days
+  deletedAt      DateTime?
   createdById    String
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
@@ -330,6 +335,7 @@ model Task {
   @@index([status])
   @@index([dueDate])
   @@index([updatedAt])
+  @@index([deletedAt])
 }
 
 model TaskAssignee {

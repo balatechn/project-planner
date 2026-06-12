@@ -15,7 +15,17 @@ const config: Config = {
     },
     extend: {
       fontFamily: {
-        sans: ["var(--font-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
+        // Apple devices render genuine SF Pro via -apple-system;
+        // everyone else gets Inter (SF's closest legal equivalent)
+        sans: [
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "var(--font-sans)",
+          "Segoe UI",
+          "ui-sans-serif",
+          "system-ui",
+          "sans-serif",
+        ],
       },
       colors: {
         border: "hsl(var(--border))",

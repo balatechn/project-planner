@@ -18,7 +18,7 @@ export async function GET(req: Request) {
       where: { ...where, isArchived: false },
       include: {
         owner: { select: { name: true } },
-        tasks: { select: { status: true, progress: true } },
+        tasks: { where: { deletedAt: null }, select: { status: true, progress: true } },
         _count: { select: { tasks: true } },
       },
       orderBy: { name: "asc" },

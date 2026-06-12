@@ -20,7 +20,7 @@ export default async function ReportsPage() {
   const [projects, delayedTasks, allTasks, users] = await Promise.all([
     prisma.project.findMany({
       where: { ...where, isArchived: false },
-      include: { tasks: { select: { status: true, progress: true } } },
+      include: { tasks: { where: { deletedAt: null }, select: { status: true, progress: true } } },
     }),
     prisma.task.findMany({
       where: {

@@ -25,7 +25,7 @@ export default async function PortfolioPage() {
       entity: true,
       department: true,
       projectManager: { select: { name: true } },
-      tasks: { select: { status: true, progress: true } },
+      tasks: { where: { deletedAt: null }, select: { status: true, progress: true } },
     },
     orderBy: [{ startDate: "asc" }, { name: "asc" }],
   });

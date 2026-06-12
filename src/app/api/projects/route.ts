@@ -26,7 +26,7 @@ export async function GET(req: Request) {
         members: {
           select: { user: { select: { id: true, name: true, image: true } } },
         },
-        tasks: { select: { status: true, progress: true } },
+        tasks: { where: { deletedAt: null }, select: { status: true, progress: true } },
         _count: { select: { tasks: true } },
       },
       orderBy: { updatedAt: "desc" },

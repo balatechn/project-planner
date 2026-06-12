@@ -9,6 +9,8 @@ import { PageHeader } from "@/components/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { ProjectStatusBadge, PriorityBadge } from "@/components/badges";
+import { HealthBadge } from "@/components/health-badge";
+import { projectHealth } from "@/lib/health";
 import { NewProjectButton } from "./new-project-button";
 import { ClaimAdminBanner } from "./claim-admin-banner";
 import { adminEmails } from "@/auth";
@@ -58,7 +60,7 @@ export default async function ProjectsPage({
         endDate: true,
         owner: { select: { id: true, name: true, image: true } },
         projectManager: { select: { id: true, name: true, image: true } },
-        tasks: { select: { status: true, progress: true } },
+        tasks: { where: { deletedAt: null }, select: { status: true, progress: true, dueDate: true } },
       },
       orderBy: { updatedAt: "desc" },
     }),
@@ -118,6 +120,7 @@ export default async function ProjectsPage({
                   <th className="px-4 py-3 text-left font-semibold text-muted-foreground hidden lg:table-cell">Project Manager</th>
                   <th className="px-4 py-3 text-left font-semibold text-muted-foreground hidden lg:table-cell">Timeline</th>
                   <th className="px-4 py-3 text-left font-semibold text-muted-foreground">Status</th>
+                  <th className="px-4 py-3 text-left font-semibold text-muted-foreground hidden sm:table-cell">Health</th>
                   <th className="px-4 py-3 text-left font-semibold text-muted-foreground hidden sm:table-cell">Progress</th>
                   <th className="px-4 py-3 text-center font-semibold text-muted-foreground hidden sm:table-cell">Tasks</th>
                   <th className="px-4 py-3 text-left font-semibold text-muted-foreground hidden md:table-cell">Priority</th>
@@ -183,6 +186,9 @@ export default async function ProjectsPage({
                       </td>
                       <td className="px-4 py-3">
                         <ProjectStatusBadge status={p.status} />
+                      </td>
+                      <td className="px-4 py-3 hidden sm:table-cell">
+                        <HealthBadge health={projectHealth(tasks)} />
                       </td>
                       <td className="px-4 py-3 hidden sm:table-cell">
                         <div className="flex items-center gap-2 min-w-[100px]">

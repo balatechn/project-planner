@@ -71,11 +71,15 @@
   * { @apply border-border; }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    /* cv05/cv11 give Inter its SF Pro-style lowercase l and single-storey a */
+    font-feature-settings: "rlig" 1, "calt" 1, "cv05" 1, "cv11" 1;
+    letter-spacing: -0.011em;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+  /* Apple-style tight tracking on display text */
+  h1, h2, h3 { letter-spacing: -0.022em; }
   html { scroll-behavior: smooth; }
 }
 

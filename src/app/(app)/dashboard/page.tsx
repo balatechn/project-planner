@@ -17,6 +17,8 @@ import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import { Sparkline, Donut } from "@/components/dashboard-charts";
 import { EmptyState } from "@/components/empty-state";
+import { HealthBadge } from "@/components/health-badge";
+import { projectHealth } from "@/lib/health";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import {
   Card,
@@ -57,7 +59,7 @@ const getDashboardData = unstable_cache(
           members: {
             select: { user: { select: { id: true, name: true, image: true } } },
           },
-          tasks: { select: { status: true, progress: true } },
+          tasks: { where: { deletedAt: null }, select: { status: true, progress: true, dueDate: true } },
         },
         orderBy: { updatedAt: "desc" },
         take: 6,
@@ -332,7 +334,10 @@ export default async function DashboardPage() {
                         </p>
                       </div>
                     </div>
-                    <ProjectStatusBadge status={p.status} />
+                    <div className="flex flex-col items-end gap-1">
+                      <ProjectStatusBadge status={p.status} />
+                      <HealthBadge health={projectHealth(tasks)} />
+                    </div>
                   </div>
                   <div className="mt-3 flex items-center gap-3">
                     <Progress value={pct} className="h-1.5" />
