@@ -70,47 +70,47 @@ export default async function LoginPage({
         aria-hidden="true"
       />
 
-      {/* Content */}
-      <div className="relative z-10 grid min-h-screen lg:grid-cols-[1fr_500px]">
+      {/* Content — h-screen so nothing overflows the viewport */}
+      <div className="relative z-10 grid h-screen lg:grid-cols-[1fr_460px]">
 
         {/* ── Brand panel ─────────────────────────────────────────── */}
-        <div className="hidden lg:flex flex-col justify-between p-14 xl:p-16">
+        <div className="hidden lg:flex flex-col justify-between p-8 xl:p-12 overflow-hidden">
 
           {/* Logo */}
-          <div className="animate-fade-in flex items-center gap-4">
+          <div className="animate-fade-in flex items-center gap-3">
             <div className="animate-float">
               <Image
                 src="https://nationalgroupindia.com/logo_full.webp"
                 alt="National Group India"
-                width={56}
-                height={56}
+                width={44}
+                height={44}
                 className="object-contain drop-shadow-[0_4px_14px_rgba(201,162,58,0.35)]"
                 priority
               />
             </div>
             <div>
-              <p className="text-lg font-bold text-[#16283e] leading-tight tracking-wide">
+              <p className="text-base font-bold text-[#16283e] leading-tight tracking-wide">
                 National Group India
               </p>
-              <p className="text-xs font-semibold tracking-[0.2em] uppercase text-[#16283e]/55 mt-0.5">
+              <p className="text-[10px] font-semibold tracking-[0.2em] uppercase text-[#16283e]/55 mt-0.5">
                 Sharepoint
               </p>
             </div>
           </div>
 
           {/* Hero headline */}
-          <div className="space-y-8">
-            <div className="space-y-4 animate-slide-up delay-75">
+          <div className="space-y-5">
+            <div className="space-y-3 animate-slide-up delay-75">
               <div className="inline-flex items-center gap-2 rounded-full border border-[#1e3a5f]/15 bg-white/70 px-3 py-1 text-xs text-[#16283e]/70 font-medium backdrop-blur-sm">
                 <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
                 Est. 1949 · 200+ landmark projects
               </div>
-              <h1 className="text-5xl xl:text-6xl font-bold leading-[1.08] text-[#16283e] tracking-tight">
+              <h1 className="text-4xl xl:text-5xl font-bold leading-[1.08] text-[#16283e] tracking-tight">
                 Pioneering{" "}
                 <span className="text-gradient">infrastructure.</span>
                 <br />Transforming communities.
               </h1>
-              <p className="text-lg text-[#16283e]/60 max-w-md leading-relaxed">
+              <p className="text-sm text-[#16283e]/60 max-w-md leading-relaxed">
                 One workspace for the entire group — Infrabuild, iSky Transport,
                 Gold &amp; Diamond, Super Bazar and Rainland Autocorp — powered
                 by Microsoft 365.
@@ -118,14 +118,14 @@ export default async function LoginPage({
             </div>
 
             {/* Feature list */}
-            <ul className="space-y-3">
+            <ul className="space-y-2">
               {FEATURES.map((f, i) => (
                 <li
                   key={f.title}
-                  className="animate-slide-up flex items-center gap-3 group"
+                  className="animate-slide-up flex items-center gap-2.5 group"
                   style={{ animationDelay: `${(i + 2) * 80}ms` }}
                 >
-                  <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-white/70 border border-[#1e3a5f]/10 text-base shadow-sm group-hover:bg-white transition-colors">
+                  <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-white/70 border border-[#1e3a5f]/10 text-sm shadow-sm group-hover:bg-white transition-colors">
                     {f.icon}
                   </span>
                   <div>
@@ -138,17 +138,17 @@ export default async function LoginPage({
           </div>
 
           {/* Group companies + footer */}
-          <div className="space-y-4">
+          <div className="space-y-2">
             <div className="animate-fade-in delay-450">
-              <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#16283e]/45">
+              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#16283e]/45">
                 The National Group family
               </p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {GROUP_COMPANIES.map((c) => (
                   <span
                     key={c.name}
                     title={c.field}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-[#1e3a5f]/12 bg-white/70 px-3 py-1.5 text-xs text-[#16283e]/75 backdrop-blur-sm shadow-sm transition-colors hover:border-amber-500/40 hover:bg-white hover:text-[#16283e]"
+                    className="inline-flex items-center gap-1 rounded-full border border-[#1e3a5f]/12 bg-white/70 px-2.5 py-1 text-xs text-[#16283e]/75 backdrop-blur-sm shadow-sm transition-colors hover:border-amber-500/40 hover:bg-white hover:text-[#16283e]"
                   >
                     <span aria-hidden="true">{c.icon}</span>
                     {c.name}
@@ -162,8 +162,8 @@ export default async function LoginPage({
           </div>
         </div>
 
-        {/* ── Form panel ──────────────────────────────────────────── */}
-        <div className="flex min-h-screen items-center justify-center p-6 lg:min-h-0 lg:p-10">
+        {/* ── Form panel — scrollable on mobile, centered on desktop ── */}
+        <div className="flex h-full items-center justify-center p-5 overflow-y-auto">
           <LoginForm
             entraConfigured={authMeta.entraConfigured}
             devLoginEnabled={authMeta.enableDevLogin}

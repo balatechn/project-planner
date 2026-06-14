@@ -54,7 +54,7 @@ export function LoginForm({
 
       {/* Glass card */}
       <div
-        className="rounded-2xl p-8 sm:p-10"
+        className="rounded-2xl p-6 sm:p-8"
         style={{
           background: "rgba(255,255,255,0.72)",
           backdropFilter: "blur(24px) saturate(180%)",
@@ -85,8 +85,8 @@ export function LoginForm({
         </div>
 
         {/* Heading */}
-        <div className="mb-8 space-y-1.5">
-          <h2 className="text-2xl font-bold text-[#16283e] tracking-tight">
+        <div className="mb-5 space-y-1">
+          <h2 className="text-xl font-bold text-[#16283e] tracking-tight">
             Welcome back
           </h2>
           <p className="text-sm text-[#16283e]/55">
@@ -187,7 +187,7 @@ export function LoginForm({
         </div>
 
         {/* Bottom note */}
-        <p className="mt-8 text-center text-[11px] text-[#16283e]/40">
+        <p className="mt-5 text-center text-[11px] text-[#16283e]/40">
           Secured with Microsoft 365 · National Group India
         </p>
       </div>
