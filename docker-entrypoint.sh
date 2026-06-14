@@ -17,5 +17,8 @@ done
 echo "→ Seeding meeting rooms…"
 node prisma/seed-rooms.mjs || echo "  room seed skipped"
 
+echo "→ Seeding admin user…"
+node prisma/seed-admin.mjs || echo "  admin seed skipped"
+
 echo "→ Starting Next.js server on :${PORT:-3000}"
 exec node server.js
