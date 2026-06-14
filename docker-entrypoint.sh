@@ -4,7 +4,7 @@ set -e
 echo "→ Syncing database schema (prisma db push)…"
 # Reachable internally over the Coolify network; retries while DB warms up
 n=0
-until node node_modules/prisma/build/index.js db push --skip-generate --accept-data-loss; do
+until node /prisma-cli/node_modules/prisma/build/index.js db push --schema=/app/prisma/schema.prisma --skip-generate --accept-data-loss; do
   n=$((n+1))
   if [ "$n" -ge 10 ]; then
     echo "✗ prisma db push failed after 10 attempts — starting server anyway"

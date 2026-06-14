@@ -35,11 +35,17 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Prisma CLI + engine + schema + seed for runtime `db push` and room seeding
-# Use the full prisma package (not the .bin symlink) to avoid missing WASM files
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
+# Prisma generated client — needed by the Next.js app at runtime
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+
+# Full node_modules in a separate path for the Prisma CLI at startup.
+# The Prisma CLI (prisma/build/index.js) has transitive deps (effect, c12,
+# empathic…) that the standalone runtime doesn't include. Running from its
+# own node_modules tree lets Node resolve all deps without polluting the app.
+COPY --from=deps /app/node_modules /prisma-cli/node_modules
+
+# Schema + seeder
 COPY --from=builder /app/prisma ./prisma
 COPY --chown=nextjs:nodejs docker-entrypoint.sh ./docker-entrypoint.sh
 RUN chmod +x ./docker-entrypoint.sh
