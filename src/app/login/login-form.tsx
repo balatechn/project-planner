@@ -30,6 +30,7 @@ export function LoginForm({
   const [loading, setLoading] = React.useState<"sso" | "dev" | null>(null);
   const [email, setEmail] = React.useState("");
   const [password, setPassword] = React.useState("");
+  const [showDevForm, setShowDevForm] = React.useState(false);
   const [formError, setFormError] = React.useState<string | null>(
     error ? "Sign-in failed. Please try again." : null,
   );
@@ -124,64 +125,69 @@ export function LoginForm({
             </div>
           )}
 
-          {/* Dev login divider + form */}
+          {/* Dev login — collapsed by default, expands on click */}
           {devLoginEnabled && (
             <>
-              <div className="relative flex items-center gap-3 py-1">
+              <button
+                type="button"
+                onClick={() => setShowDevForm((v) => !v)}
+                className="relative flex w-full items-center gap-3 py-1 group"
+              >
                 <div className="flex-1 border-t border-[#1e3a5f]/10" />
-                <span className="text-xs text-[#16283e]/40 font-medium">
-                  or developer login
+                <span className="text-xs text-[#16283e]/40 font-medium group-hover:text-[#16283e]/70 transition-colors whitespace-nowrap">
+                  {showDevForm ? "hide developer login ▲" : "or developer login ▼"}
                 </span>
                 <div className="flex-1 border-t border-[#1e3a5f]/10" />
-              </div>
+              </button>
 
-              <form onSubmit={onDevLogin} className="space-y-3.5">
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="email"
-                    className="text-xs font-semibold text-[#16283e]/60 uppercase tracking-wider"
+              {showDevForm && (
+                <form onSubmit={onDevLogin} className="space-y-3">
+                  <div className="space-y-1.5">
+                    <label
+                      htmlFor="email"
+                      className="text-xs font-semibold text-[#16283e]/60 uppercase tracking-wider"
+                    >
+                      Email
+                    </label>
+                    <input
+                      id="email"
+                      type="email"
+                      placeholder="you@nationalgroupindia.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      className="login-input w-full rounded-xl px-4 py-2.5 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label
+                      htmlFor="password"
+                      className="text-xs font-semibold text-[#16283e]/60 uppercase tracking-wider"
+                    >
+                      Password
+                    </label>
+                    <input
+                      id="password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="login-input w-full rounded-xl px-4 py-2.5 text-sm"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    disabled={loading !== null}
+                    className="btn-premium flex w-full items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-[#16283e] shadow-lg disabled:opacity-60"
                   >
-                    Email
-                  </label>
-                  <input
-                    id="email"
-                    type="email"
-                    placeholder="you@nationalgroupindia.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                    className="login-input w-full rounded-xl px-4 py-2.5 text-sm"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <label
-                    htmlFor="password"
-                    className="text-xs font-semibold text-[#16283e]/60 uppercase tracking-wider"
-                  >
-                    Password
-                  </label>
-                  <input
-                    id="password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    className="login-input w-full rounded-xl px-4 py-2.5 text-sm"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={loading !== null}
-                  className="btn-premium mt-1 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3 text-sm font-bold text-[#16283e] shadow-lg disabled:opacity-60"
-                >
-                  {loading === "dev" && (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  )}
-                  Sign in
-                </button>
-              </form>
+                    {loading === "dev" && (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    )}
+                    Sign in
+                  </button>
+                </form>
+              )}
             </>
           )}
         </div>

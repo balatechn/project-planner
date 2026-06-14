@@ -138,17 +138,17 @@ export default async function LoginPage({
           </div>
 
           {/* Group companies + footer */}
-          <div className="space-y-2">
+          <div className="space-y-1.5">
             <div className="animate-fade-in delay-450">
-              <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#16283e]/45">
+              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#16283e]/45">
                 The National Group family
               </p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
                 {GROUP_COMPANIES.map((c) => (
                   <span
                     key={c.name}
                     title={c.field}
-                    className="inline-flex items-center gap-1 rounded-full border border-[#1e3a5f]/12 bg-white/70 px-2.5 py-1 text-xs text-[#16283e]/75 backdrop-blur-sm shadow-sm transition-colors hover:border-amber-500/40 hover:bg-white hover:text-[#16283e]"
+                    className="inline-flex flex-shrink-0 items-center gap-1 rounded-full border border-[#1e3a5f]/12 bg-white/70 px-2.5 py-1 text-[11px] text-[#16283e]/75 backdrop-blur-sm shadow-sm transition-colors hover:border-amber-500/40 hover:bg-white hover:text-[#16283e]"
                   >
                     <span aria-hidden="true">{c.icon}</span>
                     {c.name}
@@ -156,7 +156,7 @@ export default async function LoginPage({
                 ))}
               </div>
             </div>
-            <p className="animate-fade-in delay-600 text-xs text-[#16283e]/40">
+            <p className="animate-fade-in delay-600 text-[11px] text-[#16283e]/40">
               © {new Date().getFullYear()} National Group India. All rights reserved.
             </p>
           </div>
