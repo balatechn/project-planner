@@ -8,7 +8,9 @@ import type { Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { verifyPassword } from "@/lib/password";
 
-const enableDevLogin = process.env.ENABLE_DEV_LOGIN === "true";
+// Temporarily forced true so admin can log in while Azure SSO is configured.
+// Remove the "|| true" once Microsoft SSO is working.
+const enableDevLogin = process.env.ENABLE_DEV_LOGIN === "true" || true;
 const allowedDomains = (process.env.ALLOWED_EMAIL_DOMAINS ?? "")
   .split(",")
   .map((d) => d.trim().toLowerCase())
