@@ -56,6 +56,7 @@ export type BookingInfo = {
   isRecurring: boolean;
   recurringGroupId: string | null;
   status: "CONFIRMED" | "CANCELLED" | "COMPLETED";
+  meetingNotes: string | null;
   room: { id: string; name: string; color: string; capacity: number };
   organizer: { id: string; name: string | null; image: string | null; email: string | null };
   bookedFor: { id: string; name: string | null; image: string | null } | null;
@@ -182,6 +183,11 @@ function TodayList({
                 {format(parseISO(b.startTime), "h:mm")}–{format(parseISO(b.endTime), "h:mma")}
                 {" · "}{room?.name ?? ""}
               </p>
+              {b.meetingNotes && (
+                <p className="text-[10px] text-amber-600 dark:text-amber-400 leading-tight truncate">
+                  📝 Notes added
+                </p>
+              )}
             </div>
           </button>
         );

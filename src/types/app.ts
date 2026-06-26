@@ -22,6 +22,7 @@ export type TaskListItem = {
   priority: Priority;
   startDate: string | null;
   dueDate: string | null;
+  completedAt: string | null;
   progress: number;
   estimatedHours: number | null;
   orderIndex: number;

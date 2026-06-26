@@ -5,6 +5,7 @@ import { format, parseISO, addHours } from "date-fns";
 import {
   AlertTriangle,
   Calendar,
+  ClipboardList,
   Clock,
   Loader2,
   MailPlus,
@@ -101,6 +102,12 @@ export function BookRoomDialog({
 
   const [title, setTitle] = React.useState(editBooking?.title ?? "");
   const [description, setDescription] = React.useState(editBooking?.description ?? "");
+  const [meetingNotes, setMeetingNotes] = React.useState(editBooking?.meetingNotes ?? "");
+
+  // Meeting has ended if edit mode and end time is in the past
+  const meetingEnded = isEdit && editBooking
+    ? new Date(editBooking.endTime) < new Date()
+    : false;
   const [roomId, setRoomId] = React.useState(
     editBooking?.roomId ?? prefill?.roomId ?? rooms[0]?.id ?? "",
   );
@@ -165,7 +172,7 @@ export function BookRoomDialog({
         const res = await fetch(`/api/room-bookings/${editBooking.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: title.trim(), description }),
+          body: JSON.stringify({ title: title.trim(), description, meetingNotes }),
         });
         if (!res.ok) throw new Error("Update failed");
         toast({ title: "Booking updated", variant: "success" });
@@ -366,6 +373,27 @@ export function BookRoomDialog({
               className={!canEdit ? "bg-muted/40 cursor-default" : ""}
             />
           </div>
+
+          {/* Meeting Notes — shown only after meeting has ended */}
+          {meetingEnded && (
+            <div className="space-y-1.5 rounded-lg border border-amber-200 bg-amber-50/50 dark:border-amber-900/40 dark:bg-amber-950/20 p-3">
+              <Label className="flex items-center gap-1.5 text-amber-700 dark:text-amber-400">
+                <ClipboardList className="h-3.5 w-3.5" />
+                Post-Meeting Notes
+              </Label>
+              <Textarea
+                placeholder="Summary, decisions made, follow-up actions…"
+                value={meetingNotes}
+                onChange={(e) => setMeetingNotes(e.target.value)}
+                rows={3}
+                readOnly={!canEdit}
+                className={`text-sm ${!canEdit ? "bg-muted/40 cursor-default" : "border-amber-200 dark:border-amber-900/40 focus-visible:ring-amber-500/30"}`}
+              />
+              {!canEdit && (
+                <p className="text-[10px] text-muted-foreground">Only the organizer or admin can edit notes.</p>
+              )}
+            </div>
+          )}
 
           {/* Book on behalf (admin/PM only) */}
           {canBookOnBehalf && !isEdit && (

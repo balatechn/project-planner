@@ -3,14 +3,18 @@ import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { cancelTeamsMeeting } from "@/lib/teams-graph";
 
-// PATCH /api/room-bookings/[id] — update title/description
+// PATCH /api/room-bookings/[id] — update title/description/meetingNotes
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
   const { id } = await params;
 
   const booking = await prisma.roomBooking.findUnique({ where: { id } });
   if (!booking) return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (booking.organizerId !== user.id && user.role !== "ADMIN") {
+
+  // meetingNotes can be edited by organizer, admin, or PM
+  const isOwner = booking.organizerId === user.id;
+  const isAdmin = user.role === "ADMIN" || user.role === "PROJECT_MANAGER";
+  if (!isOwner && !isAdmin) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -21,6 +25,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       ...(body.title !== undefined && { title: body.title }),
       ...(body.description !== undefined && { description: body.description }),
       ...(body.status !== undefined && { status: body.status }),
+      ...(body.meetingNotes !== undefined && { meetingNotes: body.meetingNotes }),
     },
     include: {
       room: { select: { id: true, name: true, color: true, capacity: true } },

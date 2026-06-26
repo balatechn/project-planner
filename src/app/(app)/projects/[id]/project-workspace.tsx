@@ -16,6 +16,7 @@ import {
   Pencil,
   Plus,
   Timer,
+  TrendingDown,
   Trash2,
   UserPlus,
   Zap,
@@ -88,6 +89,10 @@ const RiskRegister = dynamic(
 );
 const MeetingNotes = dynamic(
   () => import("./meeting-notes").then((m) => ({ default: m.MeetingNotes })),
+  { loading: () => <TabSkeleton />, ssr: false },
+);
+const BurndownChart = dynamic(
+  () => import("@/components/tasks/burndown-chart").then((m) => ({ default: m.BurndownChart })),
   { loading: () => <TabSkeleton />, ssr: false },
 );
 
@@ -359,6 +364,9 @@ export function ProjectWorkspace({
           <TabsTrigger value="meetings">
             <ClipboardList className="h-3.5 w-3.5" /> Meetings
           </TabsTrigger>
+          <TabsTrigger value="burndown">
+            <TrendingDown className="h-3.5 w-3.5" /> Burndown
+          </TabsTrigger>
         </TabsList>
 
         {loading ? (
@@ -413,6 +421,11 @@ export function ProjectWorkspace({
                 allUsers={allUsers}
                 permissions={permissions}
               />
+            </TabsContent>
+            <TabsContent value="burndown">
+              <div className="py-2">
+                <BurndownChart project={project} tasks={tasks} />
+              </div>
             </TabsContent>
           </>
         )}

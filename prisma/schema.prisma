@@ -844,6 +844,7 @@ model RoomBooking {
   recurringGroupId String?
   status           RoomBookingStatus @default(CONFIRMED)
   reminderSent     Boolean           @default(false)
+  meetingNotes     String?           @db.Text
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
