@@ -11,10 +11,12 @@ import {
   MailPlus,
   RefreshCw,
   Repeat2,
+  Search,
   Trash2,
   User,
   Users,
   Video,
+  X,
 } from "lucide-react";
 import type { Role } from "@prisma/client";
 import {
@@ -36,6 +38,7 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { can } from "@/lib/rbac";
+import { cn } from "@/lib/utils";
 import type { RoomInfo, UserInfo, BookingInfo } from "./room-booking-client";
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -127,6 +130,60 @@ export function BookRoomDialog({
   const [guestEmailsRaw, setGuestEmailsRaw] = React.useState(
     editBooking?.guestEmails?.join("\n") ?? "",
   );
+
+  // Directory search — declared after guestEmailsRaw so setters are in scope
+  type DirUser = { azureId: string | null; name: string; email: string; jobTitle: string | null; department: string | null; localId: string | null };
+  const [dirQuery, setDirQuery]       = React.useState("");
+  const [dirResults, setDirResults]   = React.useState<DirUser[]>([]);
+  const [dirLoading, setDirLoading]   = React.useState(false);
+  const [dirOpen, setDirOpen]         = React.useState(false);
+  const [selectedDir, setSelectedDir] = React.useState<DirUser[]>([]);
+  const dirDebounce = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  React.useEffect(() => {
+    if (dirQuery.length < 2) { setDirResults([]); setDirOpen(false); return; }
+    if (dirDebounce.current) clearTimeout(dirDebounce.current);
+    dirDebounce.current = setTimeout(async () => {
+      setDirLoading(true);
+      try {
+        const res = await fetch(`/api/users/directory-search?q=${encodeURIComponent(dirQuery)}`);
+        if (res.ok) {
+          const data = await res.json();
+          setDirResults(data.users ?? []);
+          setDirOpen(true);
+        }
+      } finally {
+        setDirLoading(false);
+      }
+    }, 300);
+    return () => { if (dirDebounce.current) clearTimeout(dirDebounce.current); };
+  }, [dirQuery]);
+
+  function selectDirUser(u: DirUser) {
+    if (selectedDir.some((s) => s.email === u.email)) return;
+    setSelectedDir((prev) => [...prev, u]);
+    if (u.localId && !attendeeIds.includes(u.localId)) {
+      setAttendeeIds((prev) => [...prev, u.localId!]);
+    }
+    if (!u.localId) {
+      setGuestEmailsRaw((prev) => {
+        const existing = prev.trim();
+        return existing ? `${existing}\n${u.email}` : u.email;
+      });
+    }
+    setDirQuery("");
+    setDirOpen(false);
+  }
+
+  function removeDirUser(u: DirUser) {
+    setSelectedDir((prev) => prev.filter((s) => s.email !== u.email));
+    if (u.localId) setAttendeeIds((prev) => prev.filter((id) => id !== u.localId));
+    if (!u.localId) {
+      setGuestEmailsRaw((prev) =>
+        prev.split(/[\n,]/).map((e) => e.trim()).filter((e) => e !== u.email).join("\n"),
+      );
+    }
+  }
 
   // Recurrence
   const [recurring, setRecurring] = React.useState(editBooking?.isRecurring ?? false);
@@ -421,34 +478,107 @@ export function BookRoomDialog({
           )}
 
           {/* Attendees */}
-          {!isEdit && allUsers.length > 0 && (
+          {!isEdit && (
             <div className="space-y-1.5">
               <Label className="flex items-center gap-1">
                 <Users className="h-3.5 w-3.5" /> Invite attendees
               </Label>
-              <div className="max-h-32 overflow-y-auto rounded-md border p-2 space-y-1">
-                {allUsers
-                  .filter((u) => u.id !== currentUserId)
-                  .map((u) => (
-                    <label
-                      key={u.id}
-                      className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 px-1 py-0.5 rounded"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={attendeeIds.includes(u.id)}
-                        onChange={() => toggleAttendee(u.id)}
-                        className="rounded"
-                      />
-                      <span className="truncate">
-                        {u.name ?? u.email}
-                        {u.department ? (
-                          <span className="text-muted-foreground"> · {u.department}</span>
-                        ) : null}
-                      </span>
-                    </label>
+
+              {/* Selected chips */}
+              {selectedDir.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedDir.map((u) => (
+                    <span key={u.email} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                      {u.name}
+                      {!u.localId && <span className="text-[10px] opacity-60">(guest)</span>}
+                      <button type="button" onClick={() => removeDirUser(u)} className="ml-0.5 hover:text-destructive">
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
                   ))}
+                </div>
+              )}
+
+              {/* Directory search input */}
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={dirQuery}
+                  onChange={(e) => setDirQuery(e.target.value)}
+                  onFocus={() => dirResults.length > 0 && setDirOpen(true)}
+                  onBlur={() => setTimeout(() => setDirOpen(false), 150)}
+                  placeholder="Search Microsoft directory…"
+                  className="w-full rounded-lg py-2 pl-8 pr-3 text-sm neu-inset placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                />
+                {dirLoading && (
+                  <Loader2 className="absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 animate-spin text-muted-foreground" />
+                )}
+
+                {/* Dropdown results */}
+                {dirOpen && dirResults.length > 0 && (
+                  <div className="absolute left-0 top-full z-50 mt-1 w-full rounded-xl neu-card py-1 overflow-hidden">
+                    {dirResults.map((u) => {
+                      const alreadyAdded = selectedDir.some((s) => s.email === u.email);
+                      return (
+                        <button
+                          key={u.email}
+                          type="button"
+                          onMouseDown={() => !alreadyAdded && selectDirUser(u)}
+                          className={cn(
+                            "flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm transition-colors",
+                            alreadyAdded ? "opacity-40 cursor-default" : "hover:bg-muted/60",
+                          )}
+                        >
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/15 text-[11px] font-bold text-primary">
+                            {(u.name ?? "?")[0].toUpperCase()}
+                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium truncate">{u.name}</p>
+                            <p className="text-[11px] text-muted-foreground truncate">
+                              {u.email}{u.jobTitle ? ` · ${u.jobTitle}` : ""}
+                            </p>
+                          </div>
+                          {!u.localId && (
+                            <span className="text-[10px] text-amber-600 font-medium shrink-0">guest</span>
+                          )}
+                          {alreadyAdded && (
+                            <span className="text-[10px] text-muted-foreground shrink-0">added</span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
+
+              {/* Local users quick-pick */}
+              {allUsers.filter((u) => u.id !== currentUserId).length > 0 && (
+                <div className="max-h-28 overflow-y-auto rounded-lg neu-inset-sm p-2 space-y-0.5 thin-scroll">
+                  <p className="text-[10px] text-muted-foreground px-1 pb-0.5 font-medium uppercase tracking-wide">Quick pick</p>
+                  {allUsers
+                    .filter((u) => u.id !== currentUserId)
+                    .map((u) => (
+                      <label
+                        key={u.id}
+                        className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 px-1 py-0.5 rounded"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={attendeeIds.includes(u.id)}
+                          onChange={() => toggleAttendee(u.id)}
+                          className="rounded"
+                        />
+                        <span className="truncate">
+                          {u.name ?? u.email}
+                          {u.department ? (
+                            <span className="text-muted-foreground text-xs"> · {u.department}</span>
+                          ) : null}
+                        </span>
+                      </label>
+                    ))}
+                </div>
+              )}
             </div>
           )}
 
