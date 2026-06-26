@@ -4,71 +4,52 @@
 
 @layer base {
   :root {
-    /* Navy & Gold — ivory canvas, deep navy primary, brand gold accent */
-    --background: 42 28% 96%;
-    --foreground: 215 35% 14%;
-    --card: 0 0% 100%;
-    --card-foreground: 215 35% 14%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 215 35% 14%;
-    --primary: 213 52% 24%;
+    /* ── Neomorphism Soft UI — light mode only ──────────────────────── */
+    --background: 220 22% 92%;        /* #e3e9f1  soft blue-gray canvas   */
+    --foreground: 220 38% 16%;        /* #1c2a40  deep navy text           */
+    --card: 220 22% 92%;              /* same as bg — cards float via shadow */
+    --card-foreground: 220 38% 16%;
+    --popover: 220 22% 92%;
+    --popover-foreground: 220 38% 16%;
+    --primary: 213 52% 28%;           /* navy — keep brand                 */
     --primary-foreground: 0 0% 100%;
-    --secondary: 214 20% 92%;
-    --secondary-foreground: 215 30% 22%;
-    --muted: 214 16% 93%;
-    --muted-foreground: 215 12% 44%;
-    --accent: 44 56% 45%;
+    --secondary: 220 18% 87%;         /* slightly darker than bg           */
+    --secondary-foreground: 220 30% 24%;
+    --muted: 220 18% 87%;
+    --muted-foreground: 220 14% 46%;
+    --accent: 44 56% 45%;             /* gold — keep brand                 */
     --accent-foreground: 0 0% 100%;
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
-    --border: 214 18% 87%;
-    --input: 214 18% 87%;
+    --border: 220 18% 84%;            /* subtle — shadows do the separation */
+    --input: 220 18% 84%;
     --ring: 213 52% 30%;
-    --radius: 0.6rem;
+    --radius: 0.75rem;
     --brand-orange: 44 60% 48%;
     --brand-gold: 44 65% 52%;
-    --brand-gray: 215 12% 44%;
-    --status-notstarted: 215 16% 55%;
+    --brand-gray: 220 12% 46%;
+    --status-notstarted: 220 16% 55%;
     --status-inprogress: 214 89% 52%;
     --status-onhold: 38 92% 50%;
     --status-completed: 142 71% 45%;
     --status-delayed: 0 72% 51%;
-  }
 
-  .dark {
-    /* Deep navy surfaces with gold as the hero highlight */
-    --background: 215 38% 7%;
-    --foreground: 214 25% 94%;
-    --card: 215 34% 10%;
-    --card-foreground: 214 25% 94%;
-    --popover: 215 34% 10%;
-    --popover-foreground: 214 25% 94%;
-    --primary: 44 70% 55%;
-    --primary-foreground: 218 45% 10%;
-    --secondary: 215 28% 16%;
-    --secondary-foreground: 214 20% 90%;
-    --muted: 215 28% 15%;
-    --muted-foreground: 214 14% 62%;
-    --accent: 44 70% 58%;
-    --accent-foreground: 218 45% 10%;
-    --destructive: 0 63% 50%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 215 26% 17%;
-    --input: 215 26% 19%;
-    --ring: 44 70% 55%;
-    --brand-orange: 44 70% 55%;
-    --brand-gold: 44 80% 60%;
-    --brand-gray: 214 14% 62%;
-    --status-notstarted: 215 20% 60%;
-    --status-inprogress: 214 89% 58%;
-    --status-onhold: 38 92% 55%;
-    --status-completed: 142 71% 50%;
-    --status-delayed: 0 72% 58%;
+    /* ── Neumorphic shadow palette ─────────────────────────────────── */
+    --neu-light: #ffffff;
+    --neu-dark: #bbc6d4;
+    /* raised surfaces */
+    --neu-shadow:    6px 6px 14px var(--neu-dark), -6px -6px 14px var(--neu-light);
+    --neu-shadow-sm: 3px 3px  8px var(--neu-dark), -3px -3px  8px var(--neu-light);
+    --neu-shadow-xs: 2px 2px  5px var(--neu-dark), -2px -2px  5px var(--neu-light);
+    /* pressed / inset surfaces */
+    --neu-inset:     inset 4px 4px 9px var(--neu-dark), inset -4px -4px 9px var(--neu-light);
+    --neu-inset-sm:  inset 2px 2px 6px var(--neu-dark), inset -2px -2px 6px var(--neu-light);
   }
 }
 
 @layer base {
   * { @apply border-border; }
+  html { background-color: hsl(220 22% 92%); } /* prevent white flash on load */
   body {
     @apply bg-background text-foreground;
     /* cv05/cv11 give Inter its SF Pro-style lowercase l and single-storey a */
@@ -81,6 +62,37 @@
   /* Apple-style tight tracking on display text */
   h1, h2, h3 { letter-spacing: -0.022em; }
   html { scroll-behavior: smooth; }
+}
+
+/* ── Neumorphic component overrides ──────────────────────────────────── */
+
+/* Raised card surface — replaces border + shadow-sm */
+.neu-card {
+  background-color: hsl(var(--background));
+  box-shadow: var(--neu-shadow);
+  border-color: transparent !important;
+}
+.neu-card-sm {
+  background-color: hsl(var(--background));
+  box-shadow: var(--neu-shadow-sm);
+  border-color: transparent !important;
+}
+
+/* Inset surface — for inputs, textareas */
+.neu-inset {
+  background-color: hsl(var(--background));
+  box-shadow: var(--neu-inset);
+  border-color: transparent !important;
+}
+.neu-inset-sm {
+  background-color: hsl(var(--background));
+  box-shadow: var(--neu-inset-sm);
+  border-color: transparent !important;
+}
+
+/* Pressed button state */
+.neu-pressed {
+  box-shadow: var(--neu-inset-sm) !important;
 }
 
 /* ── Brand gradients ──────────────────────────────────────────────────── */
@@ -230,7 +242,7 @@
   background: linear-gradient(
     90deg,
     hsl(var(--muted)) 25%,
-    hsl(var(--muted-foreground) / 0.08) 50%,
+    var(--neu-light) 50%,
     hsl(var(--muted)) 75%
   );
   background-size: 200% 100%;
@@ -239,8 +251,8 @@
 
 /* ── Scrollbars ────────────────────────────────────────────────────────── */
 .thin-scroll::-webkit-scrollbar        { height: 6px; width: 6px; }
-.thin-scroll::-webkit-scrollbar-thumb  { background: hsl(var(--border)); border-radius: 9999px; }
-.thin-scroll::-webkit-scrollbar-track  { background: transparent; }
+.thin-scroll::-webkit-scrollbar-thumb  { background: var(--neu-dark); border-radius: 9999px; }
+.thin-scroll::-webkit-scrollbar-track  { background: hsl(var(--background)); box-shadow: var(--neu-inset-sm); border-radius: 9999px; }
 
 /* ── GPU-composited hover transitions ─────────────────────────────────── */
 a, button, [role="button"] {

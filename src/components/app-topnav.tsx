@@ -120,7 +120,7 @@ export function AppTopNav({
   return (
     <>
       {/* ── Main top bar ── */}
-      <header className="sticky top-0 z-40 w-full border-b border-border/60 bg-card/90 backdrop-blur-xl supports-[backdrop-filter]:bg-card/75 shadow-[0_1px_0_0_hsl(var(--border)/0.6),0_4px_20px_-4px_rgba(0,0,0,0.08)]">
+      <header className="sticky top-0 z-40 w-full bg-[hsl(var(--background))] shadow-[0_4px_16px_var(--neu-dark),0_-2px_8px_var(--neu-light)]">
         <div className="mx-auto flex h-14 max-w-screen-2xl items-center gap-2 px-4 lg:px-6">
 
           {/* Logo — National Group India */}
@@ -130,7 +130,7 @@ export function AppTopNav({
               alt="National Group India"
               width={36}
               height={36}
-              className="object-contain dark:brightness-0 dark:invert flex-shrink-0"
+              className="object-contain flex-shrink-0"
               priority
             />
             <div className="hidden sm:block leading-tight">
@@ -158,11 +158,11 @@ export function AppTopNav({
                     "relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all whitespace-nowrap",
                     isAmber
                       ? active
-                        ? "bg-amber-500/12 text-amber-600 dark:text-amber-400 shadow-[0_0_12px_-2px_hsl(38_92%_50%/0.3)]"
-                        : "text-amber-600/60 dark:text-amber-500/70 hover:bg-amber-500/10 hover:text-amber-600"
+                        ? "text-amber-600 font-semibold [box-shadow:inset_2px_2px_5px_var(--neu-dark),inset_-2px_-2px_5px_var(--neu-light)] bg-[hsl(var(--background))]"
+                        : "text-amber-600/70 hover:text-amber-600 hover:[box-shadow:var(--neu-shadow-xs)]"
                       : active
-                        ? "bg-primary/12 text-primary font-semibold shadow-[0_0_12px_-2px_hsl(var(--primary)/0.3)]"
-                        : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
+                        ? "text-primary font-semibold [box-shadow:inset_2px_2px_5px_var(--neu-dark),inset_-2px_-2px_5px_var(--neu-light)] bg-[hsl(var(--background))]"
+                        : "text-muted-foreground hover:text-foreground hover:[box-shadow:var(--neu-shadow-xs)]",
                   )}
                 >
                   <Icon className={cn("h-4 w-4 flex-shrink-0")} />
@@ -190,7 +190,7 @@ export function AppTopNav({
                   <ChevronDown className={cn("h-4 w-4 transition-transform", moreOpen && "rotate-180")} />
                 </button>
                 {moreOpen && (
-                  <div className="absolute left-0 top-full mt-1 w-48 rounded-lg border bg-card shadow-lg py-1 z-50">
+                  <div className="absolute left-0 top-full mt-2 w-48 rounded-xl bg-[hsl(var(--background))] py-1 z-50 [box-shadow:var(--neu-shadow)]">
                     {visibleMore.map((item) => {
                       const active = isActive(item.href);
                       const Icon = item.icon;
@@ -255,7 +255,7 @@ export function AppTopNav({
 
         {/* Mobile menu */}
         {mobileOpen && (
-          <div className="md:hidden border-t bg-card">
+          <div className="md:hidden bg-[hsl(var(--background))] [box-shadow:0_4px_16px_var(--neu-dark)]">
             {/* Mobile search */}
             <div className="px-4 pt-3 pb-1 sm:hidden">
               <form onSubmit={onSearch} className="relative">

@@ -10,8 +10,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <SessionProvider>
       <NextThemesProvider
         attribute="class"
-        defaultTheme="system"
-        enableSystem
+        defaultTheme="light"
+        enableSystem={false}
+        forcedTheme="light"
         disableTransitionOnChange
       >
         <ToastProvider>{children}</ToastProvider>
