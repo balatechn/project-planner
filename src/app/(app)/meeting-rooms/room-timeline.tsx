@@ -6,31 +6,29 @@ import { Monitor, Video } from "lucide-react";
 import type { RoomInfo, BookingInfo, TeamsEvent } from "./room-booking-client";
 import { cn } from "@/lib/utils";
 
-// ── Layout constants ──────────────────────────────────────────────────────────
-const HOUR_HEIGHT  = 64;   // px per hour slot
-const LABEL_WIDTH  = 56;   // px for the time-label column on the left
-const COL_MIN_W    = 160;  // minimum px per room column
-const START_HOUR   = 7;
-const END_HOUR     = 22;
-const TOTAL_HOURS  = END_HOUR - START_HOUR;
-const TOTAL_HEIGHT = TOTAL_HOURS * HOUR_HEIGHT;
+// ── Constants ─────────────────────────────────────────────────────────────────
+const LABEL_W   = 52;    // px — time-label column width
+const START_HOUR = 7;
+const END_HOUR   = 22;
+const TOTAL_HRS  = END_HOUR - START_HOUR;  // 15
+const TOTAL_MIN  = TOTAL_HRS * 60;
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function minuteOffset(time: Date | string, baseDate: Date): number {
+// ── Helpers (percentage-based — auto-scales to any container height) ──────────
+function minutesFromStart(time: Date | string, baseDate: Date): number {
   const t = typeof time === "string" ? parseISO(time) : time;
   const base = new Date(baseDate);
   base.setHours(START_HOUR, 0, 0, 0);
   return differenceInMinutes(t, base);
 }
 
-function topPx(time: Date | string, baseDate: Date): number {
-  return Math.max(0, (minuteOffset(time, baseDate) / 60) * HOUR_HEIGHT);
+function topPct(time: Date | string, baseDate: Date): number {
+  return Math.max(0, Math.min(100, (minutesFromStart(time, baseDate) / TOTAL_MIN) * 100));
 }
 
-function blockHeight(start: Date | string, end: Date | string): number {
+function heightPct(start: Date | string, end: Date | string): number {
   const s = typeof start === "string" ? parseISO(start) : start;
   const e = typeof end   === "string" ? parseISO(end)   : end;
-  return Math.max(20, (differenceInMinutes(e, s) / 60) * HOUR_HEIGHT);
+  return Math.max(0.5, (Math.max(15, differenceInMinutes(e, s)) / TOTAL_MIN) * 100);
 }
 
 function fmtHour(h: number): string {
@@ -60,8 +58,6 @@ export function RoomTimeline({
   onBookSlot: (roomId: string, startTime: string, endTime: string) => void;
   onOpenBooking: (booking: BookingInfo) => void;
 }) {
-  const containerRef = React.useRef<HTMLDivElement>(null);
-
   const [currentMinute, setCurrentMinute] = React.useState<number>(() => {
     const now = new Date();
     if (format(now, "yyyy-MM-dd") !== format(selectedDate, "yyyy-MM-dd")) return -1;
@@ -80,47 +76,39 @@ export function RoomTimeline({
     return () => clearInterval(timer);
   }, [selectedDate]);
 
-  // Scroll so current time is near the top of the visible area
-  React.useEffect(() => {
-    if (containerRef.current && currentMinute > 0) {
-      containerRef.current.scrollTop = Math.max(0, (currentMinute / 60) * HOUR_HEIGHT - 120);
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const hours = Array.from({ length: TOTAL_HOURS }, (_, i) => START_HOUR + i);
+  const hours     = Array.from({ length: TOTAL_HRS }, (_, i) => START_HOUR + i);
   const showTeams = teamsEvents.length > 0;
+  const nowPct    = currentMinute >= 0 ? (currentMinute / TOTAL_MIN) * 100 : -1;
 
+  // Click on empty slot → snap to nearest 30 min
   function handleSlotClick(e: React.MouseEvent<HTMLDivElement>, roomId: string) {
     const rect = e.currentTarget.getBoundingClientRect();
-    const y = e.clientY - rect.top;
-    const minutes = Math.round((y / HOUR_HEIGHT) * 60 / 30) * 30; // snap 30 min
+    const pct  = (e.clientY - rect.top) / rect.height;
+    const mins = Math.round(pct * TOTAL_MIN / 30) * 30;
     const base = new Date(selectedDate);
     base.setHours(START_HOUR, 0, 0, 0);
-    const startTime = addMinutes(base, minutes);
+    const startTime = addMinutes(base, Math.max(0, mins));
     const endTime   = addMinutes(startTime, 60);
     onBookSlot(roomId, startTime.toISOString(), endTime.toISOString());
   }
 
   return (
-    <div className="flex-1 overflow-auto rounded-lg border bg-card" ref={containerRef}>
+    // flex-1 + min-h-0 makes this fill whatever height the parent gives it
+    <div className="flex flex-1 min-h-0 flex-col overflow-hidden rounded-lg border bg-card">
 
-      {/* ── Sticky column-header row ─────────────────────────────────────── */}
-      <div className="sticky top-0 z-20 flex border-b bg-card/95 backdrop-blur">
-        {/* Time-label spacer */}
-        <div className="flex-shrink-0 border-r bg-card/95" style={{ width: LABEL_WIDTH }} />
+      {/* ── Column headers (room names) ─────────────────────────────────── */}
+      <div className="flex flex-shrink-0 border-b bg-card">
+        {/* Spacer above time labels */}
+        <div className="flex-shrink-0 border-r" style={{ width: LABEL_W }} />
 
-        {/* Room headers */}
+        {/* Room columns */}
         {rooms.map((room) => (
-          <div
-            key={room.id}
-            className="flex-1 border-r px-3 py-2.5"
-            style={{ minWidth: COL_MIN_W }}
-          >
+          <div key={room.id} className="flex-1 min-w-0 border-r px-3 py-2">
             <div className="flex items-center gap-1.5">
-              <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: room.color }} />
+              <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: room.color }} />
               <span className="text-sm font-semibold truncate">{room.name}</span>
             </div>
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
               <span className="text-[10px] text-muted-foreground">👥 {room.capacity}</span>
               {room.floor && (
                 <span className="text-[10px] text-muted-foreground">Floor {room.floor}</span>
@@ -132,170 +120,178 @@ export function RoomTimeline({
           </div>
         ))}
 
-        {/* Teams calendar header */}
+        {/* Teams header */}
         {showTeams && (
-          <div className="w-40 shrink-0 px-3 py-2.5 bg-blue-500/5">
+          <div className="w-36 flex-shrink-0 px-3 py-2 bg-blue-500/5 border-l">
             <div className="flex items-center gap-1.5">
-              <Monitor className="h-3.5 w-3.5 text-blue-500" />
-              <span className="text-xs font-semibold text-blue-600">My Schedule</span>
+              <Monitor className="h-3 w-3 text-blue-500" />
+              <span className="text-xs font-semibold text-blue-600 truncate">My Schedule</span>
             </div>
-            <p className="text-[10px] text-muted-foreground mt-0.5">Teams calendar</p>
           </div>
         )}
       </div>
 
-      {/* ── Grid body ────────────────────────────────────────────────────── */}
-      <div className="relative flex" style={{ minHeight: TOTAL_HEIGHT }}>
+      {/* ── Grid body — fills remaining height, NO overflow ─────────────── */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
 
-        {/* Time-label column (sticky left) */}
+        {/* Time-label column */}
         <div
-          className="sticky left-0 z-10 shrink-0 bg-card border-r select-none"
-          style={{ width: LABEL_WIDTH }}
+          className="flex-shrink-0 flex flex-col border-r bg-card select-none z-10"
+          style={{ width: LABEL_W }}
         >
           {hours.map((h, i) => (
-            <div key={h} className="relative border-b border-border/20" style={{ height: HOUR_HEIGHT }}>
-              <span className="absolute -top-2 left-1.5 text-[10px] font-medium text-muted-foreground">
+            <div key={h} className="flex-1 relative border-b border-border/15">
+              {/* Label sits at the top edge of each hour band */}
+              <span
+                className="absolute left-1 text-[10px] font-medium text-muted-foreground leading-none"
+                style={{ top: i === 0 ? 2 : -6 }}
+              >
                 {fmtHour(h)}
               </span>
             </div>
           ))}
         </div>
 
-        {/* Room columns */}
-        {rooms.map((room) => {
-          const roomBookings = bookings.filter((b) => b.roomId === room.id);
-          return (
-            <div
-              key={room.id}
-              className="relative flex-1 border-r cursor-crosshair"
-              style={{ minWidth: COL_MIN_W, height: TOTAL_HEIGHT }}
-              onClick={(e) => handleSlotClick(e, room.id)}
-            >
-              {/* Hour bands */}
-              {hours.map((_, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "absolute w-full border-b border-border/20",
-                    i % 2 === 0 ? "bg-muted/10" : "",
-                  )}
-                  style={{ top: i * HOUR_HEIGHT, height: HOUR_HEIGHT }}
-                />
-              ))}
-              {/* Half-hour dashed lines */}
-              {hours.map((_, i) => (
-                <div
-                  key={`h${i}`}
-                  className="absolute w-full border-b border-dashed border-border/10"
-                  style={{ top: i * HOUR_HEIGHT + HOUR_HEIGHT / 2 }}
-                />
-              ))}
+        {/* All room columns + current-time line in one relative wrapper */}
+        <div className="relative flex flex-1 min-w-0 overflow-hidden">
 
-              {/* Booking blocks */}
-              {roomBookings.map((b) => {
-                const top    = topPx(b.startTime, selectedDate);
-                const height = blockHeight(b.startTime, b.endTime);
-                const isOwn  = b.organizerId === currentUserId;
-                const startFmt = format(parseISO(b.startTime), "h:mm");
-                const endFmt   = format(parseISO(b.endTime),   "h:mma");
-
-                return (
-                  <button
-                    key={b.id}
-                    type="button"
-                    title={`${b.title} · ${startFmt}–${endFmt}`}
-                    onClick={(e) => { e.stopPropagation(); onOpenBooking(b); }}
-                    className={cn(
-                      "absolute left-1 right-1 rounded-md px-2 py-1 overflow-hidden text-left transition-opacity hover:opacity-90 z-10",
-                      isOwn ? "ring-1 ring-inset ring-white/30" : "opacity-80",
+          {/* Room columns */}
+          {rooms.map((room) => {
+            const roomBookings = bookings.filter((b) => b.roomId === room.id);
+            return (
+              <div
+                key={room.id}
+                className="relative flex-1 min-w-0 h-full border-r cursor-crosshair"
+                onClick={(e) => handleSlotClick(e, room.id)}
+              >
+                {/* Hour bands */}
+                {hours.map((_, i) => (
+                  <React.Fragment key={i}>
+                    {/* Alternating background */}
+                    {i % 2 === 0 && (
+                      <div
+                        className="absolute inset-x-0 bg-muted/10"
+                        style={{
+                          top:    `${(i / TOTAL_HRS) * 100}%`,
+                          height: `${(1 / TOTAL_HRS) * 100}%`,
+                        }}
+                      />
                     )}
-                    style={{
-                      top: top + 2,
-                      height: Math.max(height - 4, 20),
-                      backgroundColor: room.color + "cc",
-                    }}
-                  >
-                    {height > 20 && (
+                    {/* Hour line */}
+                    <div
+                      className="absolute inset-x-0 border-b border-border/20"
+                      style={{ top: `${(i / TOTAL_HRS) * 100}%` }}
+                    />
+                    {/* Half-hour dashed line */}
+                    <div
+                      className="absolute inset-x-0 border-b border-dashed border-border/10"
+                      style={{ top: `${((i + 0.5) / TOTAL_HRS) * 100}%` }}
+                    />
+                  </React.Fragment>
+                ))}
+
+                {/* Booking blocks */}
+                {roomBookings.map((b) => {
+                  const isOwn = b.organizerId === currentUserId;
+                  const startFmt   = format(parseISO(b.startTime), "h:mm");
+                  const endFmt     = format(parseISO(b.endTime),   "h:mma");
+                  const durationMin = differenceInMinutes(parseISO(b.endTime), parseISO(b.startTime));
+
+                  return (
+                    <button
+                      key={b.id}
+                      type="button"
+                      title={`${b.title} · ${startFmt}–${endFmt}`}
+                      onClick={(e) => { e.stopPropagation(); onOpenBooking(b); }}
+                      className={cn(
+                        "absolute left-0.5 right-0.5 rounded px-1.5 pt-0.5 overflow-hidden text-left transition-opacity hover:opacity-90 z-10",
+                        isOwn ? "ring-1 ring-inset ring-white/30" : "opacity-80",
+                      )}
+                      style={{
+                        top:    `calc(${topPct(b.startTime, selectedDate)}% + 1px)`,
+                        height: `calc(${heightPct(b.startTime, b.endTime)}% - 2px)`,
+                        backgroundColor: room.color + "cc",
+                      }}
+                    >
                       <span className="text-[11px] font-semibold text-white leading-tight block truncate">
                         {b.title}
                       </span>
-                    )}
-                    {height > 36 && (
-                      <span className="text-[10px] text-white/80 block">
-                        {startFmt}–{endFmt}
-                        {b.teamsJoinUrl && <Video className="inline h-2.5 w-2.5 ml-1 opacity-70" />}
-                      </span>
-                    )}
-                    {height > 54 && b.organizer?.name && (
-                      <span className="text-[10px] text-white/70 block truncate">
-                        {b.organizer.name.split(" ")[0]}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          );
-        })}
+                      {durationMin >= 30 && (
+                        <span className="text-[10px] text-white/80 leading-tight block">
+                          {startFmt}–{endFmt}
+                          {b.teamsJoinUrl && (
+                            <Video className="inline h-2 w-2 ml-0.5 opacity-70" />
+                          )}
+                        </span>
+                      )}
+                      {durationMin >= 45 && b.organizer?.name && (
+                        <span className="text-[10px] text-white/70 leading-tight block truncate">
+                          {b.organizer.name.split(" ")[0]}
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })}
 
-        {/* Teams calendar column */}
-        {showTeams && (
-          <div
-            className="relative w-40 shrink-0 bg-blue-500/5"
-            style={{ height: TOTAL_HEIGHT }}
-          >
-            {hours.map((_, i) => (
-              <div
-                key={i}
-                className="absolute w-full border-b border-border/20"
-                style={{ top: i * HOUR_HEIGHT, height: HOUR_HEIGHT }}
-              />
-            ))}
-            {teamsEvents.map((ev) => {
-              const top    = topPx(ev.start.dateTime, selectedDate);
-              const height = blockHeight(ev.start.dateTime, ev.end.dateTime);
-              return (
+          {/* Teams calendar column */}
+          {showTeams && (
+            <div className="relative w-36 flex-shrink-0 bg-blue-500/5 h-full border-l">
+              {hours.map((_, i) => (
                 <div
-                  key={ev.id}
-                  title={`${ev.subject} · ${format(parseISO(ev.start.dateTime), "h:mm")}–${format(parseISO(ev.end.dateTime), "h:mma")}`}
-                  className="absolute left-1 right-1 rounded-md px-2 py-1 overflow-hidden bg-blue-500/25 border border-blue-400/40 z-10"
-                  style={{ top: top + 2, height: Math.max(height - 4, 20) }}
-                >
-                  {height > 20 && (
+                  key={i}
+                  className="absolute inset-x-0 border-b border-border/20"
+                  style={{ top: `${(i / TOTAL_HRS) * 100}%` }}
+                />
+              ))}
+              {teamsEvents.map((ev) => {
+                const dMin = differenceInMinutes(parseISO(ev.end.dateTime), parseISO(ev.start.dateTime));
+                return (
+                  <div
+                    key={ev.id}
+                    title={ev.subject}
+                    className="absolute left-0.5 right-0.5 rounded px-1.5 pt-0.5 overflow-hidden bg-blue-500/25 border border-blue-400/40 z-10"
+                    style={{
+                      top:    `calc(${topPct(ev.start.dateTime, selectedDate)}% + 1px)`,
+                      height: `calc(${heightPct(ev.start.dateTime, ev.end.dateTime)}% - 2px)`,
+                    }}
+                  >
                     <span className="text-[11px] font-medium text-blue-700 dark:text-blue-300 leading-tight block truncate">
                       {ev.subject}
                     </span>
-                  )}
-                  {height > 36 && (
-                    <span className="text-[10px] text-blue-600/70 block">
-                      {format(parseISO(ev.start.dateTime), "h:mm")}–{format(parseISO(ev.end.dateTime), "h:mma")}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* ── Current-time red line (horizontal) ────────────────────────── */}
-        {currentMinute >= 0 && currentMinute <= TOTAL_HOURS * 60 && (
-          <div
-            className="absolute z-30 pointer-events-none"
-            style={{ top: (currentMinute / 60) * HOUR_HEIGHT, left: LABEL_WIDTH, right: 0 }}
-          >
-            <div className="relative">
-              <div className="absolute -top-1.5 -left-1.5 h-3 w-3 rounded-full bg-destructive" />
-              <div className="h-0.5 bg-destructive/70" />
+                    {dMin >= 30 && (
+                      <span className="text-[10px] text-blue-600/70 leading-tight block">
+                        {format(parseISO(ev.start.dateTime), "h:mm")}–{format(parseISO(ev.end.dateTime), "h:mma")}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* No rooms placeholder */}
-        {rooms.length === 0 && (
-          <div className="flex-1 flex items-center justify-center py-16 text-sm text-muted-foreground">
-            No rooms configured. Ask an admin to add meeting rooms.
-          </div>
-        )}
+          {/* Current-time horizontal red line */}
+          {nowPct >= 0 && nowPct <= 100 && (
+            <div
+              className="absolute inset-x-0 z-30 pointer-events-none"
+              style={{ top: `${nowPct}%` }}
+            >
+              <div className="relative">
+                <div className="absolute -top-1.5 -left-1 h-3 w-3 rounded-full bg-destructive" />
+                <div className="h-0.5 bg-destructive/70" />
+              </div>
+            </div>
+          )}
+
+          {/* No rooms placeholder */}
+          {rooms.length === 0 && (
+            <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground">
+              No rooms configured. Ask an admin to add meeting rooms.
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
