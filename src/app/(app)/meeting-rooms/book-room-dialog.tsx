@@ -11,6 +11,7 @@ import {
   RefreshCw,
   Repeat2,
   Trash2,
+  User,
   Users,
   Video,
 } from "lucide-react";
@@ -81,6 +82,9 @@ export function BookRoomDialog({
   const { toast } = useToast();
   const isEdit = !!editBooking;
   const canBookOnBehalf = can(currentUserRole, "admin:users") || currentUserRole === "PROJECT_MANAGER";
+  const canManage = can(currentUserRole, "admin:users") || currentUserRole === "PROJECT_MANAGER";
+  // Only the organizer or an admin/PM can edit or cancel an existing booking
+  const canEdit = !isEdit || editBooking?.organizerId === currentUserId || canManage;
 
   // Default start/end times
   const defaultStart = React.useMemo(() => {
@@ -235,6 +239,23 @@ export function BookRoomDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
+
+          {/* Booked-by info (edit mode only) */}
+          {isEdit && editBooking?.organizer && (
+            <div className="flex items-center justify-between rounded-lg border bg-muted/40 px-3 py-2">
+              <div className="flex items-center gap-2 text-sm">
+                <User className="h-4 w-4 text-muted-foreground shrink-0" />
+                <span className="text-muted-foreground">Booked by</span>
+                <span className="font-medium">{editBooking.organizer.name ?? editBooking.organizer.email}</span>
+              </div>
+              {!canEdit && (
+                <span className="text-[11px] text-muted-foreground bg-muted rounded px-1.5 py-0.5">
+                  View only
+                </span>
+              )}
+            </div>
+          )}
+
           {/* Title */}
           <div className="space-y-1.5">
             <Label htmlFor="title">Meeting title *</Label>
@@ -244,6 +265,8 @@ export function BookRoomDialog({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               autoFocus
+              readOnly={!canEdit}
+              className={!canEdit ? "bg-muted/40 cursor-default" : ""}
             />
           </div>
 
@@ -339,6 +362,8 @@ export function BookRoomDialog({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={2}
+              readOnly={!canEdit}
+              className={!canEdit ? "bg-muted/40 cursor-default" : ""}
             />
           </div>
 
@@ -508,8 +533,8 @@ export function BookRoomDialog({
             </a>
           )}
 
-          {/* Edit: cancel booking */}
-          {isEdit && (
+          {/* Edit: cancel booking — owner / admin / PM only */}
+          {isEdit && canEdit && (
             <div className="flex items-center gap-2 pt-1">
               {!cancelConfirm ? (
                 <Button
@@ -551,26 +576,33 @@ export function BookRoomDialog({
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end gap-2 pt-2">
+        <div className="flex items-center justify-end gap-2 pt-2">
+          {isEdit && !canEdit && (
+            <span className="mr-auto text-xs text-muted-foreground">
+              You can only edit bookings you created.
+            </span>
+          )}
           <Button variant="outline" onClick={onClose} disabled={saving}>
             Close
           </Button>
-          <Button variant="brand" onClick={save} disabled={saving}>
-            {saving ? (
-              <>
-                {teamsCreating ? (
-                  <RefreshCw className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                )}
-                {teamsCreating ? "Creating Teams link…" : "Saving…"}
-              </>
-            ) : isEdit ? (
-              "Save changes"
-            ) : (
-              "Book Room"
-            )}
-          </Button>
+          {canEdit && (
+            <Button variant="brand" onClick={save} disabled={saving}>
+              {saving ? (
+                <>
+                  {teamsCreating ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  )}
+                  {teamsCreating ? "Creating Teams link…" : "Saving…"}
+                </>
+              ) : isEdit ? (
+                "Save changes"
+              ) : (
+                "Book Room"
+              )}
+            </Button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

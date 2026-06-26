@@ -222,9 +222,14 @@ export function RoomTimeline({
                       </span>
                     )}
                     {width > 80 && (
-                      <span className="text-[10px] text-white/80 block">
+                      <span className="text-[10px] text-white/80 block truncate">
                         {startFmt}–{endFmt}
                         {b.teamsJoinUrl && <Video className="inline h-2.5 w-2.5 ml-1 opacity-70" />}
+                      </span>
+                    )}
+                    {width > 80 && b.organizer?.name && (
+                      <span className="text-[10px] text-white/70 block truncate">
+                        {b.organizer.name.split(" ")[0]}
                       </span>
                     )}
                   </button>
