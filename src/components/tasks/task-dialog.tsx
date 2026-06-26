@@ -31,6 +31,7 @@ import {
   TASK_STATUS_LABELS,
   TASK_STATUS_ORDER,
 } from "@/lib/constants";
+import { MentionInput, CommentBody } from "@/components/mention-input";
 
 type Comment = {
   id: string;
@@ -220,12 +221,12 @@ export function TaskDialog({
     }
   }
 
-  async function addComment() {
-    if (!task || !newComment.trim()) return;
+  async function addComment(body: string, mentionIds: string[]) {
+    if (!task || !body.trim()) return;
     const res = await fetch(`/api/tasks/${task.id}/comments`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ body: newComment }),
+      body: JSON.stringify({ body, mentions: mentionIds }),
     });
     if (res.ok) {
       const { comment } = await res.json();
@@ -659,23 +660,18 @@ export function TaskDialog({
                             · {format(new Date(c.createdAt), "MMM d, HH:mm")}
                           </span>
                         </p>
-                        <p className="text-sm">{c.body}</p>
+                        <CommentBody body={c.body} users={users} />
                       </div>
                     </div>
                   ))}
                 </div>
                 {permissions.canComment && (
-                  <div className="flex gap-2">
-                    <Input
-                      value={newComment}
-                      onChange={(e) => setNewComment(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && addComment()}
-                      placeholder="Write a comment…"
-                    />
-                    <Button size="icon" onClick={addComment}>
-                      <Send className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  <MentionInput
+                    value={newComment}
+                    onChange={setNewComment}
+                    onSubmit={addComment}
+                    users={users}
+                  />
                 )}
               </div>
             )}
