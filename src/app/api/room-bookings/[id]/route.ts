@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { cancelTeamsMeeting } from "@/lib/teams-graph";
+import { logActivity } from "@/lib/activity";
 
 // PATCH /api/room-bookings/[id] — update title/description/meetingNotes
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -32,6 +33,14 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       organizer: { select: { id: true, name: true, image: true, email: true } },
     },
   });
+  logActivity({
+    userId: user.id,
+    action: body.status === "CANCELLED" ? "room_booking.cancelled" : "room_booking.updated",
+    entityType: "room_booking",
+    entityId: id,
+    metadata: { title: updated.title, roomName: updated.room?.name },
+  });
+
   return NextResponse.json({ booking: updated });
 }
 
@@ -68,6 +77,14 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
   if (booking.teamsMeetingId) {
     cancelTeamsMeeting(user.id, booking.teamsMeetingId).catch(() => undefined);
   }
+
+  logActivity({
+    userId: user.id,
+    action: "room_booking.cancelled",
+    entityType: "room_booking",
+    entityId: id,
+    metadata: { title: booking.title },
+  });
 
   return NextResponse.json({ ok: true });
 }

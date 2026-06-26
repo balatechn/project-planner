@@ -53,10 +53,10 @@ const PRIMARY_NAV: NavItem[] = [
   { href: "/calendar",       label: "Calendar",     icon: CalendarDays   },
   { href: "/training",       label: "Training",     icon: GraduationCap, accent: "amber" },
   { href: "/meeting-rooms",  label: "Rooms",        icon: Video          },
-  { href: "/montra-sales",   label: "Montra Sales", icon: Car            },
 ];
 
 const MORE_NAV: NavItem[] = [
+  { href: "/montra-sales",  label: "Montra Sales",   icon: Car         },
   { href: "/team",          label: "Team Directory", icon: Users       },
   { href: "/my-timesheets", label: "My Timesheets",  icon: Clock       },
   { href: "/templates",     label: "Templates",      icon: Layers      },

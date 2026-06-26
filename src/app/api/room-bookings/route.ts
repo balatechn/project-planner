@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/session";
 import { createTeamsMeeting, sendBookingEmail, buildBookingEmailHtml } from "@/lib/teams-graph";
 import { sendEmail } from "@/lib/email";
 import { buildICS, icsToBase64 } from "@/lib/ics";
+import { logActivity } from "@/lib/activity";
 
 // GET /api/room-bookings?date=YYYY-MM-DD[&roomId=]
 // GET /api/room-bookings?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD  ← month-range query
@@ -240,6 +241,14 @@ export async function POST(req: Request) {
       }).catch(() => undefined);
     }
   }
+
+  logActivity({
+    userId: user.id,
+    action: "room_booking.created",
+    entityType: "room_booking",
+    entityId: booking.id,
+    metadata: { title: booking.title, roomName: booking.room?.name },
+  });
 
   return NextResponse.json({ booking }, { status: 201 });
 }

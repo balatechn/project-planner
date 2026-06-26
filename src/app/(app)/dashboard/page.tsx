@@ -3,7 +3,7 @@ import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import { format, formatDistanceToNow, isPast, isToday } from "date-fns";
 import {
-  BarChart3, CalendarDays, Car, CheckSquare, Clock,
+  BarChart3, CalendarDays, Car, CheckSquare, Circle, Clock,
   FolderKanban, GraduationCap, Plus, Users, Video,
 } from "lucide-react";
 import { requireUser } from "@/lib/session";
@@ -44,7 +44,7 @@ const getActivity = unstable_cache(
     return prisma.activity.findMany({
       where: { project: where },
       select: {
-        id: true, action: true, createdAt: true,
+        id: true, action: true, entityType: true, createdAt: true,
         user: { select: { name: true } },
         project: { select: { name: true } },
       },
@@ -89,10 +89,20 @@ function timeGreeting(name: string) {
 
 function actionLabel(a: string) {
   return ({
-    "task.created": "created a task", "task.completed": "completed a task",
-    "task.updated": "updated a task", "task.assigned": "assigned a task",
-    "project.created": "created a project", "comment.created": "added a comment",
+    "task.created":           "created a task",
+    "task.completed":         "completed a task",
+    "task.updated":           "updated a task",
+    "task.assigned":          "assigned a task",
+    "project.created":        "created a project",
+    "comment.created":        "added a comment",
+    "room_booking.created":   "booked a meeting room",
+    "room_booking.updated":   "updated a room booking",
+    "room_booking.cancelled": "cancelled a room booking",
   } as Record<string, string>)[a] ?? a.replace(/[._]/g, " ");
+}
+
+function isRoomActivity(entityType: string | null) {
+  return entityType === "room_booking";
 }
 
 const SHORTCUTS = [
@@ -271,21 +281,31 @@ export default async function DashboardPage() {
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 thin-scroll">
             {activity.length === 0 ? (
               <p className="text-sm text-muted-foreground">No activity yet.</p>
-            ) : activity.map((a) => (
-              <div key={a.id} className="flex gap-2 py-1.5 border-b border-border/40 last:border-0">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                <div className="min-w-0">
-                  <p className="text-xs leading-snug">
-                    <span className="font-medium">{a.user.name?.split(" ")[0] ?? "Someone"}</span>
-                    {" "}<span className="text-muted-foreground">{actionLabel(a.action)}</span>
-                  </p>
-                  <p className="mt-0.5 text-[10px] text-muted-foreground/60">
-                    {a.project?.name ? `${a.project.name} · ` : ""}
-                    {formatDistanceToNow(a.createdAt, { addSuffix: true })}
-                  </p>
+            ) : activity.map((a) => {
+              const isRoom = isRoomActivity(a.entityType ?? null);
+              return (
+                <div key={a.id} className={cn(
+                  "flex gap-2 py-1.5 border-b border-border/40 last:border-0",
+                  isRoom && "rounded-lg px-2 -mx-2 bg-indigo-500/5",
+                )}>
+                  {isRoom ? (
+                    <Video className="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-500" />
+                  ) : (
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-xs leading-snug">
+                      <span className="font-medium">{a.user.name?.split(" ")[0] ?? "Someone"}</span>
+                      {" "}<span className={isRoom ? "text-indigo-600" : "text-muted-foreground"}>{actionLabel(a.action)}</span>
+                    </p>
+                    <p className="mt-0.5 text-[10px] text-muted-foreground/60">
+                      {a.project?.name ? `${a.project.name} · ` : ""}
+                      {formatDistanceToNow(a.createdAt, { addSuffix: true })}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
