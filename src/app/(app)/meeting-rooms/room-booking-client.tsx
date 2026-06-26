@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { addDays, subDays, format, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths } from "date-fns";
+import { addDays, subDays, format, isSameDay, startOfMonth, endOfMonth, addMonths, subMonths, parseISO } from "date-fns";
 import {
   Building2,
   CalendarDays,
@@ -12,6 +12,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { Role } from "@prisma/client";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { RoomTimeline } from "./room-timeline";
@@ -75,6 +76,119 @@ type DialogState =
   | { mode: "edit"; booking: BookingInfo };
 
 type PanelView = "timeline" | "my-bookings" | "quick-book" | "month";
+
+// ── Sidebar: mini month calendar ──────────────────────────────────────────────
+function MiniCalendar({
+  month, selectedDate, bookedDates, onSelectDay, onPrev, onNext,
+}: {
+  month: Date;
+  selectedDate: Date;
+  bookedDates: Set<string>;
+  onSelectDay: (d: Date) => void;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  const DOW = ["S", "M", "T", "W", "T", "F", "S"];
+  const firstDow = startOfMonth(month).getDay();
+  const daysInMonth = endOfMonth(month).getDate();
+  const today = new Date();
+
+  const cells: (number | null)[] = [
+    ...Array<null>(firstDow).fill(null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+  // pad to full weeks
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <button onClick={onPrev} className="p-0.5 rounded hover:bg-muted transition-colors">
+          <ChevronLeft className="h-3.5 w-3.5 text-muted-foreground" />
+        </button>
+        <span className="text-[11px] font-semibold">{format(month, "MMMM yyyy")}</span>
+        <button onClick={onNext} className="p-0.5 rounded hover:bg-muted transition-colors">
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+        </button>
+      </div>
+      <div className="grid grid-cols-7">
+        {DOW.map((d, i) => (
+          <div key={i} className="text-center text-[9px] font-medium text-muted-foreground py-0.5">{d}</div>
+        ))}
+        {cells.map((day, i) => {
+          if (!day) return <div key={i} />;
+          const date = new Date(month.getFullYear(), month.getMonth(), day);
+          const ds   = format(date, "yyyy-MM-dd");
+          const isSel = isSameDay(date, selectedDate);
+          const isNow = isSameDay(date, today);
+          const hasBkg = bookedDates.has(ds);
+          return (
+            <button
+              key={i}
+              onClick={() => onSelectDay(date)}
+              className={cn(
+                "relative text-[11px] py-0.5 rounded leading-5 text-center transition-colors",
+                isSel ? "bg-primary text-primary-foreground font-semibold" :
+                isNow ? "text-primary font-bold" :
+                "hover:bg-muted/70 text-foreground",
+              )}
+            >
+              {day}
+              {hasBkg && !isSel && (
+                <span className="absolute bottom-0 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-primary/50" />
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Sidebar: today's booking list ─────────────────────────────────────────────
+function TodayList({
+  bookings, rooms, selectedDate, onOpen,
+}: {
+  bookings: BookingInfo[];
+  rooms: RoomInfo[];
+  selectedDate: Date;
+  onOpen: (b: BookingInfo) => void;
+}) {
+  const sorted = [...bookings]
+    .filter((b) => b.status === "CONFIRMED")
+    .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+
+  return sorted.length === 0 ? (
+    <p className="text-xs text-muted-foreground text-center py-3">
+      No bookings {isSameDay(selectedDate, new Date()) ? "today" : format(selectedDate, "d MMM")}
+    </p>
+  ) : (
+    <div className="space-y-1">
+      {sorted.map((b) => {
+        const room = rooms.find((r) => r.id === b.roomId);
+        return (
+          <button
+            key={b.id}
+            onClick={() => onOpen(b)}
+            className="flex w-full items-start gap-2 rounded-lg p-1.5 text-left transition-colors hover:bg-muted/50"
+          >
+            <span
+              className="mt-0.5 h-2 w-1 shrink-0 rounded-full"
+              style={{ backgroundColor: room?.color ?? "#888" }}
+            />
+            <div className="min-w-0">
+              <p className="truncate text-[11px] font-medium leading-tight">{b.title}</p>
+              <p className="text-[10px] text-muted-foreground leading-tight">
+                {format(parseISO(b.startTime), "h:mm")}–{format(parseISO(b.endTime), "h:mma")}
+                {" · "}{room?.name ?? ""}
+              </p>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
 
 export function RoomBookingClient({
   rooms,
@@ -143,10 +257,19 @@ export function RoomBookingClient({
     load();
   }, [load]);
 
-  // Reload month bookings whenever month changes or when in month view after a booking action
+  // Always keep month bookings fresh — needed for sidebar mini calendar dots too
   React.useEffect(() => {
-    if (panel === "month") loadMonth();
-  }, [panel, loadMonth]);
+    loadMonth();
+  }, [loadMonth]);
+
+  // When selected date jumps to a different month, sync the month calendar
+  React.useEffect(() => {
+    const sm = startOfMonth(selectedDate);
+    if (format(sm, "yyyy-MM") !== format(monthDate, "yyyy-MM")) {
+      setMonthDate(sm);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedDate]);
 
   function prevDay() { setSelectedDate((d) => subDays(d, 1)); }
   function nextDay() { setSelectedDate((d) => addDays(d, 1)); }
@@ -176,8 +299,15 @@ export function RoomBookingClient({
 
   const isToday = isSameDay(selectedDate, new Date());
 
+  // Build set of dates that have bookings (for mini calendar dots)
+  const bookedDates = React.useMemo(() => {
+    const s = new Set<string>();
+    monthBookings.forEach((b) => s.add(format(parseISO(b.startTime), "yyyy-MM-dd")));
+    return s;
+  }, [monthBookings]);
+
   return (
-    <div className="flex h-full flex-col gap-0">
+    <div className="flex flex-1 min-h-0 flex-col">
       {/* Header */}
       <div className="flex flex-wrap items-center gap-2 border-b pb-3 mb-3">
         <Building2 className="h-5 w-5 text-primary" />
@@ -244,17 +374,48 @@ export function RoomBookingClient({
 
       {/* Content */}
       {panel === "timeline" && (
-        <RoomTimeline
-          rooms={rooms}
-          bookings={bookings}
-          teamsEvents={teamsEvents}
-          selectedDate={selectedDate}
-          currentUserId={currentUserId}
-          onBookSlot={(roomId, startTime, endTime) =>
-            openCreate({ roomId, startTime, endTime })
-          }
-          onOpenBooking={openEdit}
-        />
+        <div className="flex flex-1 min-h-0 gap-3">
+          {/* Main timeline */}
+          <RoomTimeline
+            rooms={rooms}
+            bookings={bookings}
+            teamsEvents={teamsEvents}
+            selectedDate={selectedDate}
+            currentUserId={currentUserId}
+            onBookSlot={(roomId, startTime, endTime) =>
+              openCreate({ roomId, startTime, endTime })
+            }
+            onOpenBooking={openEdit}
+          />
+
+          {/* Right sidebar — today's meetings + mini calendar */}
+          <div className="w-56 flex-shrink-0 flex flex-col gap-3 overflow-y-auto overflow-x-hidden thin-scroll">
+            {/* Today's meetings */}
+            <div className="rounded-xl border bg-card p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                {isToday ? "Today" : format(selectedDate, "EEE, d MMM")}
+              </p>
+              <TodayList
+                bookings={bookings}
+                rooms={rooms}
+                selectedDate={selectedDate}
+                onOpen={openEdit}
+              />
+            </div>
+
+            {/* Mini month calendar */}
+            <div className="rounded-xl border bg-card p-3">
+              <MiniCalendar
+                month={monthDate}
+                selectedDate={selectedDate}
+                bookedDates={bookedDates}
+                onSelectDay={(d) => setSelectedDate(d)}
+                onPrev={() => setMonthDate((m) => subMonths(m, 1))}
+                onNext={() => setMonthDate((m) => addMonths(m, 1))}
+              />
+            </div>
+          </div>
+        </div>
       )}
 
       {panel === "month" && (
