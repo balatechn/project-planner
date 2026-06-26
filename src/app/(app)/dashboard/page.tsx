@@ -3,8 +3,8 @@ import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import { format, formatDistanceToNow, isPast, isToday } from "date-fns";
 import {
-  BarChart3, CalendarDays, Car, CheckSquare, Circle, Clock,
-  FolderKanban, GraduationCap, Plus, Users, Video,
+  BarChart3, CalendarDays, CheckSquare, Circle, Cloud, Clock,
+  FolderKanban, GraduationCap, Mail, Plus, Users, Video,
 } from "lucide-react";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
@@ -106,15 +106,15 @@ function isRoomActivity(entityType: string | null) {
 }
 
 const SHORTCUTS = [
-  { label: "Projects",  href: "/projects",      icon: FolderKanban,  bg: "bg-blue-500/10",   fg: "text-blue-600 dark:text-blue-400" },
-  { label: "My Tasks",  href: "/my-tasks",       icon: CheckSquare,   bg: "bg-emerald-500/10",fg: "text-emerald-600 dark:text-emerald-400" },
-  { label: "Calendar",  href: "/calendar",       icon: CalendarDays,  bg: "bg-violet-500/10", fg: "text-violet-600 dark:text-violet-400" },
-  { label: "Training",  href: "/training",       icon: GraduationCap, bg: "bg-amber-500/10",  fg: "text-amber-600 dark:text-amber-400" },
-  { label: "Rooms",     href: "/meeting-rooms",  icon: Video,         bg: "bg-indigo-500/10", fg: "text-indigo-600 dark:text-indigo-400" },
-  { label: "Sales",     href: "/montra-sales",   icon: Car,           bg: "bg-orange-500/10", fg: "text-orange-600 dark:text-orange-400" },
-  { label: "Team",      href: "/team",           icon: Users,         bg: "bg-pink-500/10",   fg: "text-pink-600 dark:text-pink-400" },
-  { label: "Reports",   href: "/reports",        icon: BarChart3,     bg: "bg-teal-500/10",   fg: "text-teal-600 dark:text-teal-400" },
-] as const;
+  { label: "Projects", href: "/projects",                                            icon: FolderKanban,  bg: "bg-blue-500",    external: false },
+  { label: "Tasks",    href: "/my-tasks",                                            icon: CheckSquare,   bg: "bg-emerald-500", external: false },
+  { label: "Calendar", href: "/calendar",                                            icon: CalendarDays,  bg: "bg-violet-500",  external: false },
+  { label: "Training", href: "/training",                                            icon: GraduationCap, bg: "bg-amber-500",   external: false },
+  { label: "Rooms",    href: "/meeting-rooms",                                       icon: Video,         bg: "bg-indigo-500",  external: false },
+  { label: "Outlook",  href: "https://outlook.office365.com",                        icon: Mail,          bg: "bg-sky-500",     external: true  },
+  { label: "Team",     href: "/team",                                                icon: Users,         bg: "bg-pink-500",    external: false },
+  { label: "OneDrive", href: "https://nationalconsultingindia-my.sharepoint.com/",   icon: Cloud,         bg: "bg-teal-500",    external: true  },
+];
 
 export default async function DashboardPage() {
   const user = await requireUser();
@@ -166,16 +166,20 @@ export default async function DashboardPage() {
 
       {/* ── 2. Shortcuts row ───────────────────────────────────────── */}
       <div className="grid flex-shrink-0 grid-cols-8 gap-2">
-        {SHORTCUTS.map(({ label, href, icon: Icon, bg, fg }) => (
-          <Link key={label} href={href}
-            className={cn(
-              "group flex flex-col items-center gap-1 rounded-xl border bg-card py-2.5",
-              "transition-all hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/8 dark:hover:shadow-black/25",
+        {SHORTCUTS.map(({ label, href, icon: Icon, bg, external }) => (
+          <Link
+            key={label}
+            href={href}
+            {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+            className="group flex flex-col items-center gap-1.5 rounded-xl py-3 neu-card transition-all hover:-translate-y-0.5"
+          >
+            <div className={cn(
+              "flex h-9 w-9 items-center justify-center rounded-xl shadow-md transition-transform group-hover:scale-110",
+              bg,
             )}>
-            <div className={cn("flex h-7 w-7 items-center justify-center rounded-lg transition-transform group-hover:scale-110", bg, fg)}>
-              <Icon className="h-3.5 w-3.5" />
+              <Icon className="h-4.5 w-4.5 text-white" strokeWidth={2} />
             </div>
-            <span className="text-[10px] font-medium text-foreground/70">{label}</span>
+            <span className="text-[10px] font-semibold text-foreground/75 tracking-wide">{label}</span>
           </Link>
         ))}
       </div>
