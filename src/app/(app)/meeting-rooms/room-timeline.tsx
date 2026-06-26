@@ -7,13 +7,15 @@ import type { RoomInfo, BookingInfo, TeamsEvent } from "./room-booking-client";
 import { cn } from "@/lib/utils";
 
 // ── Layout constants ──────────────────────────────────────────────────────────
-const HOUR_WIDTH = 72;      // px per hour
-const ROW_HEIGHT = 52;      // px per room row
-const LABEL_WIDTH = 200;    // px for room label column
-const START_HOUR = 7;       // 07:00
-const END_HOUR = 22;        // 22:00
-const TOTAL_HOURS = END_HOUR - START_HOUR;
+const HOUR_HEIGHT  = 64;   // px per hour slot
+const LABEL_WIDTH  = 56;   // px for the time-label column on the left
+const COL_MIN_W    = 160;  // minimum px per room column
+const START_HOUR   = 7;
+const END_HOUR     = 22;
+const TOTAL_HOURS  = END_HOUR - START_HOUR;
+const TOTAL_HEIGHT = TOTAL_HOURS * HOUR_HEIGHT;
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
 function minuteOffset(time: Date | string, baseDate: Date): number {
   const t = typeof time === "string" ? parseISO(time) : time;
   const base = new Date(baseDate);
@@ -21,25 +23,26 @@ function minuteOffset(time: Date | string, baseDate: Date): number {
   return differenceInMinutes(t, base);
 }
 
-function leftPx(time: Date | string, baseDate: Date): number {
-  return Math.max(0, (minuteOffset(time, baseDate) / 60) * HOUR_WIDTH) + LABEL_WIDTH;
+function topPx(time: Date | string, baseDate: Date): number {
+  return Math.max(0, (minuteOffset(time, baseDate) / 60) * HOUR_HEIGHT);
 }
 
-function widthPx(startTime: Date | string, endTime: Date | string): number {
-  const start = typeof startTime === "string" ? parseISO(startTime) : startTime;
-  const end = typeof endTime === "string" ? parseISO(endTime) : endTime;
-  return Math.max(4, (differenceInMinutes(end, start) / 60) * HOUR_WIDTH);
+function blockHeight(start: Date | string, end: Date | string): number {
+  const s = typeof start === "string" ? parseISO(start) : start;
+  const e = typeof end   === "string" ? parseISO(end)   : end;
+  return Math.max(20, (differenceInMinutes(e, s) / 60) * HOUR_HEIGHT);
 }
 
-// ── Amenity icons ─────────────────────────────────────────────────────────────
-const AMENITY_LABELS: Record<string, string> = {
-  projector: "📽",
-  whiteboard: "📋",
-  videoConf: "📹",
-  ac: "❄",
-  phone: "📞",
+function fmtHour(h: number): string {
+  if (h === 12) return "12pm";
+  return h < 12 ? `${h}am` : `${h - 12}pm`;
+}
+
+const AMENITY_ICONS: Record<string, string> = {
+  projector: "📽", whiteboard: "📋", videoConf: "📹", ac: "❄", phone: "📞",
 };
 
+// ── Component ─────────────────────────────────────────────────────────────────
 export function RoomTimeline({
   rooms,
   bookings,
@@ -58,13 +61,13 @@ export function RoomTimeline({
   onOpenBooking: (booking: BookingInfo) => void;
 }) {
   const containerRef = React.useRef<HTMLDivElement>(null);
+
   const [currentMinute, setCurrentMinute] = React.useState<number>(() => {
     const now = new Date();
     if (format(now, "yyyy-MM-dd") !== format(selectedDate, "yyyy-MM-dd")) return -1;
     return (now.getHours() - START_HOUR) * 60 + now.getMinutes();
   });
 
-  // Update current time indicator every minute
   React.useEffect(() => {
     const timer = setInterval(() => {
       const now = new Date();
@@ -77,157 +80,153 @@ export function RoomTimeline({
     return () => clearInterval(timer);
   }, [selectedDate]);
 
-  // Scroll to current time on mount
+  // Scroll so current time is near the top of the visible area
   React.useEffect(() => {
     if (containerRef.current && currentMinute > 0) {
-      const scrollLeft = Math.max(0, (currentMinute / 60) * HOUR_WIDTH - 200);
-      containerRef.current.scrollLeft = scrollLeft;
+      containerRef.current.scrollTop = Math.max(0, (currentMinute / 60) * HOUR_HEIGHT - 120);
     }
-  }, []);  // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const hours = Array.from({ length: TOTAL_HOURS + 1 }, (_, i) => START_HOUR + i);
-  const totalWidth = TOTAL_HOURS * HOUR_WIDTH + LABEL_WIDTH;
+  const hours = Array.from({ length: TOTAL_HOURS }, (_, i) => START_HOUR + i);
+  const showTeams = teamsEvents.length > 0;
 
-  function handleSlotClick(e: React.MouseEvent, roomId: string) {
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-    const x = e.clientX - rect.left - LABEL_WIDTH;
-    if (x < 0) return;
-    const minutes = Math.round((x / HOUR_WIDTH) * 60 / 30) * 30; // snap to 30 min
+  function handleSlotClick(e: React.MouseEvent<HTMLDivElement>, roomId: string) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const y = e.clientY - rect.top;
+    const minutes = Math.round((y / HOUR_HEIGHT) * 60 / 30) * 30; // snap 30 min
     const base = new Date(selectedDate);
     base.setHours(START_HOUR, 0, 0, 0);
     const startTime = addMinutes(base, minutes);
-    const endTime = addMinutes(startTime, 60);
-    onBookSlot(
-      roomId,
-      startTime.toISOString(),
-      endTime.toISOString(),
-    );
+    const endTime   = addMinutes(startTime, 60);
+    onBookSlot(roomId, startTime.toISOString(), endTime.toISOString());
   }
 
   return (
     <div className="flex-1 overflow-auto rounded-lg border bg-card" ref={containerRef}>
-      <div style={{ minWidth: totalWidth }} className="relative select-none">
-        {/* ── Header: hour labels ─────────────────────────────────────────── */}
-        <div
-          className="sticky top-0 z-20 flex border-b bg-card/95 backdrop-blur"
-          style={{ height: 36 }}
-        >
-          {/* Room label spacer */}
+
+      {/* ── Sticky column-header row ─────────────────────────────────────── */}
+      <div className="sticky top-0 z-20 flex border-b bg-card/95 backdrop-blur">
+        {/* Time-label spacer */}
+        <div className="flex-shrink-0 border-r bg-card/95" style={{ width: LABEL_WIDTH }} />
+
+        {/* Room headers */}
+        {rooms.map((room) => (
           <div
-            className="sticky left-0 z-30 bg-card border-r flex-shrink-0"
-            style={{ width: LABEL_WIDTH }}
-          />
-          {/* Hour cells */}
-          {hours.map((h) => (
-            <div
-              key={h}
-              className="flex-shrink-0 border-r border-border/30 flex items-end pb-1 px-1"
-              style={{ width: HOUR_WIDTH }}
-            >
-              <span className="text-[10px] text-muted-foreground font-medium">
-                {h === 12 ? "12pm" : h < 12 ? `${h}am` : `${h - 12}pm`}
+            key={room.id}
+            className="flex-1 border-r px-3 py-2.5"
+            style={{ minWidth: COL_MIN_W }}
+          >
+            <div className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: room.color }} />
+              <span className="text-sm font-semibold truncate">{room.name}</span>
+            </div>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-[10px] text-muted-foreground">👥 {room.capacity}</span>
+              {room.floor && (
+                <span className="text-[10px] text-muted-foreground">Floor {room.floor}</span>
+              )}
+              {room.amenities.slice(0, 3).map((a) => (
+                <span key={a} className="text-[10px]" title={a}>{AMENITY_ICONS[a] ?? a}</span>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {/* Teams calendar header */}
+        {showTeams && (
+          <div className="w-40 shrink-0 px-3 py-2.5 bg-blue-500/5">
+            <div className="flex items-center gap-1.5">
+              <Monitor className="h-3.5 w-3.5 text-blue-500" />
+              <span className="text-xs font-semibold text-blue-600">My Schedule</span>
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Teams calendar</p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Grid body ────────────────────────────────────────────────────── */}
+      <div className="relative flex" style={{ minHeight: TOTAL_HEIGHT }}>
+
+        {/* Time-label column (sticky left) */}
+        <div
+          className="sticky left-0 z-10 shrink-0 bg-card border-r select-none"
+          style={{ width: LABEL_WIDTH }}
+        >
+          {hours.map((h, i) => (
+            <div key={h} className="relative border-b border-border/20" style={{ height: HOUR_HEIGHT }}>
+              <span className="absolute -top-2 left-1.5 text-[10px] font-medium text-muted-foreground">
+                {fmtHour(h)}
               </span>
             </div>
           ))}
         </div>
 
-        {/* ── Room rows ───────────────────────────────────────────────────── */}
-        {rooms.map((room, idx) => {
+        {/* Room columns */}
+        {rooms.map((room) => {
           const roomBookings = bookings.filter((b) => b.roomId === room.id);
-
           return (
             <div
               key={room.id}
-              className={cn(
-                "flex relative cursor-crosshair",
-                idx > 0 && "border-t",
-              )}
-              style={{ height: ROW_HEIGHT }}
+              className="relative flex-1 border-r cursor-crosshair"
+              style={{ minWidth: COL_MIN_W, height: TOTAL_HEIGHT }}
               onClick={(e) => handleSlotClick(e, room.id)}
             >
-              {/* Room label */}
-              <div
-                className="sticky left-0 z-10 flex flex-col justify-center px-3 bg-card border-r flex-shrink-0 cursor-default"
-                style={{ width: LABEL_WIDTH }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="flex items-center gap-1.5">
-                  <span
-                    className="h-2.5 w-2.5 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: room.color }}
-                  />
-                  <span className="text-sm font-medium truncate">{room.name}</span>
-                </div>
-                <div className="flex items-center gap-2 mt-0.5">
-                  {room.floor && (
-                    <span className="text-[10px] text-muted-foreground">Floor {room.floor}</span>
+              {/* Hour bands */}
+              {hours.map((_, i) => (
+                <div
+                  key={i}
+                  className={cn(
+                    "absolute w-full border-b border-border/20",
+                    i % 2 === 0 ? "bg-muted/10" : "",
                   )}
-                  <span className="text-[10px] text-muted-foreground">
-                    👥 {room.capacity}
-                  </span>
-                  {room.amenities.slice(0, 3).map((a) => (
-                    <span key={a} className="text-[10px]" title={a}>
-                      {AMENITY_LABELS[a] ?? a}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Hour grid background */}
-              <div className="absolute inset-0" style={{ left: LABEL_WIDTH }}>
-                <div className="flex h-full">
-                  {Array.from({ length: TOTAL_HOURS }).map((_, i) => (
-                    <div
-                      key={i}
-                      className={cn(
-                        "flex-shrink-0 border-r border-border/20 h-full",
-                        i % 2 === 0 ? "bg-muted/10" : "",
-                      )}
-                      style={{ width: HOUR_WIDTH }}
-                    />
-                  ))}
-                </div>
-              </div>
+                  style={{ top: i * HOUR_HEIGHT, height: HOUR_HEIGHT }}
+                />
+              ))}
+              {/* Half-hour dashed lines */}
+              {hours.map((_, i) => (
+                <div
+                  key={`h${i}`}
+                  className="absolute w-full border-b border-dashed border-border/10"
+                  style={{ top: i * HOUR_HEIGHT + HOUR_HEIGHT / 2 }}
+                />
+              ))}
 
               {/* Booking blocks */}
               {roomBookings.map((b) => {
-                const left = leftPx(b.startTime, selectedDate);
-                const width = widthPx(b.startTime, b.endTime);
-                const isOwn = b.organizerId === currentUserId;
+                const top    = topPx(b.startTime, selectedDate);
+                const height = blockHeight(b.startTime, b.endTime);
+                const isOwn  = b.organizerId === currentUserId;
                 const startFmt = format(parseISO(b.startTime), "h:mm");
-                const endFmt = format(parseISO(b.endTime), "h:mma");
+                const endFmt   = format(parseISO(b.endTime),   "h:mma");
 
                 return (
                   <button
                     key={b.id}
                     type="button"
                     title={`${b.title} · ${startFmt}–${endFmt}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onOpenBooking(b);
-                    }}
+                    onClick={(e) => { e.stopPropagation(); onOpenBooking(b); }}
                     className={cn(
-                      "absolute top-1.5 bottom-1.5 rounded-md px-1.5 overflow-hidden text-left transition-opacity hover:opacity-90 z-10 group",
+                      "absolute left-1 right-1 rounded-md px-2 py-1 overflow-hidden text-left transition-opacity hover:opacity-90 z-10",
                       isOwn ? "ring-1 ring-inset ring-white/30" : "opacity-80",
                     )}
                     style={{
-                      left,
-                      width: Math.max(width, 4),
+                      top: top + 2,
+                      height: Math.max(height - 4, 20),
                       backgroundColor: room.color + "cc",
                     }}
                   >
-                    {width > 40 && (
-                      <span className="text-[11px] font-medium text-white leading-tight block truncate">
+                    {height > 20 && (
+                      <span className="text-[11px] font-semibold text-white leading-tight block truncate">
                         {b.title}
                       </span>
                     )}
-                    {width > 80 && (
-                      <span className="text-[10px] text-white/80 block truncate">
+                    {height > 36 && (
+                      <span className="text-[10px] text-white/80 block">
                         {startFmt}–{endFmt}
                         {b.teamsJoinUrl && <Video className="inline h-2.5 w-2.5 ml-1 opacity-70" />}
                       </span>
                     )}
-                    {width > 80 && b.organizer?.name && (
+                    {height > 54 && b.organizer?.name && (
                       <span className="text-[10px] text-white/70 block truncate">
                         {b.organizer.name.split(" ")[0]}
                       </span>
@@ -239,49 +238,37 @@ export function RoomTimeline({
           );
         })}
 
-        {/* ── Teams calendar overlay row ──────────────────────────────────── */}
-        {teamsEvents.length > 0 && (
+        {/* Teams calendar column */}
+        {showTeams && (
           <div
-            className="flex border-t bg-blue-500/5 relative"
-            style={{ height: ROW_HEIGHT }}
+            className="relative w-40 shrink-0 bg-blue-500/5"
+            style={{ height: TOTAL_HEIGHT }}
           >
-            <div
-              className="sticky left-0 z-10 flex flex-col justify-center px-3 bg-blue-500/5 border-r flex-shrink-0"
-              style={{ width: LABEL_WIDTH }}
-            >
-              <div className="flex items-center gap-1.5">
-                <Monitor className="h-3.5 w-3.5 text-blue-500" />
-                <span className="text-xs font-medium text-blue-600">My Teams Calendar</span>
-              </div>
-            </div>
-
-            {/* Hour grid */}
-            <div className="absolute inset-0" style={{ left: LABEL_WIDTH }}>
-              <div className="flex h-full">
-                {Array.from({ length: TOTAL_HOURS }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="flex-shrink-0 border-r border-border/20 h-full"
-                    style={{ width: HOUR_WIDTH }}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Teams event blocks */}
+            {hours.map((_, i) => (
+              <div
+                key={i}
+                className="absolute w-full border-b border-border/20"
+                style={{ top: i * HOUR_HEIGHT, height: HOUR_HEIGHT }}
+              />
+            ))}
             {teamsEvents.map((ev) => {
-              const left = leftPx(ev.start.dateTime, selectedDate);
-              const width = widthPx(ev.start.dateTime, ev.end.dateTime);
+              const top    = topPx(ev.start.dateTime, selectedDate);
+              const height = blockHeight(ev.start.dateTime, ev.end.dateTime);
               return (
                 <div
                   key={ev.id}
                   title={`${ev.subject} · ${format(parseISO(ev.start.dateTime), "h:mm")}–${format(parseISO(ev.end.dateTime), "h:mma")}`}
-                  className="absolute top-1.5 bottom-1.5 rounded-md px-1.5 overflow-hidden bg-blue-500/25 border border-blue-400/40 z-10"
-                  style={{ left, width: Math.max(width, 4) }}
+                  className="absolute left-1 right-1 rounded-md px-2 py-1 overflow-hidden bg-blue-500/25 border border-blue-400/40 z-10"
+                  style={{ top: top + 2, height: Math.max(height - 4, 20) }}
                 >
-                  {width > 40 && (
+                  {height > 20 && (
                     <span className="text-[11px] font-medium text-blue-700 dark:text-blue-300 leading-tight block truncate">
                       {ev.subject}
+                    </span>
+                  )}
+                  {height > 36 && (
+                    <span className="text-[10px] text-blue-600/70 block">
+                      {format(parseISO(ev.start.dateTime), "h:mm")}–{format(parseISO(ev.end.dateTime), "h:mma")}
                     </span>
                   )}
                 </div>
@@ -290,27 +277,23 @@ export function RoomTimeline({
           </div>
         )}
 
-        {/* ── "No rooms" placeholder ─────────────────────────────────────── */}
-        {rooms.length === 0 && (
-          <div className="flex items-center justify-center py-16 text-sm text-muted-foreground">
-            No rooms configured. Ask an admin to add meeting rooms.
+        {/* ── Current-time red line (horizontal) ────────────────────────── */}
+        {currentMinute >= 0 && currentMinute <= TOTAL_HOURS * 60 && (
+          <div
+            className="absolute z-30 pointer-events-none"
+            style={{ top: (currentMinute / 60) * HOUR_HEIGHT, left: LABEL_WIDTH, right: 0 }}
+          >
+            <div className="relative">
+              <div className="absolute -top-1.5 -left-1.5 h-3 w-3 rounded-full bg-destructive" />
+              <div className="h-0.5 bg-destructive/70" />
+            </div>
           </div>
         )}
 
-        {/* ── Current time indicator ─────────────────────────────────────── */}
-        {currentMinute >= 0 && currentMinute <= TOTAL_HOURS * 60 && (
-          <div
-            className="absolute top-9 bottom-0 z-30 pointer-events-none"
-            style={{
-              left: LABEL_WIDTH + (currentMinute / 60) * HOUR_WIDTH,
-              width: 2,
-            }}
-          >
-            <div className="w-full h-full bg-destructive/70 rounded-full" />
-            <div
-              className="absolute -top-1 -left-1 h-3 w-3 rounded-full bg-destructive"
-              style={{ transform: "translateX(-25%)" }}
-            />
+        {/* No rooms placeholder */}
+        {rooms.length === 0 && (
+          <div className="flex-1 flex items-center justify-center py-16 text-sm text-muted-foreground">
+            No rooms configured. Ask an admin to add meeting rooms.
           </div>
         )}
       </div>
