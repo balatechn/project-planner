@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Plus } from "lucide-react";
+import { Loader2, Plus, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -112,6 +112,7 @@ export function NewProjectButton({
   });
   // Project members — assignees are limited to this list later
   const [memberIds, setMemberIds] = React.useState<string[]>([]);
+  const [memberSearch, setMemberSearch] = React.useState("");
 
   function update<K extends keyof typeof form>(key: K, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -315,10 +316,28 @@ export function NewProjectButton({
           </div>
 
           {/* Members — task assignees are limited to these people */}
-          <div className="space-y-1.5">
+          <div className="space-y-1.5 sm:col-span-2">
             <Label>Members</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {allUsers.map((u) => {
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <input
+                value={memberSearch}
+                onChange={(e) => setMemberSearch(e.target.value)}
+                placeholder="Search members by name or email…"
+                className="h-9 w-full rounded-md border bg-background pl-8 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
+              />
+            </div>
+            <div className="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto thin-scroll rounded-md border p-2">
+              {allUsers
+                .filter((u) => {
+                  const q = memberSearch.toLowerCase();
+                  return (
+                    !q ||
+                    (u.name ?? "").toLowerCase().includes(q) ||
+                    u.email.toLowerCase().includes(q)
+                  );
+                })
+                .map((u) => {
                 const isOwnerOrPm =
                   u.id === form.ownerId || u.id === form.projectManagerId;
                 const active = isOwnerOrPm || memberIds.includes(u.id);
