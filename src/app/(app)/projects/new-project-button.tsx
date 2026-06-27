@@ -192,7 +192,7 @@ export function NewProjectButton({
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[95vw] max-w-5xl">
         <DialogHeader>
           <DialogTitle>Create a new project</DialogTitle>
           <DialogDescription>
@@ -200,9 +200,9 @@ export function NewProjectButton({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          {/* Project name */}
-          <div className="space-y-1.5 sm:col-span-2">
+        <div className="grid gap-3 grid-cols-4">
+          {/* Project name — col span 3 */}
+          <div className="space-y-1.5 col-span-3">
             <Label htmlFor="np-name">Project name *</Label>
             <Input
               id="np-name"
@@ -213,8 +213,20 @@ export function NewProjectButton({
             />
           </div>
 
-          {/* Description */}
-          <div className="space-y-1.5 sm:col-span-2">
+          {/* Colour — col span 1 */}
+          <div className="space-y-1.5">
+            <Label htmlFor="np-color">Colour</Label>
+            <Input
+              id="np-color"
+              type="color"
+              value={form.color}
+              onChange={(e) => update("color", e.target.value)}
+              className="h-9 w-full p-1"
+            />
+          </div>
+
+          {/* Description — full width */}
+          <div className="space-y-1.5 col-span-4">
             <Label htmlFor="np-desc">Description</Label>
             <Textarea
               id="np-desc"
@@ -265,9 +277,9 @@ export function NewProjectButton({
           </div>
 
           {/* Location */}
-          {locations && locations.length > 0 && (
-            <div className="space-y-1.5">
-              <Label>Location</Label>
+          <div className="space-y-1.5">
+            <Label>Location</Label>
+            {locations && locations.length > 0 ? (
               <Select value={form.location} onValueChange={(v) => update("location", v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select location" />
@@ -278,8 +290,30 @@ export function NewProjectButton({
                   ))}
                 </SelectContent>
               </Select>
-            </div>
-          )}
+            ) : (
+              <Input
+                id="np-location"
+                value={form.location}
+                onChange={(e) => update("location", e.target.value)}
+                placeholder="City / Branch"
+              />
+            )}
+          </div>
+
+          {/* Priority */}
+          <div className="space-y-1.5">
+            <Label>Priority</Label>
+            <Select value={form.priority} onValueChange={(v) => update("priority", v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {p.charAt(0) + p.slice(1).toLowerCase()}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
 
           {/* Project Manager */}
           <div className="space-y-1.5">
@@ -315,8 +349,88 @@ export function NewProjectButton({
             </Select>
           </div>
 
-          {/* Members — task assignees are limited to these people */}
-          <div className="space-y-1.5 sm:col-span-2">
+          {/* Status */}
+          <div className="space-y-1.5">
+            <Label>Status</Label>
+            <Select value={form.status} onValueChange={(v) => update("status", v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {["PLANNING", "ACTIVE", "ON_HOLD"].map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s.charAt(0) + s.slice(1).toLowerCase().replace("_", " ")}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Budget */}
+          <div className="space-y-1.5">
+            <Label htmlFor="np-budget">Budget (USD)</Label>
+            <Input
+              id="np-budget"
+              type="number"
+              min={0}
+              value={form.budget}
+              onChange={(e) => update("budget", e.target.value)}
+              placeholder="50000"
+            />
+          </div>
+
+          {/* Timeline preset — full width */}
+          <div className="space-y-1.5 col-span-4">
+            <Label>Timeline</Label>
+            <div className="flex flex-wrap gap-2">
+              {TIMELINE_PRESETS.map((preset) => (
+                <button
+                  key={preset.label}
+                  type="button"
+                  onClick={() => applyPreset(String(preset.months))}
+                  className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
+                    timelinePreset === String(preset.months)
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-border bg-background hover:bg-muted"
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Start date */}
+          <div className="space-y-1.5 col-span-2">
+            <Label htmlFor="np-start">Start date</Label>
+            <Input
+              id="np-start"
+              type="date"
+              value={form.startDate}
+              onChange={(e) => {
+                update("startDate", e.target.value);
+                const m = parseInt(timelinePreset, 10);
+                if (m > 0 && e.target.value) {
+                  update("endDate", toDateInput(addMonths(new Date(e.target.value), m)));
+                }
+              }}
+            />
+          </div>
+
+          {/* End date */}
+          <div className="space-y-1.5 col-span-2">
+            <Label htmlFor="np-end">End date</Label>
+            <Input
+              id="np-end"
+              type="date"
+              value={form.endDate}
+              onChange={(e) => {
+                update("endDate", e.target.value);
+                setTimelinePreset("0");
+              }}
+            />
+          </div>
+
+          {/* Members — full width */}
+          <div className="space-y-1.5 col-span-4">
             <Label>Members</Label>
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -327,7 +441,7 @@ export function NewProjectButton({
                 className="h-9 w-full rounded-md border bg-background pl-8 pr-3 text-sm outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40"
               />
             </div>
-            <div className="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto thin-scroll rounded-md border p-2">
+            <div className="flex max-h-28 flex-wrap gap-1.5 overflow-y-auto thin-scroll rounded-md border p-2">
               {allUsers
                 .filter((u) => {
                   const q = memberSearch.toLowerCase();
@@ -370,113 +484,6 @@ export function NewProjectButton({
             <p className="text-[11px] text-muted-foreground">
               Only members appear in the task assignee list. Owner and PM are always included.
             </p>
-          </div>
-
-          {/* Priority */}
-          <div className="space-y-1.5">
-            <Label>Priority</Label>
-            <Select value={form.priority} onValueChange={(v) => update("priority", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {p.charAt(0) + p.slice(1).toLowerCase()}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Status */}
-          <div className="space-y-1.5">
-            <Label>Status</Label>
-            <Select value={form.status} onValueChange={(v) => update("status", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {["PLANNING", "ACTIVE", "ON_HOLD"].map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s.charAt(0) + s.slice(1).toLowerCase().replace("_", " ")}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Timeline preset */}
-          <div className="space-y-1.5 sm:col-span-2">
-            <Label>Timeline</Label>
-            <div className="flex flex-wrap gap-2">
-              {TIMELINE_PRESETS.map((preset) => (
-                <button
-                  key={preset.label}
-                  type="button"
-                  onClick={() => applyPreset(String(preset.months))}
-                  className={`rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors ${
-                    timelinePreset === String(preset.months)
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-border bg-background hover:bg-muted"
-                  }`}
-                >
-                  {preset.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Start date */}
-          <div className="space-y-1.5">
-            <Label htmlFor="np-start">Start date</Label>
-            <Input
-              id="np-start"
-              type="date"
-              value={form.startDate}
-              onChange={(e) => {
-                update("startDate", e.target.value);
-                const m = parseInt(timelinePreset, 10);
-                if (m > 0 && e.target.value) {
-                  update("endDate", toDateInput(addMonths(new Date(e.target.value), m)));
-                }
-              }}
-            />
-          </div>
-
-          {/* End date */}
-          <div className="space-y-1.5">
-            <Label htmlFor="np-end">End date</Label>
-            <Input
-              id="np-end"
-              type="date"
-              value={form.endDate}
-              onChange={(e) => {
-                update("endDate", e.target.value);
-                setTimelinePreset("0");
-              }}
-            />
-          </div>
-
-          {/* Budget */}
-          <div className="space-y-1.5">
-            <Label htmlFor="np-budget">Budget (USD)</Label>
-            <Input
-              id="np-budget"
-              type="number"
-              min={0}
-              value={form.budget}
-              onChange={(e) => update("budget", e.target.value)}
-              placeholder="50000"
-            />
-          </div>
-
-          {/* Colour */}
-          <div className="space-y-1.5">
-            <Label htmlFor="np-color">Colour</Label>
-            <Input
-              id="np-color"
-              type="color"
-              value={form.color}
-              onChange={(e) => update("color", e.target.value)}
-              className="h-9 w-full p-1"
-            />
           </div>
         </div>
 
