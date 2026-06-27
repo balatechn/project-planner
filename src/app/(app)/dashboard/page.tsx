@@ -4,7 +4,7 @@ import { unstable_cache } from "next/cache";
 import { format, formatDistanceToNow, isPast, isToday } from "date-fns";
 import {
   BarChart3, CalendarDays, CheckSquare, Circle, Cloud, Clock,
-  FolderKanban, GraduationCap, Mail, Plus, Users, Video,
+  FolderKanban, GraduationCap, Layers, Mail, Plus, Users, Video,
 } from "lucide-react";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
@@ -110,8 +110,9 @@ const SHORTCUTS = [
   { label: "Tasks",    href: "/my-tasks",                                            icon: CheckSquare,   bg: "bg-emerald-500", external: false },
   { label: "Calendar", href: "/calendar",                                            icon: CalendarDays,  bg: "bg-violet-500",  external: false },
   { label: "Training", href: "/training",                                            icon: GraduationCap, bg: "bg-amber-500",   external: false },
-  { label: "Rooms",    href: "/meeting-rooms",                                       icon: Video,         bg: "bg-indigo-500",  external: false },
-  { label: "Outlook",  href: "https://outlook.office365.com",                        icon: Mail,          bg: "bg-sky-500",     external: true  },
+  { label: "Rooms",      href: "/meeting-rooms",                                                   icon: Video,   bg: "bg-indigo-500",  external: false },
+  { label: "WorkSphere", href: "https://n6co0az1uzf7qcxxsmymtwiy.187.127.134.246.sslip.io",      icon: Layers,  bg: "bg-orange-500",  external: true  },
+  { label: "Outlook",    href: "https://outlook.office365.com",                                   icon: Mail,    bg: "bg-sky-500",     external: true  },
   { label: "Team",     href: "/team",                                                icon: Users,         bg: "bg-pink-500",    external: false },
   { label: "OneDrive", href: "https://nationalconsultingindia-my.sharepoint.com/",   icon: Cloud,         bg: "bg-teal-500",    external: true  },
 ];
@@ -167,7 +168,7 @@ export default async function DashboardPage() {
       )}
 
       {/* ── 2. Shortcuts row ───────────────────────────────────────── */}
-      <div className="grid flex-shrink-0 grid-cols-8 gap-2">
+      <div className="grid flex-shrink-0 grid-cols-9 gap-2">
         {SHORTCUTS.map(({ label, href, icon: Icon, bg, external }) => (
           <Link
             key={label}
