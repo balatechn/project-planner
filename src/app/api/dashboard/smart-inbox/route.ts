@@ -226,14 +226,15 @@ Return ONLY the JSON array.`;
 
   try {
     const genAI = new GoogleGenerativeAI(GEMINI_KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
     const result = await model.generateContent(SYSTEM + "\n\nText:\n" + text.trim());
     const raw = result.response.text().trim().replace(/^```json\n?|```$/g, "").trim();
     parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) throw new Error("not array");
-  } catch {
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
     return NextResponse.json(
-      { error: "Could not parse tasks. Try pasting clearer text." },
+      { error: `AI error: ${msg.slice(0, 200)}` },
       { status: 422 },
     );
   }
