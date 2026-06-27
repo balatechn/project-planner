@@ -6,7 +6,7 @@ import {
   BarChart3, CalendarDays, CheckSquare, Circle, Cloud, Clock,
   FolderKanban, GraduationCap, Layers, Mail, Plus, Users, Video,
 } from "lucide-react";
-import { AiQuickAdd } from "@/components/dashboard/ai-quick-add";
+import { SmartInbox } from "@/components/dashboard/smart-inbox";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { projectAccessWhere } from "@/lib/projects";
@@ -239,49 +239,8 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          {/* Right 1/3: AI Quick-Add + My Tasks */}
-          <div className="flex min-h-0 flex-col gap-2">
-            <AiQuickAdd />
-            <div className="flex min-h-0 flex-1 flex-col rounded-xl border bg-card">
-              <div className="flex flex-shrink-0 items-center justify-between border-b px-4 py-2">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-semibold">My Tasks</p>
-                  {dueToday.length > 0 && (
-                    <span className="rounded-full bg-red-500/10 px-1.5 py-0.5 text-[10px] font-bold text-red-600">
-                      {dueToday.length} due today
-                    </span>
-                  )}
-                </div>
-                <Button asChild variant="ghost" size="sm" className="h-6 text-xs px-2">
-                  <Link href="/my-tasks">View all</Link>
-                </Button>
-              </div>
-              <div className="min-h-0 flex-1 overflow-y-auto px-3 py-1.5 thin-scroll">
-                {myTasks.length === 0 ? (
-                  <div className="flex h-full items-center justify-center">
-                    <p className="text-sm text-muted-foreground">No open tasks. Enjoy the calm. ☕</p>
-                  </div>
-                ) : myTasks.map((t) => {
-                  const late = t.dueDate && isPast(new Date(t.dueDate));
-                  return (
-                    <Link key={t.id} href={`/projects/${t.project.id}?task=${t.id}`}
-                      className="flex items-center gap-2 rounded px-1 py-1.5 transition-colors hover:bg-muted/40">
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: t.project.color }} />
-                      <span className="min-w-0 flex-1 truncate text-sm">{t.title}</span>
-                      <PriorityBadge priority={t.priority} />
-                      {t.dueDate && (
-                        <span className={cn("flex shrink-0 items-center gap-1 text-[10px]", late ? "text-destructive" : "text-muted-foreground")}>
-                          <Clock className="h-2.5 w-2.5" />
-                          {formatDistanceToNow(new Date(t.dueDate), { addSuffix: true })}
-                        </span>
-                      )}
-                      <TaskStatusBadge status={t.status} />
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
+          {/* Right 1/3: Smart Inbox */}
+          <SmartInbox />
         </div>
 
       ) : (
@@ -379,45 +338,8 @@ export default async function DashboardPage() {
             </div>
           </div>
 
-          {/* Right 1/3: AI Quick-Add + Activity */}
-          <div className="flex min-h-0 flex-col gap-2">
-          <AiQuickAdd />
-          <div className="flex min-h-0 flex-1 flex-col rounded-xl border bg-card">
-            <div className="flex-shrink-0 border-b px-4 py-2">
-              <p className="text-sm font-semibold">Activity</p>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 thin-scroll">
-              {activity.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No activity yet.</p>
-              ) : activity.map((a) => {
-                const isRoom = isRoomActivity(a.entityType ?? null);
-                return (
-                  <div key={a.id} className={cn(
-                    "flex gap-2 py-1.5 border-b border-border/40 last:border-0",
-                    isRoom && "rounded-lg px-2 -mx-2 bg-indigo-500/5",
-                  )}>
-                    {isRoom ? (
-                      <Video className="mt-0.5 h-3.5 w-3.5 shrink-0 text-indigo-500" />
-                    ) : (
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
-                    )}
-                    <div className="min-w-0">
-                      <p className="text-xs leading-snug">
-                        <span className="font-medium">{a.user.name?.split(" ")[0] ?? "Someone"}</span>
-                        {" "}<span className={isRoom ? "text-indigo-600" : "text-muted-foreground"}>{actionLabel(a.action)}</span>
-                      </p>
-                      <p className="mt-0.5 text-[10px] text-muted-foreground/60">
-                        {a.project?.name ? `${a.project.name} · ` : ""}
-                        {formatDistanceToNow(a.createdAt, { addSuffix: true })}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-          </div>
-
+          {/* Right 1/3: Smart Inbox */}
+          <SmartInbox />
         </div>
       )}
     </div>
