@@ -163,9 +163,7 @@ export function SmartInbox() {
             className="min-w-0 flex-1 resize-none bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
         </div>
-        <p className="mt-1 text-[10px] text-muted-foreground/70 pl-6">
-          Example: &quot;Need to visit Shivamogga Tuesday for OS installation, ask Salman to arrange travel&quot;
-        </p>
+
         <div className="mt-2 flex items-center justify-between pl-6">
           <span className="text-[10px] text-muted-foreground">Paste text, email, or type anything… Ctrl+Enter</span>
           <button
