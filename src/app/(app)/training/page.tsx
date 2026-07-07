@@ -29,6 +29,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PageHeader } from "@/components/page-header";
 
+// Extract src from a full <iframe ...> embed code, or return as-is
+function extractSrcFromEmbed(input: string): string {
+  const trimmed = input.trim();
+  if (trimmed.startsWith("<iframe") || trimmed.startsWith("<IFRAME")) {
+    const match = trimmed.match(/src=["']([^"']+)["']/i);
+    if (match?.[1]) return match[1];
+  }
+  return trimmed;
+}
+
 // Utility: turn a video URL into an embeddable src
 function toEmbedUrl(url: string): { type: "iframe" | "video"; src: string } {
   try {
@@ -49,6 +59,11 @@ function toEmbedUrl(url: string): { type: "iframe" | "video"; src: string } {
     if (u.hostname.includes("vimeo.com")) {
       const id = u.pathname.split("/").filter(Boolean).pop();
       return { type: "iframe", src: `https://player.vimeo.com/video/${id}` };
+    }
+
+    // SharePoint / Microsoft Stream
+    if (u.hostname.includes("sharepoint.com") || u.hostname.includes("microsoftonline.com")) {
+      return { type: "iframe", src: url };
     }
 
     // Direct video file
@@ -187,13 +202,14 @@ export default function TrainingPage() {
     try {
       const url = editingId ? `/api/training/${editingId}` : "/api/training";
       const method = editingId ? "PATCH" : "POST";
+      const resolvedUrl = extractSrcFromEmbed(form.videoUrl);
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: form.title.trim(),
           description: form.description.trim() || null,
-          videoUrl: form.videoUrl.trim(),
+          videoUrl: resolvedUrl,
           thumbnail: form.thumbnail.trim() || null,
           category: form.category.trim() || null,
           duration: form.duration.trim() || null,
@@ -451,16 +467,18 @@ export default function TrainingPage() {
               />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="tv-url">Video URL *</Label>
-              <Input
+              <Label htmlFor="tv-url">Video URL or Embed Code *</Label>
+              <textarea
                 id="tv-url"
                 value={form.videoUrl}
                 onChange={(e) => setForm((f) => ({ ...f, videoUrl: e.target.value }))}
-                placeholder="YouTube, Vimeo, or direct .mp4 link"
+                placeholder={`Paste a URL or full <iframe> embed code\ne.g. SharePoint Stream → Share → Embed → copy code`}
+                rows={3}
                 required
+                className="w-full rounded-md border bg-background px-3 py-2 text-sm outline-none resize-none focus:ring-2 focus:ring-primary/30 focus:border-primary/40 placeholder:text-muted-foreground"
               />
               <p className="text-[11px] text-muted-foreground">
-                Supports YouTube, Vimeo, or direct .mp4/.webm URLs
+                Supports SharePoint Stream embed code, YouTube, Vimeo, or direct .mp4/.webm URL
               </p>
             </div>
             <div className="grid grid-cols-2 gap-3">
