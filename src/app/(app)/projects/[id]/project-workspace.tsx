@@ -120,7 +120,7 @@ export function ProjectWorkspace({
   allUsers,
   canManageMembers = false,
   projectManagerId = null,
-  masters = { entities: [], departments: [], locations: [] },
+  masters = { entities: [], departments: [], locations: [], programTypes: [] },
   permissions,
   currentUserId,
   defaultView = "gantt",
@@ -133,7 +133,7 @@ export function ProjectWorkspace({
   allUsers: Person[];
   canManageMembers?: boolean;
   projectManagerId?: string | null;
-  masters?: { entities: string[]; departments: string[]; locations: string[] };
+  masters?: { entities: string[]; departments: string[]; locations: string[]; programTypes: string[] };
   permissions: WorkspacePermissions;
   currentUserId: string;
   defaultView?: string;

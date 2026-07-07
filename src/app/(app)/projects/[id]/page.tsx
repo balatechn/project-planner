@@ -61,13 +61,14 @@ export default async function ProjectDetailPage({
     can(user.role, "project:manageMembers") || project.ownerId === user.id;
 
   const canEditProject = can(user.role, "project:edit");
-  const [entityOptions, departmentOptions, locationOptions] = canEditProject
+  const [entityOptions, departmentOptions, locationOptions, programTypeOptions] = canEditProject
     ? await Promise.all([
         getActiveMasterNames("ENTITY"),
         getActiveMasterNames("DEPARTMENT"),
         getActiveMasterNames("LOCATION"),
+        getActiveMasterNames("PROGRAM_TYPE"),
       ])
-    : [[], [], []];
+    : [[], [], [], []];
 
   return (
     <ProjectWorkspace
@@ -100,6 +101,7 @@ export default async function ProjectDetailPage({
         entities: entityOptions,
         departments: departmentOptions,
         locations: locationOptions,
+        programTypes: programTypeOptions,
       }}
       permissions={{
         canCreateTask: can(user.role, "task:create"),

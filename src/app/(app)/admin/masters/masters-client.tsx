@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useToast } from "@/components/ui/toast";
 
-type MasterTypeKey = "ENTITY" | "LOCATION" | "DEPARTMENT" | "DESIGNATION";
+type MasterTypeKey = "ENTITY" | "LOCATION" | "DEPARTMENT" | "DESIGNATION" | "PROGRAM_TYPE";
 type Option = { id: string; type: MasterTypeKey; name: string; isActive: boolean };
 type RoomRow = {
   id: string;
@@ -55,12 +55,13 @@ export function MastersClient({
         <TabsTrigger value="LOCATION">Locations</TabsTrigger>
         <TabsTrigger value="DEPARTMENT">Departments</TabsTrigger>
         <TabsTrigger value="DESIGNATION">Designations</TabsTrigger>
+        <TabsTrigger value="PROGRAM_TYPE">Program Types</TabsTrigger>
         <TabsTrigger value="rooms">Meeting Rooms</TabsTrigger>
         <TabsTrigger value="holidays">Holidays</TabsTrigger>
         <TabsTrigger value="roles">Roles</TabsTrigger>
       </TabsList>
 
-      {(["ENTITY", "LOCATION", "DEPARTMENT", "DESIGNATION"] as const).map((t) => (
+      {(["ENTITY", "LOCATION", "DEPARTMENT", "DESIGNATION", "PROGRAM_TYPE"] as const).map((t) => (
         <TabsContent key={t} value={t}>
           <MasterList type={t} initial={options.filter((o) => o.type === t)} />
         </TabsContent>

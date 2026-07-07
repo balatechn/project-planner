@@ -77,13 +77,14 @@ export default async function ProjectsPage({
   const showClaimBanner = !canCreate && (isPinnedAdmin || adminCount === 0);
 
   // Master-driven dropdown values for the New Project dialog
-  const [entityOptions, departmentOptions, locationOptions] = canCreate
+  const [entityOptions, departmentOptions, locationOptions, programTypeOptions] = canCreate
     ? await Promise.all([
         getActiveMasterNames("ENTITY"),
         getActiveMasterNames("DEPARTMENT"),
         getActiveMasterNames("LOCATION"),
+        getActiveMasterNames("PROGRAM_TYPE"),
       ])
-    : [[], [], []];
+    : [[], [], [], []];
 
   // Common props for NewProjectButton
   const newProjectProps = {
@@ -95,6 +96,7 @@ export default async function ProjectsPage({
     entities: entityOptions,
     departments: departmentOptions,
     locations: locationOptions,
+    programTypes: programTypeOptions,
   };
 
   return (

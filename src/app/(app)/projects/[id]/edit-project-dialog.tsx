@@ -51,7 +51,7 @@ export function EditProjectDialog({
   project: ProjectSummary;
   projectManagerId: string | null;
   allUsers: Person[];
-  masters: { entities: string[]; departments: string[]; locations: string[] };
+  masters: { entities: string[]; departments: string[]; locations: string[]; programTypes: string[] };
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -63,6 +63,7 @@ export function EditProjectDialog({
     entity: project.entity ?? "",
     department: project.department ?? "",
     location: project.location ?? "",
+    programType: (project as { programType?: string | null }).programType ?? "",
     status: project.status as string,
     priority: project.priority as string,
     startDate: toDateInput(project.startDate),
@@ -81,6 +82,7 @@ export function EditProjectDialog({
       entity: project.entity ?? "",
       department: project.department ?? "",
       location: project.location ?? "",
+      programType: (project as { programType?: string | null }).programType ?? "",
       status: project.status as string,
       priority: project.priority as string,
       startDate: toDateInput(project.startDate),
@@ -116,6 +118,7 @@ export function EditProjectDialog({
           entity: form.entity || null,
           department: form.department || null,
           location: form.location || null,
+          programType: form.programType || null,
           status: form.status,
           priority: form.priority,
           startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
@@ -211,6 +214,21 @@ export function EditProjectDialog({
                   <SelectItem value={NONE}>—</SelectItem>
                   {withCurrent(masters.locations, form.location).map((l) => (
                     <SelectItem key={l} value={l}>{l}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Program Type</Label>
+              <Select value={form.programType || NONE} onValueChange={(v) => update("programType", v === NONE ? "" : v)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select program type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>—</SelectItem>
+                  {withCurrent(masters.programTypes, form.programType).map((p) => (
+                    <SelectItem key={p} value={p}>{p}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>

@@ -61,6 +61,7 @@ export function NewProjectButton({
   entities,
   departments,
   locations,
+  programTypes,
 }: {
   users: UserOption[];
   currentUserId: string;
@@ -71,6 +72,7 @@ export function NewProjectButton({
   entities?: string[];
   departments?: string[];
   locations?: string[];
+  programTypes?: string[];
 }) {
   const router = useRouter();
   const { toast } = useToast();
@@ -109,6 +111,7 @@ export function NewProjectButton({
     color: "#f59e0b",
     ownerId: currentUserId,
     projectManagerId: currentUserId,
+    programType: "",
   });
   // Project members — assignees are limited to this list later
   const [memberIds, setMemberIds] = React.useState<string[]>([]);
@@ -151,6 +154,7 @@ export function NewProjectButton({
           entity: form.entity || null,
           department: form.department || null,
           location: form.location || null,
+          programType: form.programType || null,
           priority: form.priority,
           memberIds,
           status: form.status,
@@ -261,6 +265,21 @@ export function NewProjectButton({
             )}
           </div>
 
+          {/* Program Type */}
+          <div className="space-y-1.5">
+            <Label>Program Type</Label>
+            <Select value={form.programType} onValueChange={(v) => update("programType", v)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select program type" />
+              </SelectTrigger>
+              <SelectContent>
+                {(programTypes && programTypes.length > 0 ? programTypes : []).map((p) => (
+                  <SelectItem key={p} value={p}>{p}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* Department */}
           <div className="space-y-1.5">
             <Label>Department</Label>
@@ -300,21 +319,6 @@ export function NewProjectButton({
             )}
           </div>
 
-          {/* Priority */}
-          <div className="space-y-1.5">
-            <Label>Priority</Label>
-            <Select value={form.priority} onValueChange={(v) => update("priority", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((p) => (
-                  <SelectItem key={p} value={p}>
-                    {p.charAt(0) + p.slice(1).toLowerCase()}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
           {/* Project Manager */}
           <div className="space-y-1.5">
             <Label>Project Manager</Label>
@@ -343,6 +347,21 @@ export function NewProjectButton({
                 {allUsers.map((u) => (
                   <SelectItem key={u.id} value={u.id}>
                     {u.name ?? u.email}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Priority */}
+          <div className="space-y-1.5">
+            <Label>Priority</Label>
+            <Select value={form.priority} onValueChange={(v) => update("priority", v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((p) => (
+                  <SelectItem key={p} value={p}>
+                    {p.charAt(0) + p.slice(1).toLowerCase()}
                   </SelectItem>
                 ))}
               </SelectContent>

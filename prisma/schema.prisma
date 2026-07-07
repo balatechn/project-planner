@@ -227,6 +227,7 @@ model Project {
   entity           String?       // business entity / division
   department       String?
   location         String?       // office location (from Location master)
+  programType      String?       // program type (from ProgramType master)
   priority         Priority      @default(MEDIUM)
   status           ProjectStatus @default(PLANNING)
   startDate        DateTime?
@@ -865,6 +866,7 @@ enum MasterType {
   LOCATION
   DEPARTMENT
   DESIGNATION
+  PROGRAM_TYPE
 }
 
 model MasterOption {

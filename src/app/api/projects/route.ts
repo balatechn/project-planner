@@ -60,6 +60,7 @@ export async function POST(req: Request) {
         entity: data.entity ?? null,
         department: data.department ?? null,
         location: data.location ?? null,
+        programType: data.programType ?? null,
         priority: data.priority,
         status: data.status,
         startDate: data.startDate,
