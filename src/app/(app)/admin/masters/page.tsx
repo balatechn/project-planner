@@ -22,7 +22,7 @@ export default async function MastersPage() {
     <div className="space-y-6">
       <PageHeader
         title="Masters"
-        description="Manage the dropdown values used across the workspace — entities, locations, departments, designations, meeting rooms and holidays."
+        description="Manage the dropdown values used across the workspace — entities, locations, departments, designations, program types, meeting rooms and holidays."
       />
       <MastersClient
         options={options.map((o) => ({
