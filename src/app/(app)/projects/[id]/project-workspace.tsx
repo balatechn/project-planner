@@ -8,6 +8,7 @@ import {
   Archive,
   CalendarDays,
   ClipboardList,
+  FileDown,
   Flag,
   GanttChartSquare,
   KanbanSquare,
@@ -397,6 +398,16 @@ export function ProjectWorkspace({
               />
             </TabsContent>
             <TabsContent value="list">
+              <div className="mb-3 flex justify-end">
+                <a
+                  href={`/api/projects/${project.id}/export`}
+                  download
+                  className="inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <FileDown className="h-3.5 w-3.5" />
+                  Export to Excel
+                </a>
+              </div>
               <TaskListView tasks={tasks} onOpenTask={openTask} />
             </TabsContent>
             <TabsContent value="calendar">

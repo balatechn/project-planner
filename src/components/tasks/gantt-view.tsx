@@ -28,6 +28,9 @@ import {
 const DAY_WIDTH = 28;
 const ROW_HEIGHT = 30;
 const LABEL_WIDTH = 240;
+const ASSIGNEE_WIDTH = 120;
+const HOURS_WIDTH = 90;
+const LEFT_PANEL_WIDTH = LABEL_WIDTH + ASSIGNEE_WIDTH + HOURS_WIDTH;
 const MIN_ROWS = 15; // minimum ghost rows to always show grid
 
 // Compute critical path: longest duration chain through dependencies
@@ -302,7 +305,7 @@ export function GanttView({
         <div
           className="relative"
           style={{
-            width: Math.max(totalDays * DAY_WIDTH + LABEL_WIDTH, 600),
+            width: Math.max(totalDays * DAY_WIDTH + LEFT_PANEL_WIDTH, 600),
             minWidth: "100%",
             minHeight: "inherit",
           }}
@@ -314,6 +317,18 @@ export function GanttView({
               style={{ width: LABEL_WIDTH }}
             >
               Task
+            </div>
+            <div
+              className="shrink-0 border-r border-border/70 px-2 py-2 text-xs font-semibold bg-muted/50 text-muted-foreground"
+              style={{ width: ASSIGNEE_WIDTH }}
+            >
+              Assigned To
+            </div>
+            <div
+              className="shrink-0 border-r border-border/70 px-2 py-2 text-xs font-semibold bg-muted/50 text-muted-foreground"
+              style={{ width: HOURS_WIDTH }}
+            >
+              Est. Hours
             </div>
             <div className="flex" style={{ width: totalDays * DAY_WIDTH }}>
               {weeks.map((w, i) => (
@@ -338,7 +353,7 @@ export function GanttView({
             {/* Full-height background column grid (rendered once, spans all rows) */}
             <div
               className="absolute inset-0 pointer-events-none overflow-hidden"
-              style={{ left: LABEL_WIDTH }}
+              style={{ left: LEFT_PANEL_WIDTH }}
             >
               {weeks.map((w, i) => (
                 <React.Fragment key={w.toISOString()}>
@@ -363,7 +378,7 @@ export function GanttView({
             {todayOffset >= 0 && todayOffset <= totalDays && (
               <div
                 className="absolute top-0 bottom-0 w-0.5 bg-primary/70 z-20 pointer-events-none"
-                style={{ left: LABEL_WIDTH + todayOffset * DAY_WIDTH }}
+                style={{ left: LEFT_PANEL_WIDTH + todayOffset * DAY_WIDTH }}
               />
             )}
 
@@ -378,15 +393,14 @@ export function GanttView({
                     className="flex border-b border-border/40"
                     style={{ height: ROW_HEIGHT }}
                   >
-                    <div
-                      className="shrink-0 border-r border-border/60"
-                      style={{ width: LABEL_WIDTH }}
-                    />
+                    <div className="shrink-0 border-r border-border/60" style={{ width: LABEL_WIDTH }} />
+                    <div className="shrink-0 border-r border-border/60" style={{ width: ASSIGNEE_WIDTH }} />
+                    <div className="shrink-0 border-r border-border/60" style={{ width: HOURS_WIDTH }} />
                   </div>
                 ))}
                 <div
                   className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                  style={{ left: LABEL_WIDTH }}
+                  style={{ left: LEFT_PANEL_WIDTH }}
                 >
                   <p className="rounded-md border bg-card/90 px-4 py-2 text-sm text-muted-foreground shadow-sm">
                     No tasks yet — click &ldquo;Add Task&rdquo; to see the timeline.
@@ -411,6 +425,22 @@ export function GanttView({
                     >
                       <span className="truncate">{task.title}</span>
                     </button>
+                    <div
+                      className="shrink-0 border-r border-border/60 px-2 text-xs text-muted-foreground flex items-center overflow-hidden"
+                      style={{ width: ASSIGNEE_WIDTH, height: ROW_HEIGHT }}
+                    >
+                      <span className="truncate">
+                        {task.assignees.length > 0
+                          ? task.assignees.map((a) => a.user.name ?? "").filter(Boolean).join(", ")
+                          : "—"}
+                      </span>
+                    </div>
+                    <div
+                      className="shrink-0 border-r border-border/60 px-2 text-xs text-muted-foreground flex items-center"
+                      style={{ width: HOURS_WIDTH, height: ROW_HEIGHT }}
+                    >
+                      {task.estimatedHours != null ? task.estimatedHours : "—"}
+                    </div>
                     <div style={{ flex: 1, height: ROW_HEIGHT }} />
                   </div>
                 ))}
@@ -421,11 +451,13 @@ export function GanttView({
                     style={{ height: ROW_HEIGHT }}
                   >
                     <div className="shrink-0 border-r border-border/60" style={{ width: LABEL_WIDTH }} />
+                    <div className="shrink-0 border-r border-border/60" style={{ width: ASSIGNEE_WIDTH }} />
+                    <div className="shrink-0 border-r border-border/60" style={{ width: HOURS_WIDTH }} />
                   </div>
                 ))}
                 <div
                   className="absolute flex items-center justify-center pointer-events-none"
-                  style={{ top: 0, bottom: 0, left: LABEL_WIDTH, right: 0 }}
+                  style={{ top: 0, bottom: 0, left: LEFT_PANEL_WIDTH, right: 0 }}
                 >
                   <p className="rounded-md border bg-card/90 px-4 py-2 text-sm text-muted-foreground shadow-sm">
                     Add start / due dates to see tasks on the timeline.
@@ -521,6 +553,26 @@ export function GanttView({
                         </button>
                       </div>
 
+                      {/* Assigned To column */}
+                      <div
+                        className="shrink-0 border-r border-border/60 px-2 text-xs text-muted-foreground flex items-center overflow-hidden"
+                        style={{ width: ASSIGNEE_WIDTH, height: ROW_HEIGHT }}
+                      >
+                        <span className="truncate">
+                          {task.assignees.length > 0
+                            ? task.assignees.map((a) => a.user.name ?? "").filter(Boolean).join(", ")
+                            : "—"}
+                        </span>
+                      </div>
+
+                      {/* Est. Hours column */}
+                      <div
+                        className="shrink-0 border-r border-border/60 px-2 text-xs text-muted-foreground flex items-center"
+                        style={{ width: HOURS_WIDTH, height: ROW_HEIGHT }}
+                      >
+                        {task.estimatedHours != null ? task.estimatedHours : "—"}
+                      </div>
+
                       {/* Timeline column */}
                       <div
                         className="relative"
@@ -603,6 +655,8 @@ export function GanttView({
                     style={{ height: ROW_HEIGHT }}
                   >
                     <div className="shrink-0 border-r border-border/60" style={{ width: LABEL_WIDTH }} />
+                    <div className="shrink-0 border-r border-border/60" style={{ width: ASSIGNEE_WIDTH }} />
+                    <div className="shrink-0 border-r border-border/60" style={{ width: HOURS_WIDTH }} />
                   </div>
                 ))}
               </>
