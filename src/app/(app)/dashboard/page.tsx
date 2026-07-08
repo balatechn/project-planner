@@ -4,7 +4,7 @@ import { unstable_cache } from "next/cache";
 import { format, formatDistanceToNow, isPast, isToday } from "date-fns";
 import {
   BarChart3, CalendarDays, CheckSquare, Circle, Cloud, Clock,
-  FolderKanban, GraduationCap, Landmark, Layers, Mail, Plus, Users, Video,
+  FolderKanban, GraduationCap, Landmark, Layers, Mail, Plus, UserCog, Users, Video,
 } from "lucide-react";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
@@ -115,7 +115,8 @@ const SHORTCUTS = [
   { label: "Outlook",    href: "https://outlook.office365.com",                                   icon: Mail,    bg: "bg-sky-500",     external: true  },
   { label: "Team",     href: "/team",                                                icon: Users,         bg: "bg-pink-500",    external: false },
   { label: "OneDrive", href: "https://nationalconsultingindia-my.sharepoint.com/",   icon: Cloud,         bg: "bg-teal-500",    external: true  },
-  { label: "Finance",  href: "https://finance.nationalgroupindia.com/",              icon: Landmark,      bg: "bg-green-600",   external: true  },
+  { label: "Finance",   href: "https://finance.nationalgroupindia.com/",             icon: Landmark,      bg: "bg-green-600",   external: true  },
+  { label: "HR Portal", href: "http://49.206.25.183:3000/login",                    icon: UserCog,       bg: "bg-rose-600",    external: true  },
 ];
 
 export default async function DashboardPage() {
@@ -169,7 +170,7 @@ export default async function DashboardPage() {
       )}
 
       {/* ── 2. Shortcuts row ───────────────────────────────────────── */}
-      <div className="grid flex-shrink-0 grid-cols-10 gap-2">
+      <div className="grid flex-shrink-0 grid-cols-11 gap-2">
         {SHORTCUTS.map(({ label, href, icon: Icon, bg, external }) => (
           <Link
             key={label}

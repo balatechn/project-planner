@@ -19,6 +19,7 @@ import {
   HelpCircle,
   Landmark,
   LayoutDashboard,
+  UserCog,
   Layers,
   Menu,
   Megaphone,
@@ -59,6 +60,7 @@ const PRIMARY_NAV: NavItem[] = [
 
 const MORE_NAV: NavItem[] = [
   { href: "https://finance.nationalgroupindia.com/", label: "Finance Portal", icon: Landmark, external: true },
+  { href: "http://49.206.25.183:3000/login",         label: "HR Portal",      icon: UserCog,  external: true },
   { href: "/montra-sales",  label: "Montra Sales",   icon: Car         },
   { href: "/team",          label: "Team Directory", icon: Users       },
   { href: "/my-timesheets", label: "My Timesheets",  icon: Clock       },
