@@ -261,14 +261,14 @@ export function ProjectWorkspace({
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       {/* Compact single-row header */}
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 border-b pb-3">
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b pb-2">
         <span
-          className="h-7 w-1.5 shrink-0 rounded-full"
+          className="h-5 w-1 shrink-0 rounded-full"
           style={{ backgroundColor: project.color }}
         />
-        <h1 className="text-base font-bold tracking-tight">{project.name}</h1>
+        <h1 className="text-[13px] font-bold tracking-tight">{project.name}</h1>
         <ProjectStatusBadge status={project.status} />
         <span className="hidden text-xs text-muted-foreground sm:inline">{project.key}</span>
         {project.department && (
@@ -282,12 +282,12 @@ export function ProjectWorkspace({
           </span>
         )}
         <PriorityBadge priority={project.priority} />
-        <AvatarStack people={members} max={5} size="h-6 w-6" />
+        <AvatarStack people={members} max={5} size="h-5 w-5" />
         {canManageMembers && (
           <button
             type="button"
             onClick={() => setMembersOpen(true)}
-            className="flex h-6 w-6 items-center justify-center rounded-full border border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-primary"
+            className="flex h-5 w-5 items-center justify-center rounded-full border border-dashed text-muted-foreground transition-colors hover:border-primary hover:text-primary"
             title="Manage members"
           >
             <UserPlus className="h-3.5 w-3.5" />
@@ -296,22 +296,22 @@ export function ProjectWorkspace({
 
         {/* Right side: progress + actions */}
         <div className="ml-auto flex items-center gap-2">
-          <div className="hidden items-center gap-2 md:flex">
-            <Progress value={pct} className="h-1.5 w-24" />
-            <span className="whitespace-nowrap text-xs text-muted-foreground">
-              {pct}% · {completed}/{tasks.length} tasks
+          <div className="hidden items-center gap-1.5 md:flex">
+            <Progress value={pct} className="h-1 w-20" />
+            <span className="whitespace-nowrap text-[11px] text-muted-foreground">
+              {pct}% · {completed}/{tasks.length}
             </span>
           </div>
           {permissions.canCreateTask && (
-            <Button variant="brand" size="sm" onClick={() => openCreate("NOT_STARTED")}>
-              <Plus className="h-4 w-4" /> Add Task
+            <Button variant="brand" size="sm" className="h-7 px-2.5 text-xs" onClick={() => openCreate("NOT_STARTED")}>
+              <Plus className="h-3.5 w-3.5" /> Add Task
             </Button>
           )}
           {(permissions.canEditProject || permissions.canArchive || permissions.canDelete) && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="h-8 w-8">
-                  <MoreVertical className="h-4 w-4" />
+                <Button variant="outline" size="icon" className="h-7 w-7">
+                  <MoreVertical className="h-3.5 w-3.5" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -342,31 +342,31 @@ export function ProjectWorkspace({
 
       {/* Views */}
       <Tabs defaultValue={defaultView}>
-        <TabsList className="flex-wrap">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="gantt">
-            <GanttChartSquare className="h-3.5 w-3.5" /> Gantt
+        <TabsList className="flex-wrap h-auto gap-0.5 p-0.5">
+          <TabsTrigger value="overview" className="text-[11px] px-2.5 py-1 h-7">Overview</TabsTrigger>
+          <TabsTrigger value="gantt" className="text-[11px] px-2.5 py-1 h-7 gap-1">
+            <GanttChartSquare className="h-3 w-3" /> Gantt
           </TabsTrigger>
-          <TabsTrigger value="board">
-            <KanbanSquare className="h-3.5 w-3.5" /> Board
+          <TabsTrigger value="board" className="text-[11px] px-2.5 py-1 h-7 gap-1">
+            <KanbanSquare className="h-3 w-3" /> Board
           </TabsTrigger>
-          <TabsTrigger value="list">
-            <LayoutList className="h-3.5 w-3.5" /> List
+          <TabsTrigger value="list" className="text-[11px] px-2.5 py-1 h-7 gap-1">
+            <LayoutList className="h-3 w-3" /> List
           </TabsTrigger>
-          <TabsTrigger value="calendar">
-            <CalendarDays className="h-3.5 w-3.5" /> Calendar
+          <TabsTrigger value="calendar" className="text-[11px] px-2.5 py-1 h-7 gap-1">
+            <CalendarDays className="h-3 w-3" /> Calendar
           </TabsTrigger>
-          <TabsTrigger value="sprints">
-            <Zap className="h-3.5 w-3.5" /> Sprints
+          <TabsTrigger value="sprints" className="text-[11px] px-2.5 py-1 h-7 gap-1">
+            <Zap className="h-3 w-3" /> Sprints
           </TabsTrigger>
-          <TabsTrigger value="risks">
-            <AlertTriangle className="h-3.5 w-3.5" /> Risks
+          <TabsTrigger value="risks" className="text-[11px] px-2.5 py-1 h-7 gap-1">
+            <AlertTriangle className="h-3 w-3" /> Risks
           </TabsTrigger>
-          <TabsTrigger value="meetings">
-            <ClipboardList className="h-3.5 w-3.5" /> Meetings
+          <TabsTrigger value="meetings" className="text-[11px] px-2.5 py-1 h-7 gap-1">
+            <ClipboardList className="h-3 w-3" /> Meetings
           </TabsTrigger>
-          <TabsTrigger value="burndown">
-            <TrendingDown className="h-3.5 w-3.5" /> Burndown
+          <TabsTrigger value="burndown" className="text-[11px] px-2.5 py-1 h-7 gap-1">
+            <TrendingDown className="h-3 w-3" /> Burndown
           </TabsTrigger>
         </TabsList>
 

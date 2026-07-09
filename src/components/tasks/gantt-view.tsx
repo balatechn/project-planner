@@ -27,25 +27,25 @@ import {
 } from "@/components/ui/select";
 
 // ── Layout constants ──────────────────────────────────────────────────────────
-const DAY_WIDTH   = 28;
-const ROW_HEIGHT  = 30;
-const WEEK_ROW_H  = 28;
-const DAY_ROW_H   = 20;
-const HEADER_H    = WEEK_ROW_H + DAY_ROW_H; // 48
+const DAY_WIDTH   = 24;
+const ROW_HEIGHT  = 24;
+const WEEK_ROW_H  = 20;
+const DAY_ROW_H   = 14;
+const HEADER_H    = WEEK_ROW_H + DAY_ROW_H; // 34
 
-const ROW_NUM_W   = 32;
-const TASK_NAME_W = 200;
-const DURATION_W  = 72;
-const START_W     = 88;
-const FINISH_W    = 88;
-const ASSIGNED_W  = 120;
-const LEFT_CONTENT_W = ROW_NUM_W + TASK_NAME_W + DURATION_W + START_W + FINISH_W + ASSIGNED_W; // 600
+const ROW_NUM_W   = 28;
+const TASK_NAME_W = 180;
+const DURATION_W  = 60;
+const START_W     = 72;
+const FINISH_W    = 72;
+const ASSIGNED_W  = 100;
+const LEFT_CONTENT_W = ROW_NUM_W + TASK_NAME_W + DURATION_W + START_W + FINISH_W + ASSIGNED_W; // 512
 
-const LEFT_DEFAULT = 600;
-const LEFT_MIN     = 140;
+const LEFT_DEFAULT = 512;
+const LEFT_MIN     = 120;
 const LEFT_MAX     = 820;
-const HANDLE_W     = 6;
-const MIN_ROWS     = 15;
+const HANDLE_W     = 5;
+const MIN_ROWS     = 20;
 
 const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"] as const;
 
@@ -299,13 +299,13 @@ export function GanttView({
 
   // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-3 pt-1">
+    <div className="space-y-2 pt-0.5">
 
       {/* Toolbar */}
       {canCreate && projectId && (
         <div className="flex items-center gap-2">
-          <Button variant="brand" size="sm" onClick={() => setAddOpen((v) => !v)}>
-            <Plus className="h-4 w-4" />
+          <Button variant="brand" size="sm" className="h-7 px-2.5 text-xs" onClick={() => setAddOpen((v) => !v)}>
+            <Plus className="h-3.5 w-3.5" />
             {addOpen ? "Cancel" : "Add Task"}
           </Button>
         </div>
@@ -313,8 +313,8 @@ export function GanttView({
 
       {/* Inline Add Form */}
       {addOpen && (
-        <div className="rounded-lg border bg-card p-4 shadow-sm">
-          <div className="flex flex-wrap gap-3 items-end">
+        <div className="rounded-lg border bg-card p-3 shadow-sm">
+          <div className="flex flex-wrap gap-2 items-end">
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Title *</label>
               <Input className="h-8 w-48" value={form.title}
@@ -371,7 +371,7 @@ export function GanttView({
       {/* ── Split-pane Gantt ──────────────────────────────────────────────── */}
       <div
         className="flex rounded-lg border overflow-hidden"
-        style={{ height: "calc(100vh - 290px)" }}
+        style={{ height: "calc(100vh - 248px)" }}
       >
 
         {/* ── Left panel ─────────────────────────────────────────────────── */}
@@ -617,7 +617,7 @@ export function GanttView({
                           const be = differenceInCalendarDays(new Date(task.baselineEnd),   rangeStart);
                           return (
                             <div className="absolute rounded-sm opacity-30 border-2 border-dashed"
-                              style={{ left: Math.max(0, bs) * DAY_WIDTH, width: Math.max(1, be - bs + 1) * DAY_WIDTH, height: 10, top: "50%", marginTop: 8, borderColor: barColor }}
+                              style={{ left: Math.max(0, bs) * DAY_WIDTH, width: Math.max(1, be - bs + 1) * DAY_WIDTH, height: 7, top: "50%", marginTop: 5, borderColor: barColor }}
                               title="Baseline" />
                           );
                         })()}
@@ -626,18 +626,18 @@ export function GanttView({
                           <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-pointer"
                             style={{ left: (offset + span / 2) * DAY_WIDTH }}
                             onClick={() => onOpenTask(task)} title={task.title}>
-                            <svg width="18" height="18" viewBox="0 0 18 18">
+                            <svg width="14" height="14" viewBox="0 0 18 18">
                               <path d="M9 1 L17 9 L9 17 L1 9 Z" fill={barColor} stroke="white" strokeWidth="1.5" />
                             </svg>
                           </div>
                         ) : (
                           <div onClick={() => onOpenTask(task)}
                             className="absolute top-1/2 -translate-y-1/2 cursor-pointer rounded-sm flex items-center overflow-hidden"
-                            style={{ left: offset * DAY_WIDTH, width: span * DAY_WIDTH, height: 16, backgroundColor: barColor }}
+                            style={{ left: offset * DAY_WIDTH, width: span * DAY_WIDTH, height: 12, backgroundColor: barColor }}
                             title={`${task.title} · ${span} day(s)${isCrit ? " · Critical path" : ""}`}>
                             <div className="absolute inset-y-0 left-0 bg-black/20 rounded-l-sm" style={{ width: `${task.progress}%` }} />
-                            {span * DAY_WIDTH > 44 && (
-                              <span className="relative px-1.5 text-[9px] font-medium text-white truncate">{task.progress}%</span>
+                            {span * DAY_WIDTH > 36 && (
+                              <span className="relative px-1 text-[8px] font-medium text-white truncate">{task.progress}%</span>
                             )}
                           </div>
                         )}
@@ -646,8 +646,8 @@ export function GanttView({
                           className="absolute text-[10px] whitespace-nowrap text-foreground/65 pointer-events-none select-none leading-none"
                           style={{
                             left: task.isMilestone
-                              ? (offset + span / 2) * DAY_WIDTH + 13
-                              : (offset + span) * DAY_WIDTH + 5,
+                              ? (offset + span / 2) * DAY_WIDTH + 10
+                              : (offset + span) * DAY_WIDTH + 4,
                             top: "50%",
                             transform: "translateY(-50%)",
                           }}

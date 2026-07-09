@@ -21,7 +21,7 @@ export function AppShell({
     <div className="flex min-h-screen flex-col bg-background">
       <AppTopNav user={user} />
       <CommandPalette />
-      <main className="flex-1 p-4 lg:p-6 max-w-screen-2xl mx-auto w-full">
+      <main className="flex-1 p-3 lg:p-4 max-w-screen-2xl mx-auto w-full">
         {children}
       </main>
     </div>

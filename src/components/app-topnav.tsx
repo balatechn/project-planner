@@ -126,23 +126,23 @@ export function AppTopNav({
     <>
       {/* ── Main top bar ── */}
       <header className="sticky top-0 z-40 w-full bg-[hsl(var(--background))] shadow-[0_4px_16px_var(--neu-dark),0_-2px_8px_var(--neu-light)]">
-        <div className="mx-auto flex h-14 max-w-screen-2xl items-center gap-2 px-4 lg:px-6">
+        <div className="mx-auto flex h-11 max-w-screen-2xl items-center gap-2 px-4 lg:px-6">
 
           {/* Logo — National Group India */}
           <Link href="/dashboard" className="flex items-center gap-2 mr-3 flex-shrink-0">
             <Image
               src="https://nationalgroupindia.com/logo_full.webp"
               alt="National Group India"
-              width={36}
-              height={36}
+              width={30}
+              height={30}
               className="object-contain flex-shrink-0"
               priority
             />
             <div className="hidden sm:block leading-tight">
-              <p className="text-sm font-bold tracking-tight text-foreground leading-none">
+              <p className="text-[13px] font-bold tracking-tight text-foreground leading-none">
                 National Group India
               </p>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider leading-none mt-0.5">
+              <p className="text-[9px] text-muted-foreground uppercase tracking-wider leading-none mt-0.5">
                 Sharepoint
               </p>
             </div>
@@ -160,7 +160,7 @@ export function AppTopNav({
                   href={item.href}
                   prefetch={true}
                   className={cn(
-                    "relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-all whitespace-nowrap",
+                    "relative flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-all whitespace-nowrap",
                     isAmber
                       ? active
                         ? "text-amber-600 font-semibold [box-shadow:inset_2px_2px_5px_var(--neu-dark),inset_-2px_-2px_5px_var(--neu-light)] bg-[hsl(var(--background))]"
@@ -170,7 +170,7 @@ export function AppTopNav({
                         : "text-muted-foreground hover:text-foreground hover:[box-shadow:var(--neu-shadow-xs)]",
                   )}
                 >
-                  <Icon className={cn("h-4 w-4 flex-shrink-0")} />
+                  <Icon className={cn("h-3.5 w-3.5 flex-shrink-0")} />
                   <span className="hidden lg:inline">{item.label}</span>
                   {active && (
                     <span className="absolute bottom-0 left-1/2 h-0.5 w-4/5 -translate-x-1/2 rounded-full bg-primary opacity-60" />
@@ -185,7 +185,7 @@ export function AppTopNav({
                 <button
                   onClick={() => setMoreOpen((v) => !v)}
                   className={cn(
-                    "flex items-center gap-1 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                    "flex items-center gap-1 rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors",
                     visibleMore.some((item) => isActive(item.href))
                       ? "bg-primary/10 text-primary"
                       : "text-muted-foreground hover:bg-muted hover:text-foreground",
