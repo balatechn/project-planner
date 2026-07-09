@@ -204,9 +204,9 @@ export function NewProjectButton({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-3 grid-cols-4">
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
           {/* Project name — col span 3 */}
-          <div className="space-y-1.5 col-span-3">
+          <div className="space-y-1.5 col-span-1 sm:col-span-3">
             <Label htmlFor="np-name">Project name *</Label>
             <Input
               id="np-name"
@@ -230,7 +230,7 @@ export function NewProjectButton({
           </div>
 
           {/* Description — full width */}
-          <div className="space-y-1.5 col-span-4">
+          <div className="space-y-1.5 col-span-2 sm:col-span-4">
             <Label htmlFor="np-desc">Description</Label>
             <Textarea
               id="np-desc"
@@ -397,7 +397,7 @@ export function NewProjectButton({
           </div>
 
           {/* Timeline preset — full width */}
-          <div className="space-y-1.5 col-span-4">
+          <div className="space-y-1.5 col-span-2 sm:col-span-4">
             <Label>Timeline</Label>
             <div className="flex flex-wrap gap-2">
               {TIMELINE_PRESETS.map((preset) => (
@@ -449,7 +449,7 @@ export function NewProjectButton({
           </div>
 
           {/* Members — full width */}
-          <div className="space-y-1.5 col-span-4">
+          <div className="space-y-1.5 col-span-2 sm:col-span-4">
             <Label>Members</Label>
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />

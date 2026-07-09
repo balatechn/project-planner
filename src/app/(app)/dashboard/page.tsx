@@ -133,7 +133,7 @@ export default async function DashboardPage() {
   const dueToday = myTasks.filter((t) => t.dueDate && isToday(new Date(t.dueDate)));
 
   return (
-    <div className="flex h-[calc(100vh-3.5rem-2rem)] lg:h-[calc(100vh-3.5rem-3rem)] w-full flex-col gap-2 overflow-hidden">
+    <div className="flex w-full flex-col gap-2 md:h-[calc(100vh-2.75rem-1.5rem)] md:overflow-hidden lg:h-[calc(100vh-2.75rem-2rem)]">
 
       {/* ── 1. Header bar — Admin / PM only ────────────────────────── */}
       {user.role !== "TEAM_MEMBER" && user.role !== "VIEWER" && (
@@ -170,7 +170,7 @@ export default async function DashboardPage() {
       )}
 
       {/* ── 2. Shortcuts row ───────────────────────────────────────── */}
-      <div className="grid flex-shrink-0 grid-cols-11 gap-2">
+      <div className="grid flex-shrink-0 grid-cols-4 sm:grid-cols-6 md:grid-cols-11 gap-2">
         {SHORTCUTS.map(({ label, href, icon: Icon, bg, external }) => (
           <Link
             key={label}
@@ -193,17 +193,17 @@ export default async function DashboardPage() {
       {user.role === "TEAM_MEMBER" || user.role === "VIEWER" ? (
 
         /* ── Team Member layout: Projects left | My Tasks right ──── */
-        <div className="grid min-h-0 flex-1 grid-cols-3 gap-2">
+        <div className="grid gap-2 grid-cols-1 md:grid-cols-3 md:min-h-0 md:flex-1">
 
           {/* Left 2/3: Recent Projects */}
-          <div className="col-span-2 flex min-h-0 flex-col rounded-xl border bg-card">
+          <div className="md:col-span-2 flex flex-col rounded-xl border bg-card md:min-h-0">
             <div className="flex flex-shrink-0 items-center justify-between border-b px-4 py-2">
               <p className="text-sm font-semibold">Recent Projects</p>
               <Button asChild variant="ghost" size="sm" className="h-6 text-xs px-2">
                 <Link href="/projects">View all</Link>
               </Button>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-3 py-1.5 thin-scroll">
+            <div className="overflow-y-auto px-3 py-1.5 thin-scroll max-h-52 md:max-h-none md:min-h-0 md:flex-1">
               {projects.length === 0 ? (
                 <div className="flex h-full items-center justify-center">
                   <p className="text-sm text-muted-foreground">No projects yet.</p>
@@ -241,7 +241,7 @@ export default async function DashboardPage() {
           </div>
 
           {/* Right 1/3: My Tasks */}
-          <div className="flex min-h-0 flex-col rounded-xl border bg-card">
+          <div className="flex flex-col rounded-xl border bg-card md:min-h-0">
             <div className="flex flex-shrink-0 items-center justify-between border-b px-4 py-2">
               <div className="flex items-center gap-2">
                 <p className="text-sm font-semibold">My Tasks</p>
@@ -255,7 +255,7 @@ export default async function DashboardPage() {
                 <Link href="/my-tasks">View all</Link>
               </Button>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-3 py-1.5 thin-scroll">
+            <div className="overflow-y-auto px-3 py-1.5 thin-scroll max-h-52 md:max-h-none md:min-h-0 md:flex-1">
               {myTasks.length === 0 ? (
                 <div className="flex h-full items-center justify-center">
                   <p className="text-sm text-muted-foreground">No open tasks. Enjoy the calm. ☕</p>
@@ -285,20 +285,20 @@ export default async function DashboardPage() {
       ) : (
 
         /* ── Admin / PM layout: Projects+Tasks left | Activity right  */
-        <div className="grid min-h-0 flex-1 grid-cols-3 gap-2">
+        <div className="grid gap-2 grid-cols-1 md:grid-cols-3 md:min-h-0 md:flex-1">
 
           {/* Left 2/3: projects + tasks */}
-          <div className="col-span-2 flex min-h-0 flex-col gap-2">
+          <div className="md:col-span-2 flex flex-col gap-2">
 
             {/* Projects */}
-            <div className="flex min-h-0 flex-1 flex-col rounded-xl border bg-card">
+            <div className="flex flex-col rounded-xl border bg-card md:min-h-0 md:flex-1">
               <div className="flex flex-shrink-0 items-center justify-between border-b px-4 py-2">
                 <p className="text-sm font-semibold">Recent Projects</p>
                 <Button asChild variant="ghost" size="sm" className="h-6 text-xs px-2">
                   <Link href="/projects">View all</Link>
                 </Button>
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto px-3 py-1.5 thin-scroll">
+              <div className="overflow-y-auto px-3 py-1.5 thin-scroll max-h-52 md:max-h-none md:min-h-0 md:flex-1">
                 {projects.length === 0 ? (
                   <div className="flex h-full items-center justify-center">
                     <p className="text-sm text-muted-foreground">No projects yet.</p>
@@ -336,7 +336,7 @@ export default async function DashboardPage() {
             </div>
 
             {/* Tasks */}
-            <div className="flex min-h-0 flex-1 flex-col rounded-xl border bg-card">
+            <div className="flex flex-col rounded-xl border bg-card md:min-h-0 md:flex-1">
               <div className="flex flex-shrink-0 items-center justify-between border-b px-4 py-2">
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-semibold">My Tasks</p>
@@ -350,7 +350,7 @@ export default async function DashboardPage() {
                   <Link href="/my-tasks">View all</Link>
                 </Button>
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto px-3 py-1.5 thin-scroll">
+              <div className="overflow-y-auto px-3 py-1.5 thin-scroll max-h-52 md:max-h-none md:min-h-0 md:flex-1">
                 {myTasks.length === 0 ? (
                   <div className="flex h-full items-center justify-center">
                     <p className="text-sm text-muted-foreground">No open tasks. Enjoy the calm. ☕</p>
@@ -378,11 +378,11 @@ export default async function DashboardPage() {
           </div>
 
           {/* Right 1/3: Activity */}
-          <div className="flex min-h-0 flex-col rounded-xl border bg-card">
+          <div className="flex flex-col rounded-xl border bg-card md:min-h-0">
             <div className="flex-shrink-0 border-b px-4 py-2">
               <p className="text-sm font-semibold">Activity</p>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3 thin-scroll">
+            <div className="overflow-y-auto px-4 py-3 thin-scroll max-h-52 md:max-h-none md:min-h-0 md:flex-1">
               {activity.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No activity yet.</p>
               ) : activity.map((a) => {
