@@ -634,12 +634,86 @@ export function GanttView({
                             )}
                           </div>
                         )}
+                        {/* Task name label to the right of bar */}
+                        <span
+                          className="absolute text-[10px] whitespace-nowrap text-foreground/65 pointer-events-none select-none leading-none"
+                          style={{
+                            left: task.isMilestone
+                              ? (offset + span / 2) * DAY_WIDTH + 13
+                              : (offset + span) * DAY_WIDTH + 5,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                          }}
+                        >
+                          {task.title}
+                        </span>
                       </div>
                     );
                   })}
                   {Array.from({ length: ghostCount }).map((_, i) => (
                     <div key={`gh-${i}`} className="border-b border-border/30" style={{ height: ROW_HEIGHT }} />
                   ))}
+
+                  {/* ── Dependency connector arrows ─────────────────────── */}
+                  {(() => {
+                    // Build bar position map: taskId → { rowIndex, leftX, rightX }
+                    const posMap = new Map<string, { ri: number; lx: number; rx: number }>();
+                    visibleScheduled.forEach((task, ri) => {
+                      const s  = task.startDate ? new Date(task.startDate) : new Date(task.dueDate!);
+                      const e  = task.dueDate   ? new Date(task.dueDate)   : addDays(new Date(task.startDate!), 1);
+                      const lx = Math.max(0, differenceInCalendarDays(s, rangeStart)) * DAY_WIDTH;
+                      const rx = lx + Math.max(1, differenceInCalendarDays(e, s) + 1) * DAY_WIDTH;
+                      posMap.set(task.id, { ri, lx, rx });
+                    });
+
+                    const arrows: React.ReactNode[] = [];
+                    visibleScheduled.forEach((task) => {
+                      const succ = posMap.get(task.id);
+                      if (!succ || !task.dependsOn?.length) return;
+                      const sCY = succ.ri * ROW_HEIGHT + ROW_HEIGHT / 2;
+
+                      for (const dep of task.dependsOn) {
+                        const pred = posMap.get(dep.prerequisiteId);
+                        if (!pred) continue;
+                        const pCY  = pred.ri * ROW_HEIGHT + ROW_HEIGHT / 2;
+                        const pRX  = pred.rx;
+                        const sLX  = succ.lx;
+                        const elbX = pRX + 8;
+
+                        // Simple L-shape (successor to the right)
+                        // Loopback path (successor to the left — route below both rows)
+                        let d: string;
+                        if (sLX >= elbX) {
+                          d = `M ${pRX},${pCY} L ${elbX},${pCY} L ${elbX},${sCY} L ${sLX},${sCY}`;
+                        } else {
+                          const midY = Math.max(pCY, sCY) + ROW_HEIGHT * 0.45;
+                          d = `M ${pRX},${pCY} L ${elbX},${pCY} L ${elbX},${midY} L ${sLX - 5},${midY} L ${sLX - 5},${sCY} L ${sLX},${sCY}`;
+                        }
+
+                        arrows.push(
+                          <g key={`${dep.prerequisiteId}->${task.id}`}>
+                            <path d={d} fill="none" stroke="rgba(148,163,184,0.85)" strokeWidth="1.5" strokeLinejoin="round" />
+                            {/* Arrowhead pointing right (►) */}
+                            <path
+                              d={`M ${sLX - 5},${sCY - 4} L ${sLX},${sCY} L ${sLX - 5},${sCY + 4}`}
+                              fill="none" stroke="rgba(148,163,184,0.85)" strokeWidth="1.5" strokeLinejoin="round"
+                            />
+                          </g>
+                        );
+                      }
+                    });
+
+                    if (!arrows.length) return null;
+                    return (
+                      <svg
+                        className="absolute inset-0 pointer-events-none"
+                        style={{ zIndex: 9, width: timelineW, height: (visibleScheduled.length + ghostCount) * ROW_HEIGHT }}
+                        overflow="visible"
+                      >
+                        {arrows}
+                      </svg>
+                    );
+                  })()}
                 </>
               )}
             </div>
