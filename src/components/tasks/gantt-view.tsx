@@ -6,6 +6,7 @@ import {
   differenceInCalendarDays,
   eachWeekOfInterval,
   format,
+  getISOWeek,
   isToday,
   max as maxDate,
   min as minDate,
@@ -208,6 +209,23 @@ export function GanttView({
   const todayOffset = differenceInCalendarDays(today, rangeStart);
   const timelineW   = totalDays * DAY_WIDTH;
 
+  // Month spans for the top header tier
+  const months = React.useMemo(() => {
+    if (!allDays.length) return [] as { label: string; dayCount: number }[];
+    const result: { label: string; dayCount: number }[] = [];
+    let cur = { label: format(allDays[0], "MMMM, yyyy"), dayCount: 0, m: allDays[0].getMonth(), y: allDays[0].getFullYear() };
+    for (const d of allDays) {
+      if (d.getMonth() !== cur.m || d.getFullYear() !== cur.y) {
+        result.push({ label: cur.label, dayCount: cur.dayCount });
+        cur = { label: format(d, "MMMM, yyyy"), dayCount: 1, m: d.getMonth(), y: d.getFullYear() };
+      } else {
+        cur.dayCount++;
+      }
+    }
+    result.push({ label: cur.label, dayCount: cur.dayCount });
+    return result;
+  }, [allDays]);
+
   const [collapsedParents, setCollapsedParents] = React.useState<Set<string>>(new Set());
   function toggleRow(taskId: string) {
     setCollapsedParents((prev) => {
@@ -264,9 +282,12 @@ export function GanttView({
     onMouseLeave: () => setHoveredId(null),
   });
 
+  // Alternating row stripe (odd rows get subtle background)
+  const rowStripe = (idx: number) => idx % 2 !== 0 ? "bg-muted/[0.07]" : "";
+
   // Ghost row cells for left panel
-  const LeftGhostRow = () => (
-    <div className="flex border-b border-border/30" style={{ height: ROW_HEIGHT, minWidth: LEFT_CONTENT_W }}>
+  const LeftGhostRow = ({ idx }: { idx: number }) => (
+    <div className={cn("flex border-b border-border/30", rowStripe(idx))} style={{ height: ROW_HEIGHT, minWidth: LEFT_CONTENT_W }}>
       <div style={{ width: ROW_NUM_W  }} className="shrink-0 border-r border-border/40" />
       <div style={{ width: TASK_NAME_W}} className="shrink-0 border-r border-border/40" />
       <div style={{ width: DURATION_W }} className="shrink-0 border-r border-border/40" />
@@ -377,14 +398,14 @@ export function GanttView({
           <div style={{ minWidth: LEFT_CONTENT_W }}>
 
             {/* CASE 1: no tasks */}
-            {tasks.length === 0 && Array.from({ length: MIN_ROWS }).map((_, i) => <LeftGhostRow key={i} />)}
+            {tasks.length === 0 && Array.from({ length: MIN_ROWS }).map((_, i) => <LeftGhostRow key={i} idx={i} />)}
 
             {/* CASE 2: tasks without dates */}
             {tasks.length > 0 && scheduled.length === 0 && (
               <>
                 {tasks.map((task, i) => (
                   <div key={task.id}
-                    className={cn("flex border-b border-border/40 transition-colors cursor-pointer", hoveredId === task.id && "bg-muted/20")}
+                    className={cn("flex border-b border-border/40 transition-colors cursor-pointer", rowStripe(i), hoveredId === task.id && "bg-muted/20")}
                     style={{ height: ROW_HEIGHT, minWidth: LEFT_CONTENT_W }}
                     {...hoverProps(task.id)}
                     onClick={() => onOpenTask(task)}
@@ -401,7 +422,7 @@ export function GanttView({
                     </div>
                   </div>
                 ))}
-                {Array.from({ length: ghostCount }).map((_, i) => <LeftGhostRow key={`gh-${i}`} />)}
+                {Array.from({ length: ghostCount }).map((_, i) => <LeftGhostRow key={`gh-${i}`} idx={tasks.length + i} />)}
               </>
             )}
 
@@ -410,7 +431,7 @@ export function GanttView({
               <>
                 {visibleScheduled.map((task, i) => (
                   <div key={task.id}
-                    className={cn("flex border-b border-border/40 transition-colors", hoveredId === task.id && "bg-muted/20")}
+                    className={cn("flex border-b border-border/40 transition-colors", rowStripe(i), hoveredId === task.id && "bg-muted/20")}
                     style={{ height: ROW_HEIGHT, minWidth: LEFT_CONTENT_W }}
                     {...hoverProps(task.id)}
                   >
@@ -463,7 +484,7 @@ export function GanttView({
                     </div>
                   </div>
                 ))}
-                {Array.from({ length: ghostCount }).map((_, i) => <LeftGhostRow key={`gh-${i}`} />)}
+                {Array.from({ length: ghostCount }).map((_, i) => <LeftGhostRow key={`gh-${i}`} idx={visibleScheduled.length + i} />)}
               </>
             )}
           </div>
@@ -494,55 +515,41 @@ export function GanttView({
         >
           <div style={{ width: Math.max(timelineW, 300), minWidth: "100%" }}>
 
-            {/* Two-tier timeline header */}
+            {/* Two-tier timeline header: Month row + Week-number row */}
             <div className="sticky top-0 z-10 bg-muted/50 border-b shadow-sm" style={{ width: timelineW }}>
-              {/* Week row */}
+              {/* Month row */}
               <div className="flex" style={{ height: WEEK_ROW_H }}>
-                {weeks.map((w, i) => (
-                  <div key={w.toISOString()}
-                    className={cn(
-                      "flex-shrink-0 px-2 flex items-center text-xs font-medium text-muted-foreground border-r border-border/50",
-                      i % 2 !== 0 ? "bg-muted/30" : "bg-muted/10",
-                      isToday(w) && "text-primary font-semibold",
-                    )}
-                    style={{ width: DAY_WIDTH * 7 }}>
-                    {format(w, "MMM d")}
+                {months.map((m, i) => (
+                  <div key={`${m.label}-${i}`}
+                    className="flex-shrink-0 px-2 flex items-center text-xs font-semibold text-foreground/80 border-r border-border/50 bg-muted/20 overflow-hidden"
+                    style={{ width: m.dayCount * DAY_WIDTH }}>
+                    <span className="truncate">{m.label}</span>
                   </div>
                 ))}
               </div>
-              {/* Day letters row */}
+              {/* Week-number row (W22, W23 …) */}
               <div className="flex border-t border-border/20" style={{ height: DAY_ROW_H }}>
-                {allDays.map((d, i) => {
-                  const dow = d.getDay();
-                  const wknd = dow === 0 || dow === 6;
-                  return (
-                    <div key={i}
-                      className={cn(
-                        "flex-shrink-0 flex items-center justify-center border-r border-border/20 text-[9px]",
-                        wknd ? "bg-muted/20 text-muted-foreground/50" : "text-muted-foreground/70",
-                        isToday(d) && "bg-primary/15 text-primary font-bold",
-                      )}
-                      style={{ width: DAY_WIDTH }}>
-                      {DAY_LABELS[dow]}
-                    </div>
-                  );
-                })}
+                {weeks.map((w, i) => (
+                  <div key={w.toISOString()}
+                    className={cn(
+                      "flex-shrink-0 flex items-center justify-center border-r border-border/30 text-[9px] font-medium",
+                      i % 2 !== 0 ? "bg-muted/20 text-muted-foreground" : "text-muted-foreground/70",
+                      isToday(w) && "text-primary font-semibold",
+                    )}
+                    style={{ width: DAY_WIDTH * 7 }}>
+                    W{getISOWeek(w)}
+                  </div>
+                ))}
               </div>
             </div>
 
             {/* Timeline body */}
             <div className="relative" style={{ width: timelineW }}>
 
-              {/* Background: weekend shading + week separators */}
+              {/* Background: week separators only (row stripes on the rows themselves) */}
               <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                {allDays.map((d, i) => {
-                  const wknd = d.getDay() === 0 || d.getDay() === 6;
-                  return wknd ? (
-                    <div key={i} className="absolute top-0 bottom-0 bg-muted/10" style={{ left: i * DAY_WIDTH, width: DAY_WIDTH }} />
-                  ) : null;
-                })}
                 {weeks.map((_, i) => (
-                  <div key={i} className="absolute top-0 bottom-0 w-px bg-border/30"
+                  <div key={i} className="absolute top-0 bottom-0 w-px bg-border/25"
                     style={{ left: (i + 1) * DAY_WIDTH * 7 }} />
                 ))}
               </div>
@@ -557,7 +564,7 @@ export function GanttView({
               {tasks.length === 0 && (
                 <div className="relative">
                   {Array.from({ length: MIN_ROWS }).map((_, i) => (
-                    <div key={i} className="border-b border-border/30" style={{ height: ROW_HEIGHT }} />
+                    <div key={i} className={cn("border-b border-border/30", rowStripe(i))} style={{ height: ROW_HEIGHT }} />
                   ))}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <p className="rounded-md border bg-card/90 px-4 py-2 text-sm text-muted-foreground shadow-sm">
@@ -570,14 +577,14 @@ export function GanttView({
               {/* CASE 2: tasks without dates */}
               {tasks.length > 0 && scheduled.length === 0 && (
                 <div className="relative">
-                  {tasks.map((task) => (
+                  {tasks.map((task, i) => (
                     <div key={task.id}
-                      className={cn("border-b border-border/40 transition-colors", hoveredId === task.id && "bg-muted/20")}
+                      className={cn("border-b border-border/40 transition-colors", rowStripe(i), hoveredId === task.id && "bg-muted/20")}
                       style={{ height: ROW_HEIGHT }}
                       {...hoverProps(task.id)} />
                   ))}
                   {Array.from({ length: ghostCount }).map((_, i) => (
-                    <div key={`gh-${i}`} className="border-b border-border/30" style={{ height: ROW_HEIGHT }} />
+                    <div key={`gh-${i}`} className={cn("border-b border-border/30", rowStripe(tasks.length + i))} style={{ height: ROW_HEIGHT }} />
                   ))}
                   <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                     <p className="rounded-md border bg-card/90 px-4 py-2 text-sm text-muted-foreground shadow-sm">
@@ -590,7 +597,7 @@ export function GanttView({
               {/* CASE 3: scheduled tasks with bars */}
               {scheduled.length > 0 && (
                 <>
-                  {visibleScheduled.map((task) => {
+                  {visibleScheduled.map((task, i) => {
                     const s      = task.startDate ? new Date(task.startDate) : new Date(task.dueDate!);
                     const e      = task.dueDate   ? new Date(task.dueDate)   : addDays(new Date(task.startDate!), 1);
                     const offset = Math.max(0, differenceInCalendarDays(s, rangeStart));
@@ -600,7 +607,7 @@ export function GanttView({
 
                     return (
                       <div key={task.id}
-                        className={cn("relative border-b border-border/40 transition-colors", hoveredId === task.id && "bg-muted/20")}
+                        className={cn("relative border-b border-border/40 transition-colors", rowStripe(i), hoveredId === task.id && "bg-muted/20")}
                         style={{ height: ROW_HEIGHT }}
                         {...hoverProps(task.id)}
                       >
@@ -651,7 +658,7 @@ export function GanttView({
                     );
                   })}
                   {Array.from({ length: ghostCount }).map((_, i) => (
-                    <div key={`gh-${i}`} className="border-b border-border/30" style={{ height: ROW_HEIGHT }} />
+                    <div key={`gh-${i}`} className={cn("border-b border-border/30", rowStripe(visibleScheduled.length + i))} style={{ height: ROW_HEIGHT }} />
                   ))}
 
                   {/* ── Dependency connector arrows ─────────────────────── */}
