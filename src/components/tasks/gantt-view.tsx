@@ -25,36 +25,45 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const DAY_WIDTH = 28;
-const ROW_HEIGHT = 30;
-const ROW_NUM_WIDTH = 32;
-const TASK_NAME_WIDTH = 200;
-const DURATION_WIDTH = 72;
-const START_WIDTH = 88;
-const FINISH_WIDTH = 88;
-const ASSIGNEE_NAME_WIDTH = 120;
-const TOGGLE_BTN_WIDTH = 20;
-const LEFT_PANEL_WIDTH = ROW_NUM_WIDTH + TASK_NAME_WIDTH + DURATION_WIDTH + START_WIDTH + FINISH_WIDTH + ASSIGNEE_NAME_WIDTH; // 600
-const MIN_ROWS = 15;
+// ── Layout constants ──────────────────────────────────────────────────────────
+const DAY_WIDTH   = 28;
+const ROW_HEIGHT  = 30;
+const WEEK_ROW_H  = 28;
+const DAY_ROW_H   = 20;
+const HEADER_H    = WEEK_ROW_H + DAY_ROW_H; // 48
 
-function fmtDate(d: string | null | undefined): string {
+const ROW_NUM_W   = 32;
+const TASK_NAME_W = 200;
+const DURATION_W  = 72;
+const START_W     = 88;
+const FINISH_W    = 88;
+const ASSIGNED_W  = 120;
+const LEFT_CONTENT_W = ROW_NUM_W + TASK_NAME_W + DURATION_W + START_W + FINISH_W + ASSIGNED_W; // 600
+
+const LEFT_DEFAULT = 600;
+const LEFT_MIN     = 140;
+const LEFT_MAX     = 820;
+const HANDLE_W     = 6;
+const MIN_ROWS     = 15;
+
+const DAY_LABELS = ["S", "M", "T", "W", "T", "F", "S"] as const;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function fmtDate(d: string | null | undefined) {
   return d ? format(new Date(d), "dd MMM yy") : "—";
 }
 
-function taskDuration(startDate: string | null | undefined, dueDate: string | null | undefined): string {
-  if (!startDate && !dueDate) return "—";
-  if (!startDate || !dueDate) return "1 d";
-  const days = Math.max(1, differenceInCalendarDays(new Date(dueDate), new Date(startDate)) + 1);
-  return `${days} d`;
+function taskDur(s: string | null | undefined, e: string | null | undefined) {
+  if (!s && !e) return "—";
+  if (!s || !e) return "1 d";
+  return `${Math.max(1, differenceInCalendarDays(new Date(e), new Date(s)) + 1)} d`;
 }
 
-// Compute critical path: longest duration chain through dependencies
 function computeCriticalPath(tasks: TaskListItem[]): Set<string> {
   const byId = new Map(tasks.map((t) => [t.id, t]));
-  const es = new Map<string, number>();
-  const ef = new Map<string, number>();
+  const ef   = new Map<string, number>();
 
-  function taskDur(t: TaskListItem) {
+  function dur(t: TaskListItem) {
     if (!t.startDate || !t.dueDate) return 1;
     return Math.max(1, differenceInCalendarDays(new Date(t.dueDate), new Date(t.startDate)) + 1);
   }
@@ -72,17 +81,14 @@ function computeCriticalPath(tasks: TaskListItem[]): Set<string> {
   tasks.forEach((t) => visit(t.id));
 
   for (const t of sorted) {
-    const prereqFinishes = (t.dependsOn ?? []).map((d) => ef.get(d.prerequisiteId) ?? 0);
-    const start = prereqFinishes.length > 0 ? Math.max(...prereqFinishes) : 0;
-    es.set(t.id, start);
-    ef.set(t.id, start + taskDur(t));
+    const prereqs = (t.dependsOn ?? []).map((d) => ef.get(d.prerequisiteId) ?? 0);
+    const es = prereqs.length > 0 ? Math.max(...prereqs) : 0;
+    ef.set(t.id, es + dur(t));
   }
 
   const maxEF = Math.max(0, ...Array.from(ef.values()));
   const critical = new Set<string>();
-  for (const [id, finish] of ef) {
-    if (finish === maxEF) critical.add(id);
-  }
+  for (const [id, finish] of ef) if (finish === maxEF) critical.add(id);
   return critical;
 }
 
@@ -95,9 +101,9 @@ type InlineForm = {
   isMilestone: boolean;
 };
 
-// Stable reference — defined once at module load so useMemo deps stay clean
 const today = new Date();
 
+// ── Component ─────────────────────────────────────────────────────────────────
 export function GanttView({
   tasks,
   onOpenTask,
@@ -114,46 +120,99 @@ export function GanttView({
   onSaved?: () => void;
 }) {
   const { toast } = useToast();
-  const scheduled = tasks.filter((t) => t.startDate || t.dueDate);
-  const criticalPath = React.useMemo(() => computeCriticalPath(tasks), [tasks]);
 
-  const [panelCollapsed, setPanelCollapsed] = React.useState(false);
+  // ── Scroll sync ───────────────────────────────────────────────────────────
+  const leftRef  = React.useRef<HTMLDivElement>(null);
+  const rightRef = React.useRef<HTMLDivElement>(null);
+  const syncing  = React.useRef(false);
+
+  const onLeftScroll = React.useCallback(() => {
+    if (syncing.current) return;
+    syncing.current = true;
+    if (rightRef.current && leftRef.current)
+      rightRef.current.scrollTop = leftRef.current.scrollTop;
+    syncing.current = false;
+  }, []);
+
+  const onRightScroll = React.useCallback(() => {
+    if (syncing.current) return;
+    syncing.current = true;
+    if (leftRef.current && rightRef.current)
+      leftRef.current.scrollTop = rightRef.current.scrollTop;
+    syncing.current = false;
+  }, []);
+
+  // ── Panel resize ─────────────────────────────────────────────────────────
+  const [leftWidth, setLeftWidth] = React.useState(LEFT_DEFAULT);
+  const savedWidth = React.useRef(LEFT_DEFAULT);
+  const isCollapsed = leftWidth < LEFT_MIN / 2;
+
+  function startDrag(e: React.MouseEvent) {
+    e.preventDefault();
+    const x0 = e.clientX;
+    const w0 = leftWidth;
+    const move = (ev: MouseEvent) =>
+      setLeftWidth(Math.max(LEFT_MIN, Math.min(LEFT_MAX, w0 + ev.clientX - x0)));
+    const up = () => {
+      document.body.style.cursor      = "";
+      document.body.style.userSelect  = "";
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup",   up);
+    };
+    document.body.style.cursor     = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup",   up);
+  }
+
+  function toggleCollapse() {
+    if (!isCollapsed) {
+      savedWidth.current = leftWidth;
+      setLeftWidth(0);
+    } else {
+      setLeftWidth(savedWidth.current || LEFT_DEFAULT);
+    }
+  }
+
+  // ── Data ─────────────────────────────────────────────────────────────────
+  const scheduled    = tasks.filter((t) => t.startDate || t.dueDate);
+  const criticalPath = React.useMemo(() => computeCriticalPath(tasks), [tasks]);
+  const [hoveredId, setHoveredId] = React.useState<string | null>(null);
+
   const [addOpen, setAddOpen] = React.useState(false);
-  const [saving, setSaving] = React.useState(false);
+  const [saving,  setSaving ] = React.useState(false);
   const [form, setForm] = React.useState<InlineForm>({
-    title: "",
-    priority: "MEDIUM",
-    assigneeId: "__none__",
-    startDate: today.toISOString().split("T")[0],
-    dueDate: addDays(today, 7).toISOString().split("T")[0],
+    title:       "",
+    priority:    "MEDIUM",
+    assigneeId:  "__none__",
+    startDate:   today.toISOString().split("T")[0],
+    dueDate:     addDays(today, 7).toISOString().split("T")[0],
     isMilestone: false,
   });
 
-  const { start, end, totalDays } = React.useMemo(() => {
-    if (scheduled.length === 0) {
-      return { start: addDays(today, -7), end: addDays(today, 30), totalDays: 38 };
-    }
+  const { rangeStart, totalDays } = React.useMemo(() => {
+    if (scheduled.length === 0)
+      return { rangeStart: addDays(today, -7), totalDays: 38 };
     const dates: Date[] = [];
     for (const t of scheduled) {
       if (t.startDate) dates.push(new Date(t.startDate));
-      if (t.dueDate) dates.push(new Date(t.dueDate));
+      if (t.dueDate)   dates.push(new Date(t.dueDate));
     }
     const s = addDays(minDate(dates), -7);
     const e = addDays(maxDate(dates), 14);
-    return { start: s, end: e, totalDays: differenceInCalendarDays(e, s) + 1 };
+    return { rangeStart: s, totalDays: differenceInCalendarDays(e, s) + 1 };
   }, [scheduled]);
 
-  const weeks = eachWeekOfInterval({ start, end });
-  const todayOffset = differenceInCalendarDays(today, start);
+  const weeks   = React.useMemo(() => eachWeekOfInterval({ start: rangeStart, end: addDays(rangeStart, totalDays - 1) }), [rangeStart, totalDays]);
+  const allDays = React.useMemo(() => Array.from({ length: totalDays }, (_, i) => addDays(rangeStart, i)), [rangeStart, totalDays]);
+  const todayOffset = differenceInCalendarDays(today, rangeStart);
+  const timelineW   = totalDays * DAY_WIDTH;
 
-  // ── Subtask collapse state ────────────────────────────────────────────────
   const [collapsedParents, setCollapsedParents] = React.useState<Set<string>>(new Set());
-
-  function toggleCollapse(taskId: string) {
+  function toggleRow(taskId: string) {
     setCollapsedParents((prev) => {
       const next = new Set(prev);
-      if (next.has(taskId)) next.delete(taskId);
-      else next.add(taskId);
+      next.has(taskId) ? next.delete(taskId) : next.add(taskId);
       return next;
     });
   }
@@ -162,7 +221,6 @@ export function GanttView({
     () => new Set(scheduled.filter((t) => t.parentId).map((t) => t.parentId!)),
     [scheduled],
   );
-
   const visibleScheduled = React.useMemo(
     () => scheduled.filter((t) => !t.parentId || !collapsedParents.has(t.parentId)),
     [scheduled, collapsedParents],
@@ -172,31 +230,23 @@ export function GanttView({
     if (!form.title.trim() || !projectId) return;
     setSaving(true);
     try {
-      const body: Record<string, unknown> = {
-        projectId,
-        title: form.title,
-        priority: form.priority,
-        isMilestone: form.isMilestone,
-        assigneeIds: form.assigneeId && form.assigneeId !== "__none__" ? [form.assigneeId] : [],
-        startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
-        dueDate: form.dueDate ? new Date(form.dueDate).toISOString() : null,
-      };
       const res = await fetch("/api/tasks", {
-        method: "POST",
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          projectId,
+          title:       form.title,
+          priority:    form.priority,
+          isMilestone: form.isMilestone,
+          assigneeIds: form.assigneeId !== "__none__" ? [form.assigneeId] : [],
+          startDate:   form.startDate ? new Date(form.startDate).toISOString() : null,
+          dueDate:     form.dueDate   ? new Date(form.dueDate).toISOString()   : null,
+        }),
       });
       if (!res.ok) throw new Error();
       toast({ title: "Task added", variant: "success" });
       setAddOpen(false);
-      setForm({
-        title: "",
-        priority: "MEDIUM",
-        assigneeId: "__none__",
-        startDate: today.toISOString().split("T")[0],
-        dueDate: addDays(today, 7).toISOString().split("T")[0],
-        isMilestone: false,
-      });
+      setForm({ title: "", priority: "MEDIUM", assigneeId: "__none__", startDate: today.toISOString().split("T")[0], dueDate: addDays(today, 7).toISOString().split("T")[0], isMilestone: false });
       onSaved?.();
     } catch {
       toast({ title: "Could not add task", variant: "error" });
@@ -205,37 +255,35 @@ export function GanttView({
     }
   }
 
-  const ghostCount = Math.max(0, MIN_ROWS - (visibleScheduled.length > 0 ? visibleScheduled.length : tasks.length > 0 ? tasks.length : 0));
+  const rowCount  = scheduled.length > 0 ? visibleScheduled.length : tasks.length;
+  const ghostCount = Math.max(0, MIN_ROWS - rowCount);
 
-  // Derived layout: toggle button column always visible; left columns hide when collapsed
-  const panelWidth = panelCollapsed ? 0 : LEFT_PANEL_WIDTH;
-  const totalPanelWidth = panelWidth + TOGGLE_BTN_WIDTH;
+  // Row hover helper
+  const hoverProps = (id: string) => ({
+    onMouseEnter: () => setHoveredId(id),
+    onMouseLeave: () => setHoveredId(null),
+  });
 
-  // Ghost row left cells — reused in all three cases
-  function GhostLeftCells() {
-    if (panelCollapsed) return null;
-    return (
-      <>
-        <div className="shrink-0 border-r border-border/60" style={{ width: ROW_NUM_WIDTH }} />
-        <div className="shrink-0 border-r border-border/60" style={{ width: TASK_NAME_WIDTH }} />
-        <div className="shrink-0 border-r border-border/60" style={{ width: DURATION_WIDTH }} />
-        <div className="shrink-0 border-r border-border/60" style={{ width: START_WIDTH }} />
-        <div className="shrink-0 border-r border-border/60" style={{ width: FINISH_WIDTH }} />
-        <div className="shrink-0 border-r border-border/60" style={{ width: ASSIGNEE_NAME_WIDTH }} />
-      </>
-    );
-  }
+  // Ghost row cells for left panel
+  const LeftGhostRow = () => (
+    <div className="flex border-b border-border/30" style={{ height: ROW_HEIGHT, minWidth: LEFT_CONTENT_W }}>
+      <div style={{ width: ROW_NUM_W  }} className="shrink-0 border-r border-border/40" />
+      <div style={{ width: TASK_NAME_W}} className="shrink-0 border-r border-border/40" />
+      <div style={{ width: DURATION_W }} className="shrink-0 border-r border-border/40" />
+      <div style={{ width: START_W    }} className="shrink-0 border-r border-border/40" />
+      <div style={{ width: FINISH_W   }} className="shrink-0 border-r border-border/40" />
+      <div style={{ width: ASSIGNED_W }} className="shrink-0" />
+    </div>
+  );
 
+  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-3 pt-1">
+
       {/* Toolbar */}
       {canCreate && projectId && (
         <div className="flex items-center gap-2">
-          <Button
-            variant="brand"
-            size="sm"
-            onClick={() => setAddOpen((v) => !v)}
-          >
+          <Button variant="brand" size="sm" onClick={() => setAddOpen((v) => !v)}>
             <Plus className="h-4 w-4" />
             {addOpen ? "Cancel" : "Add Task"}
           </Button>
@@ -248,20 +296,15 @@ export function GanttView({
           <div className="flex flex-wrap gap-3 items-end">
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Title *</label>
-              <Input
-                className="h-8 w-48"
-                value={form.title}
+              <Input className="h-8 w-48" value={form.title}
                 onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
                 placeholder="Task name"
-                onKeyDown={(e) => { if (e.key === "Enter") addTask(); }}
-              />
+                onKeyDown={(e) => e.key === "Enter" && addTask()} />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Priority</label>
               <Select value={form.priority} onValueChange={(v) => setForm((f) => ({ ...f, priority: v }))}>
-                <SelectTrigger className="h-8 w-28">
-                  <SelectValue />
-                </SelectTrigger>
+                <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {["LOW", "MEDIUM", "HIGH", "CRITICAL"].map((p) => (
                     <SelectItem key={p} value={p}>{p.charAt(0) + p.slice(1).toLowerCase()}</SelectItem>
@@ -273,509 +316,333 @@ export function GanttView({
               <div className="space-y-1">
                 <label className="text-xs text-muted-foreground">Assign to</label>
                 <Select value={form.assigneeId} onValueChange={(v) => setForm((f) => ({ ...f, assigneeId: v }))}>
-                  <SelectTrigger className="h-8 w-36">
-                    <SelectValue placeholder="Unassigned" />
-                  </SelectTrigger>
+                  <SelectTrigger className="h-8 w-36"><SelectValue placeholder="Unassigned" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">Unassigned</SelectItem>
-                    {allUsers.map((u) => (
-                      <SelectItem key={u.id} value={u.id}>{u.name ?? u.email}</SelectItem>
-                    ))}
+                    {allUsers.map((u) => <SelectItem key={u.id} value={u.id}>{u.name ?? u.email}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
             )}
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Start</label>
-              <Input
-                className="h-8 w-36"
-                type="date"
-                value={form.startDate}
-                onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
-              />
+              <Input className="h-8 w-36" type="date" value={form.startDate}
+                onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} />
             </div>
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">Due</label>
-              <Input
-                className="h-8 w-36"
-                type="date"
-                value={form.dueDate}
-                onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))}
-              />
+              <Input className="h-8 w-36" type="date" value={form.dueDate}
+                onChange={(e) => setForm((f) => ({ ...f, dueDate: e.target.value }))} />
             </div>
             <div className="flex items-center gap-1.5">
-              <input
-                type="checkbox"
-                id="milestone-check"
-                checked={form.isMilestone}
+              <input type="checkbox" id="ms-check" checked={form.isMilestone}
                 onChange={(e) => setForm((f) => ({ ...f, isMilestone: e.target.checked }))}
-                className="h-4 w-4"
-              />
-              <label htmlFor="milestone-check" className="text-xs">Milestone</label>
+                className="h-4 w-4" />
+              <label htmlFor="ms-check" className="text-xs">Milestone</label>
             </div>
-            <Button
-              variant="brand"
-              size="sm"
-              className="h-8"
-              onClick={addTask}
-              disabled={saving || !form.title.trim()}
-            >
+            <Button variant="brand" size="sm" className="h-8" onClick={addTask} disabled={saving || !form.title.trim()}>
               {saving ? <Loader2 className="animate-spin h-3.5 w-3.5" /> : "Save"}
             </Button>
           </div>
         </div>
       )}
 
-      {/* ── Gantt Chart ────────────────────────────────────────────────── */}
+      {/* ── Split-pane Gantt ──────────────────────────────────────────────── */}
       <div
-        className="overflow-x-auto rounded-lg border thin-scroll"
-        style={{ minHeight: "calc(100vh - 290px)" }}
+        className="flex rounded-lg border overflow-hidden"
+        style={{ height: "calc(100vh - 290px)" }}
       >
+
+        {/* ── Left panel ─────────────────────────────────────────────────── */}
         <div
-          className="relative"
-          style={{
-            width: Math.max(totalDays * DAY_WIDTH + totalPanelWidth, 600),
-            minWidth: "100%",
-            minHeight: "inherit",
-          }}
+          ref={leftRef}
+          className="flex-shrink-0 overflow-y-auto overflow-x-hidden border-r border-border/60"
+          style={{ width: leftWidth, transition: "none" }}
+          onScroll={onLeftScroll}
         >
-          {/* ── Column header ─────────────────────────────────────── */}
-          <div className="flex border-b bg-muted/50 sticky top-0 z-10 shadow-sm">
-            {!panelCollapsed && (
+          {/* Left header */}
+          <div
+            className="sticky top-0 z-10 flex border-b bg-muted/50 shadow-sm"
+            style={{ height: HEADER_H, minWidth: LEFT_CONTENT_W }}
+          >
+            <div style={{ width: ROW_NUM_W }} className="shrink-0 border-r border-border/70 flex items-center justify-center text-xs font-semibold text-muted-foreground">#</div>
+            <div style={{ width: TASK_NAME_W }} className="shrink-0 border-r border-border/70 flex items-center px-3 text-xs font-semibold">Task Name</div>
+            <div style={{ width: DURATION_W }} className="shrink-0 border-r border-border/70 flex items-center px-2 text-xs font-semibold text-muted-foreground">Duration</div>
+            <div style={{ width: START_W }} className="shrink-0 border-r border-border/70 flex items-center px-2 text-xs font-semibold text-muted-foreground">Start</div>
+            <div style={{ width: FINISH_W }} className="shrink-0 border-r border-border/70 flex items-center px-2 text-xs font-semibold text-muted-foreground">Finish</div>
+            <div style={{ width: ASSIGNED_W }} className="shrink-0 flex items-center px-2 text-xs font-semibold text-muted-foreground">Assigned</div>
+          </div>
+
+          {/* Left rows */}
+          <div style={{ minWidth: LEFT_CONTENT_W }}>
+
+            {/* CASE 1: no tasks */}
+            {tasks.length === 0 && Array.from({ length: MIN_ROWS }).map((_, i) => <LeftGhostRow key={i} />)}
+
+            {/* CASE 2: tasks without dates */}
+            {tasks.length > 0 && scheduled.length === 0 && (
               <>
-                <div
-                  className="shrink-0 border-r border-border/70 px-1 py-2 text-xs font-semibold bg-muted/50 text-muted-foreground text-center"
-                  style={{ width: ROW_NUM_WIDTH }}
-                >
-                  #
-                </div>
-                <div
-                  className="shrink-0 border-r border-border/70 px-3 py-2 text-xs font-semibold bg-muted/50"
-                  style={{ width: TASK_NAME_WIDTH }}
-                >
-                  Task Name
-                </div>
-                <div
-                  className="shrink-0 border-r border-border/70 px-2 py-2 text-xs font-semibold bg-muted/50 text-muted-foreground"
-                  style={{ width: DURATION_WIDTH }}
-                >
-                  Duration
-                </div>
-                <div
-                  className="shrink-0 border-r border-border/70 px-2 py-2 text-xs font-semibold bg-muted/50 text-muted-foreground"
-                  style={{ width: START_WIDTH }}
-                >
-                  Start
-                </div>
-                <div
-                  className="shrink-0 border-r border-border/70 px-2 py-2 text-xs font-semibold bg-muted/50 text-muted-foreground"
-                  style={{ width: FINISH_WIDTH }}
-                >
-                  Finish
-                </div>
-                <div
-                  className="shrink-0 border-r border-border/70 px-2 py-2 text-xs font-semibold bg-muted/50 text-muted-foreground"
-                  style={{ width: ASSIGNEE_NAME_WIDTH }}
-                >
-                  Assigned Name
-                </div>
+                {tasks.map((task, i) => (
+                  <div key={task.id}
+                    className={cn("flex border-b border-border/40 transition-colors cursor-pointer", hoveredId === task.id && "bg-muted/20")}
+                    style={{ height: ROW_HEIGHT, minWidth: LEFT_CONTENT_W }}
+                    {...hoverProps(task.id)}
+                    onClick={() => onOpenTask(task)}
+                  >
+                    <div style={{ width: ROW_NUM_W }} className="shrink-0 border-r border-border/40 flex items-center justify-center text-xs text-muted-foreground">{i + 1}</div>
+                    <div style={{ width: TASK_NAME_W }} className="shrink-0 border-r border-border/40 px-3 flex items-center text-xs overflow-hidden">
+                      <span className="truncate">{task.title}</span>
+                    </div>
+                    <div style={{ width: DURATION_W }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-xs text-muted-foreground">{taskDur(task.startDate, task.dueDate)}</div>
+                    <div style={{ width: START_W }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{fmtDate(task.startDate)}</div>
+                    <div style={{ width: FINISH_W }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{fmtDate(task.dueDate)}</div>
+                    <div style={{ width: ASSIGNED_W }} className="shrink-0 px-2 flex items-center text-xs text-muted-foreground overflow-hidden">
+                      <span className="truncate">{task.assignees.length > 0 ? task.assignees.map((a) => a.user.name ?? "").filter(Boolean).join(", ") : "—"}</span>
+                    </div>
+                  </div>
+                ))}
+                {Array.from({ length: ghostCount }).map((_, i) => <LeftGhostRow key={`gh-${i}`} />)}
               </>
             )}
 
-            {/* ‹/› collapse toggle — always visible at panel/timeline border */}
-            <div
-              className="shrink-0 border-r border-border/70 flex items-center justify-center bg-muted/50"
-              style={{ width: TOGGLE_BTN_WIDTH }}
-            >
-              <button
-                onClick={() => setPanelCollapsed((v) => !v)}
-                className="flex h-4 w-4 items-center justify-center rounded text-[11px] font-bold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors select-none"
-                title={panelCollapsed ? "Expand panel" : "Collapse panel"}
-              >
-                {panelCollapsed ? "›" : "‹"}
-              </button>
-            </div>
-
-            {/* Week headers */}
-            <div className="flex" style={{ width: totalDays * DAY_WIDTH }}>
-              {weeks.map((w, i) => (
-                <div
-                  key={w.toISOString()}
-                  className={cn(
-                    "px-2 py-1.5 text-xs font-medium text-muted-foreground border-r border-border/50",
-                    i % 2 !== 0 ? "bg-muted/30" : "bg-muted/10",
-                    isToday(w) && "text-primary font-semibold",
-                  )}
-                  style={{ width: DAY_WIDTH * 7 }}
-                >
-                  {format(w, "MMM d")}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Body ──────────────────────────────────────────────── */}
-          <div className="relative">
-
-            {/* Full-height background column grid (rendered once, spans all rows) */}
-            <div
-              className="absolute inset-0 pointer-events-none overflow-hidden"
-              style={{ left: totalPanelWidth }}
-            >
-              {weeks.map((w, i) => (
-                <React.Fragment key={w.toISOString()}>
-                  <div
-                    className={cn(
-                      "absolute top-0 bottom-0",
-                      i % 2 !== 0 ? "bg-muted/15" : "bg-transparent",
-                    )}
-                    style={{ left: i * DAY_WIDTH * 7, width: DAY_WIDTH * 7 }}
-                  />
-                  <div
-                    className="absolute top-0 bottom-0 w-px bg-border/50"
-                    style={{ left: (i + 1) * DAY_WIDTH * 7 }}
-                  />
-                </React.Fragment>
-              ))}
-            </div>
-
-            {/* Today marker line */}
-            {todayOffset >= 0 && todayOffset <= totalDays && (
-              <div
-                className="absolute top-0 bottom-0 w-0.5 bg-primary/70 z-20 pointer-events-none"
-                style={{ left: totalPanelWidth + todayOffset * DAY_WIDTH }}
-              />
-            )}
-
-            {/* ── Rows ─────────────────────────────────────────────── */}
-
-            {/* CASE 1: No tasks at all */}
-            {tasks.length === 0 && (
-              <div className="relative">
-                {Array.from({ length: MIN_ROWS }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="flex border-b border-border/40"
-                    style={{ height: ROW_HEIGHT }}
-                  >
-                    <GhostLeftCells />
-                    <div className="shrink-0 border-r border-border/60" style={{ width: TOGGLE_BTN_WIDTH }} />
-                  </div>
-                ))}
-                <div
-                  className="absolute inset-0 flex items-center justify-center pointer-events-none"
-                  style={{ left: totalPanelWidth }}
-                >
-                  <p className="rounded-md border bg-card/90 px-4 py-2 text-sm text-muted-foreground shadow-sm">
-                    No tasks yet — click &ldquo;Add Task&rdquo; to see the timeline.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* CASE 2: Tasks exist but none have dates */}
-            {tasks.length > 0 && scheduled.length === 0 && (
-              <div className="relative">
-                {tasks.map((task, rowIdx) => (
-                  <div
-                    key={task.id}
-                    className="flex border-b border-border/40 hover:bg-muted/20 transition-colors"
-                    style={{ height: ROW_HEIGHT }}
-                  >
-                    {!panelCollapsed && (
-                      <>
-                        {/* # */}
-                        <div
-                          className="shrink-0 border-r border-border/60 text-xs text-muted-foreground flex items-center justify-center"
-                          style={{ width: ROW_NUM_WIDTH, height: ROW_HEIGHT }}
-                        >
-                          {rowIdx + 1}
-                        </div>
-                        {/* Task Name */}
-                        <button
-                          onClick={() => onOpenTask(task)}
-                          className="shrink-0 border-r border-border/60 px-3 text-left text-xs hover:text-primary transition-colors overflow-hidden flex items-center"
-                          style={{ width: TASK_NAME_WIDTH, height: ROW_HEIGHT }}
-                        >
-                          <span className="truncate">{task.title}</span>
-                        </button>
-                        {/* Duration */}
-                        <div
-                          className="shrink-0 border-r border-border/60 px-2 text-xs text-muted-foreground flex items-center"
-                          style={{ width: DURATION_WIDTH, height: ROW_HEIGHT }}
-                        >
-                          {taskDuration(task.startDate, task.dueDate)}
-                        </div>
-                        {/* Start */}
-                        <div
-                          className="shrink-0 border-r border-border/60 px-2 text-xs text-muted-foreground flex items-center"
-                          style={{ width: START_WIDTH, height: ROW_HEIGHT }}
-                        >
-                          {fmtDate(task.startDate)}
-                        </div>
-                        {/* Finish */}
-                        <div
-                          className="shrink-0 border-r border-border/60 px-2 text-xs text-muted-foreground flex items-center"
-                          style={{ width: FINISH_WIDTH, height: ROW_HEIGHT }}
-                        >
-                          {fmtDate(task.dueDate)}
-                        </div>
-                        {/* Assigned Name */}
-                        <div
-                          className="shrink-0 border-r border-border/60 px-2 text-xs text-muted-foreground flex items-center overflow-hidden"
-                          style={{ width: ASSIGNEE_NAME_WIDTH, height: ROW_HEIGHT }}
-                        >
-                          <span className="truncate">
-                            {task.assignees.length > 0
-                              ? task.assignees.map((a) => a.user.name ?? "").filter(Boolean).join(", ")
-                              : "—"}
-                          </span>
-                        </div>
-                      </>
-                    )}
-                    {/* Toggle space */}
-                    <div className="shrink-0 border-r border-border/60" style={{ width: TOGGLE_BTN_WIDTH, height: ROW_HEIGHT }} />
-                    <div style={{ flex: 1, height: ROW_HEIGHT }} />
-                  </div>
-                ))}
-                {Array.from({ length: ghostCount }).map((_, i) => (
-                  <div
-                    key={`gh-${i}`}
-                    className="flex border-b border-border/30"
-                    style={{ height: ROW_HEIGHT }}
-                  >
-                    <GhostLeftCells />
-                    <div className="shrink-0 border-r border-border/60" style={{ width: TOGGLE_BTN_WIDTH }} />
-                  </div>
-                ))}
-                <div
-                  className="absolute flex items-center justify-center pointer-events-none"
-                  style={{ top: 0, bottom: 0, left: totalPanelWidth, right: 0 }}
-                >
-                  <p className="rounded-md border bg-card/90 px-4 py-2 text-sm text-muted-foreground shadow-sm">
-                    Add start / due dates to see tasks on the timeline.
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* CASE 3: Tasks with dates — render bars */}
+            {/* CASE 3: scheduled tasks */}
             {scheduled.length > 0 && (
               <>
-                {visibleScheduled.map((task, rowIdx) => {
-                  const s = task.startDate ? new Date(task.startDate) : new Date(task.dueDate!);
-                  const e = task.dueDate ? new Date(task.dueDate) : addDays(new Date(task.startDate!), 1);
-                  const offset = Math.max(0, differenceInCalendarDays(s, start));
-                  const span = Math.max(1, differenceInCalendarDays(e, s) + 1);
-                  const isCritical = criticalPath.has(task.id);
-                  const statusColor = `hsl(${TASK_STATUS_COLORS[task.status]})`;
-                  const barColor = isCritical ? "#ef4444" : statusColor;
+                {visibleScheduled.map((task, i) => (
+                  <div key={task.id}
+                    className={cn("flex border-b border-border/40 transition-colors", hoveredId === task.id && "bg-muted/20")}
+                    style={{ height: ROW_HEIGHT, minWidth: LEFT_CONTENT_W }}
+                    {...hoverProps(task.id)}
+                  >
+                    {/* # */}
+                    <div style={{ width: ROW_NUM_W }} className="shrink-0 border-r border-border/40 flex items-center justify-center text-xs text-muted-foreground">{i + 1}</div>
 
-                  return (
-                    <div
-                      key={task.id}
-                      className="flex items-center border-b border-border/40 hover:bg-muted/25 transition-colors"
-                      style={{ height: ROW_HEIGHT }}
-                    >
-                      {!panelCollapsed && (
-                        <>
-                          {/* # */}
-                          <div
-                            className="shrink-0 border-r border-border/60 text-xs text-muted-foreground flex items-center justify-center"
-                            style={{ width: ROW_NUM_WIDTH, height: ROW_HEIGHT }}
-                          >
-                            {rowIdx + 1}
-                          </div>
-
-                          {/* Task Name (with subtask collapse toggle) */}
-                          <div
-                            className="shrink-0 border-r border-border/60 flex items-center overflow-hidden"
-                            style={{ width: TASK_NAME_WIDTH, height: ROW_HEIGHT }}
-                          >
-                            {parentIds.has(task.id) ? (
-                              <button
-                                onClick={() => toggleCollapse(task.id)}
-                                className="flex-shrink-0 ml-1 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                                title={collapsedParents.has(task.id) ? "Expand subtasks" : "Collapse subtasks"}
-                              >
-                                {collapsedParents.has(task.id) ? (
-                                  <ChevronRight className="h-3 w-3" />
-                                ) : (
-                                  <ChevronDown className="h-3 w-3" />
-                                )}
-                              </button>
-                            ) : (
-                              <span className="flex-shrink-0 w-5" />
-                            )}
-                            <button
-                              onClick={() => onOpenTask(task)}
-                              className={cn(
-                                "flex-1 px-1.5 text-left text-xs hover:text-primary transition-colors overflow-hidden h-full flex items-center gap-1",
-                                task.parentId && "pl-3 text-muted-foreground",
-                              )}
-                            >
-                              {task.parentId && (
-                                <span className="flex-shrink-0 text-border text-[10px]">└</span>
-                              )}
-                              {task.isMilestone && (
-                                <span className="text-amber-500 flex-shrink-0">◆</span>
-                              )}
-                              {task.wbsNumber && (
-                                <span className="text-[10px] text-muted-foreground flex-shrink-0 font-mono">
-                                  {task.wbsNumber}
-                                </span>
-                              )}
-                              <span className="truncate">{task.title}</span>
-                              {task._count.subtasks > 0 && (
-                                <span
-                                  className="flex-shrink-0 rounded-full bg-muted px-1 text-[9px] font-medium text-muted-foreground"
-                                  title={`${task._count.subtasks} subtask${task._count.subtasks !== 1 ? "s" : ""}`}
-                                >
-                                  ⊞{task._count.subtasks}
-                                </span>
-                              )}
-                              {task._count.checklistItems > 0 && (
-                                <span
-                                  className="flex-shrink-0 flex items-center gap-0.5 text-[9px] text-muted-foreground"
-                                  title={`${task._count.checklistItems} checklist items`}
-                                >
-                                  <CheckSquare className="h-2.5 w-2.5" />
-                                  {task._count.checklistItems}
-                                </span>
-                              )}
-                              {isCritical && (
-                                <span
-                                  className="ml-auto flex-shrink-0 h-2 w-2 rounded-full bg-red-500"
-                                  title="Critical path"
-                                />
-                              )}
-                            </button>
-                          </div>
-
-                          {/* Duration */}
-                          <div
-                            className="shrink-0 border-r border-border/60 px-2 text-xs text-muted-foreground flex items-center"
-                            style={{ width: DURATION_WIDTH, height: ROW_HEIGHT }}
-                          >
-                            {taskDuration(task.startDate, task.dueDate)}
-                          </div>
-
-                          {/* Start */}
-                          <div
-                            className="shrink-0 border-r border-border/60 px-2 text-xs text-muted-foreground flex items-center"
-                            style={{ width: START_WIDTH, height: ROW_HEIGHT }}
-                          >
-                            {fmtDate(task.startDate)}
-                          </div>
-
-                          {/* Finish */}
-                          <div
-                            className="shrink-0 border-r border-border/60 px-2 text-xs text-muted-foreground flex items-center"
-                            style={{ width: FINISH_WIDTH, height: ROW_HEIGHT }}
-                          >
-                            {fmtDate(task.dueDate)}
-                          </div>
-
-                          {/* Assigned Name */}
-                          <div
-                            className="shrink-0 border-r border-border/60 px-2 text-xs text-muted-foreground flex items-center overflow-hidden"
-                            style={{ width: ASSIGNEE_NAME_WIDTH, height: ROW_HEIGHT }}
-                          >
-                            <span className="truncate">
-                              {task.assignees.length > 0
-                                ? task.assignees.map((a) => a.user.name ?? "").filter(Boolean).join(", ")
-                                : "—"}
-                            </span>
-                          </div>
-                        </>
+                    {/* Task Name */}
+                    <div style={{ width: TASK_NAME_W }} className="shrink-0 border-r border-border/40 flex items-center overflow-hidden">
+                      {parentIds.has(task.id) ? (
+                        <button onClick={() => toggleRow(task.id)}
+                          className="flex-shrink-0 ml-1 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                          title={collapsedParents.has(task.id) ? "Expand" : "Collapse"}>
+                          {collapsedParents.has(task.id) ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                        </button>
+                      ) : (
+                        <span className="flex-shrink-0 w-5" />
                       )}
+                      <button onClick={() => onOpenTask(task)}
+                        className={cn("flex-1 px-1.5 text-left text-xs hover:text-primary transition-colors overflow-hidden h-full flex items-center gap-1", task.parentId && "pl-3 text-muted-foreground")}>
+                        {task.parentId && <span className="flex-shrink-0 text-border text-[10px]">└</span>}
+                        {task.isMilestone && <span className="text-amber-500 flex-shrink-0">◆</span>}
+                        {task.wbsNumber && <span className="text-[10px] text-muted-foreground flex-shrink-0 font-mono">{task.wbsNumber}</span>}
+                        <span className="truncate">{task.title}</span>
+                        {task._count.subtasks > 0 && (
+                          <span className="flex-shrink-0 rounded-full bg-muted px-1 text-[9px] font-medium text-muted-foreground"
+                            title={`${task._count.subtasks} subtask${task._count.subtasks !== 1 ? "s" : ""}`}>⊞{task._count.subtasks}</span>
+                        )}
+                        {task._count.checklistItems > 0 && (
+                          <span className="flex-shrink-0 flex items-center gap-0.5 text-[9px] text-muted-foreground"
+                            title={`${task._count.checklistItems} checklist items`}>
+                            <CheckSquare className="h-2.5 w-2.5" />{task._count.checklistItems}
+                          </span>
+                        )}
+                        {criticalPath.has(task.id) && <span className="ml-auto flex-shrink-0 h-2 w-2 rounded-full bg-red-500" title="Critical path" />}
+                      </button>
+                    </div>
 
-                      {/* Toggle space — always rendered to keep timeline aligned */}
-                      <div className="shrink-0 border-r border-border/60" style={{ width: TOGGLE_BTN_WIDTH, height: ROW_HEIGHT }} />
+                    {/* Duration */}
+                    <div style={{ width: DURATION_W }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-xs text-muted-foreground">{taskDur(task.startDate, task.dueDate)}</div>
 
-                      {/* Timeline column */}
-                      <div
-                        className="relative"
-                        style={{ width: totalDays * DAY_WIDTH, height: ROW_HEIGHT }}
+                    {/* Start */}
+                    <div style={{ width: START_W }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{fmtDate(task.startDate)}</div>
+
+                    {/* Finish */}
+                    <div style={{ width: FINISH_W }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{fmtDate(task.dueDate)}</div>
+
+                    {/* Assigned */}
+                    <div style={{ width: ASSIGNED_W }} className="shrink-0 px-2 flex items-center text-xs text-muted-foreground overflow-hidden">
+                      <span className="truncate">{task.assignees.length > 0 ? task.assignees.map((a) => a.user.name ?? "").filter(Boolean).join(", ") : "—"}</span>
+                    </div>
+                  </div>
+                ))}
+                {Array.from({ length: ghostCount }).map((_, i) => <LeftGhostRow key={`gh-${i}`} />)}
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* ── Drag handle ─────────────────────────────────────────────────── */}
+        <div
+          className="flex-shrink-0 relative flex items-center justify-center bg-border/50 hover:bg-primary/25 cursor-col-resize group transition-colors z-20"
+          style={{ width: HANDLE_W }}
+          onMouseDown={startDrag}
+        >
+          {/* ‹/› collapse button appears on hover */}
+          <button
+            onClick={(e) => { e.stopPropagation(); toggleCollapse(); }}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="absolute flex h-8 w-5 items-center justify-center rounded border bg-background shadow-sm text-[11px] font-bold text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity select-none"
+            title={isCollapsed ? "Expand panel" : "Collapse panel"}
+          >
+            {isCollapsed ? "›" : "‹"}
+          </button>
+        </div>
+
+        {/* ── Right panel — timeline ──────────────────────────────────────── */}
+        <div
+          ref={rightRef}
+          className="flex-1 overflow-x-auto overflow-y-auto thin-scroll"
+          onScroll={onRightScroll}
+        >
+          <div style={{ width: Math.max(timelineW, 300), minWidth: "100%" }}>
+
+            {/* Two-tier timeline header */}
+            <div className="sticky top-0 z-10 bg-muted/50 border-b shadow-sm" style={{ width: timelineW }}>
+              {/* Week row */}
+              <div className="flex" style={{ height: WEEK_ROW_H }}>
+                {weeks.map((w, i) => (
+                  <div key={w.toISOString()}
+                    className={cn(
+                      "flex-shrink-0 px-2 flex items-center text-xs font-medium text-muted-foreground border-r border-border/50",
+                      i % 2 !== 0 ? "bg-muted/30" : "bg-muted/10",
+                      isToday(w) && "text-primary font-semibold",
+                    )}
+                    style={{ width: DAY_WIDTH * 7 }}>
+                    {format(w, "MMM d")}
+                  </div>
+                ))}
+              </div>
+              {/* Day letters row */}
+              <div className="flex border-t border-border/20" style={{ height: DAY_ROW_H }}>
+                {allDays.map((d, i) => {
+                  const dow = d.getDay();
+                  const wknd = dow === 0 || dow === 6;
+                  return (
+                    <div key={i}
+                      className={cn(
+                        "flex-shrink-0 flex items-center justify-center border-r border-border/20 text-[9px]",
+                        wknd ? "bg-muted/20 text-muted-foreground/50" : "text-muted-foreground/70",
+                        isToday(d) && "bg-primary/15 text-primary font-bold",
+                      )}
+                      style={{ width: DAY_WIDTH }}>
+                      {DAY_LABELS[dow]}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Timeline body */}
+            <div className="relative" style={{ width: timelineW }}>
+
+              {/* Background: weekend shading + week separators */}
+              <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                {allDays.map((d, i) => {
+                  const wknd = d.getDay() === 0 || d.getDay() === 6;
+                  return wknd ? (
+                    <div key={i} className="absolute top-0 bottom-0 bg-muted/10" style={{ left: i * DAY_WIDTH, width: DAY_WIDTH }} />
+                  ) : null;
+                })}
+                {weeks.map((_, i) => (
+                  <div key={i} className="absolute top-0 bottom-0 w-px bg-border/30"
+                    style={{ left: (i + 1) * DAY_WIDTH * 7 }} />
+                ))}
+              </div>
+
+              {/* Today marker */}
+              {todayOffset >= 0 && todayOffset < totalDays && (
+                <div className="absolute top-0 bottom-0 w-0.5 bg-primary/70 z-10 pointer-events-none"
+                  style={{ left: todayOffset * DAY_WIDTH }} />
+              )}
+
+              {/* CASE 1: no tasks */}
+              {tasks.length === 0 && (
+                <div className="relative">
+                  {Array.from({ length: MIN_ROWS }).map((_, i) => (
+                    <div key={i} className="border-b border-border/30" style={{ height: ROW_HEIGHT }} />
+                  ))}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <p className="rounded-md border bg-card/90 px-4 py-2 text-sm text-muted-foreground shadow-sm">
+                      No tasks yet — click &ldquo;Add Task&rdquo; to see the timeline.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* CASE 2: tasks without dates */}
+              {tasks.length > 0 && scheduled.length === 0 && (
+                <div className="relative">
+                  {tasks.map((task) => (
+                    <div key={task.id}
+                      className={cn("border-b border-border/40 transition-colors", hoveredId === task.id && "bg-muted/20")}
+                      style={{ height: ROW_HEIGHT }}
+                      {...hoverProps(task.id)} />
+                  ))}
+                  {Array.from({ length: ghostCount }).map((_, i) => (
+                    <div key={`gh-${i}`} className="border-b border-border/30" style={{ height: ROW_HEIGHT }} />
+                  ))}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <p className="rounded-md border bg-card/90 px-4 py-2 text-sm text-muted-foreground shadow-sm">
+                      Add start / due dates to see tasks on the timeline.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* CASE 3: scheduled tasks with bars */}
+              {scheduled.length > 0 && (
+                <>
+                  {visibleScheduled.map((task) => {
+                    const s      = task.startDate ? new Date(task.startDate) : new Date(task.dueDate!);
+                    const e      = task.dueDate   ? new Date(task.dueDate)   : addDays(new Date(task.startDate!), 1);
+                    const offset = Math.max(0, differenceInCalendarDays(s, rangeStart));
+                    const span   = Math.max(1, differenceInCalendarDays(e, s) + 1);
+                    const isCrit = criticalPath.has(task.id);
+                    const barColor = isCrit ? "#ef4444" : `hsl(${TASK_STATUS_COLORS[task.status]})`;
+
+                    return (
+                      <div key={task.id}
+                        className={cn("relative border-b border-border/40 transition-colors", hoveredId === task.id && "bg-muted/20")}
+                        style={{ height: ROW_HEIGHT }}
+                        {...hoverProps(task.id)}
                       >
-                        {/* Baseline bar */}
+                        {/* Baseline */}
                         {task.baselineStart && task.baselineEnd && (() => {
-                          const bs = differenceInCalendarDays(new Date(task.baselineStart), start);
-                          const be = differenceInCalendarDays(new Date(task.baselineEnd), start);
-                          const bw = Math.max(1, be - bs + 1);
+                          const bs = differenceInCalendarDays(new Date(task.baselineStart), rangeStart);
+                          const be = differenceInCalendarDays(new Date(task.baselineEnd),   rangeStart);
                           return (
-                            <div
-                              className="absolute rounded-sm opacity-30 border-2 border-dashed"
-                              style={{
-                                left: Math.max(0, bs) * DAY_WIDTH,
-                                width: bw * DAY_WIDTH,
-                                height: 10,
-                                top: "50%",
-                                marginTop: 8,
-                                borderColor: barColor,
-                              }}
-                              title="Baseline"
-                            />
+                            <div className="absolute rounded-sm opacity-30 border-2 border-dashed"
+                              style={{ left: Math.max(0, bs) * DAY_WIDTH, width: Math.max(1, be - bs + 1) * DAY_WIDTH, height: 10, top: "50%", marginTop: 8, borderColor: barColor }}
+                              title="Baseline" />
                           );
                         })()}
 
                         {task.isMilestone ? (
-                          <div
-                            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-pointer"
+                          <div className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 cursor-pointer"
                             style={{ left: (offset + span / 2) * DAY_WIDTH }}
-                            onClick={() => onOpenTask(task)}
-                            title={task.title}
-                          >
+                            onClick={() => onOpenTask(task)} title={task.title}>
                             <svg width="18" height="18" viewBox="0 0 18 18">
-                              <path
-                                d="M9 1 L17 9 L9 17 L1 9 Z"
-                                fill={barColor}
-                                stroke="white"
-                                strokeWidth="1.5"
-                              />
+                              <path d="M9 1 L17 9 L9 17 L1 9 Z" fill={barColor} stroke="white" strokeWidth="1.5" />
                             </svg>
                           </div>
                         ) : (
-                          <div
-                            onClick={() => onOpenTask(task)}
+                          <div onClick={() => onOpenTask(task)}
                             className="absolute top-1/2 -translate-y-1/2 cursor-pointer rounded-sm flex items-center overflow-hidden"
-                            style={{
-                              left: offset * DAY_WIDTH,
-                              width: span * DAY_WIDTH,
-                              height: 16,
-                              backgroundColor: barColor,
-                            }}
-                            title={`${task.title} · ${span} day(s)${isCritical ? " · Critical path" : ""}`}
-                          >
-                            <div
-                              className="absolute inset-y-0 left-0 bg-black/20 rounded-l-sm"
-                              style={{ width: `${task.progress}%` }}
-                            />
+                            style={{ left: offset * DAY_WIDTH, width: span * DAY_WIDTH, height: 16, backgroundColor: barColor }}
+                            title={`${task.title} · ${span} day(s)${isCrit ? " · Critical path" : ""}`}>
+                            <div className="absolute inset-y-0 left-0 bg-black/20 rounded-l-sm" style={{ width: `${task.progress}%` }} />
                             {span * DAY_WIDTH > 44 && (
-                              <span className="relative px-1.5 text-[9px] font-medium text-white truncate">
-                                {task.progress}%
-                              </span>
+                              <span className="relative px-1.5 text-[9px] font-medium text-white truncate">{task.progress}%</span>
                             )}
                           </div>
                         )}
                       </div>
-                    </div>
-                  );
-                })}
-
-                {/* Ghost rows to fill remaining grid space */}
-                {Array.from({ length: ghostCount }).map((_, i) => (
-                  <div
-                    key={`gh-${i}`}
-                    className="flex border-b border-border/30"
-                    style={{ height: ROW_HEIGHT }}
-                  >
-                    <GhostLeftCells />
-                    <div className="shrink-0 border-r border-border/60" style={{ width: TOGGLE_BTN_WIDTH }} />
-                  </div>
-                ))}
-              </>
-            )}
+                    );
+                  })}
+                  {Array.from({ length: ghostCount }).map((_, i) => (
+                    <div key={`gh-${i}`} className="border-b border-border/30" style={{ height: ROW_HEIGHT }} />
+                  ))}
+                </>
+              )}
+            </div>
           </div>
         </div>
       </div>
