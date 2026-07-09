@@ -220,7 +220,7 @@ export function EditProjectDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label>Program Type</Label>
+              <Label>Program</Label>
               <Select value={form.programType || NONE} onValueChange={(v) => update("programType", v === NONE ? "" : v)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select program type" />

@@ -265,12 +265,12 @@ export function NewProjectButton({
             )}
           </div>
 
-          {/* Program Type */}
+          {/* Program */}
           <div className="space-y-1.5">
-            <Label>Program Type</Label>
+            <Label>Program</Label>
             <Select value={form.programType} onValueChange={(v) => update("programType", v)}>
               <SelectTrigger>
-                <SelectValue placeholder="Select program type" />
+                <SelectValue placeholder="Select program" />
               </SelectTrigger>
               <SelectContent>
                 {(programTypes && programTypes.length > 0 ? programTypes : []).map((p) => (
