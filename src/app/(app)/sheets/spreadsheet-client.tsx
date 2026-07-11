@@ -929,120 +929,126 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
       className="-m-3 lg:-m-4 flex flex-col bg-background overflow-hidden text-[12px]"
       style={{ height: "calc(100vh - 2.75rem)" }}
     >
-      {/* ── Toolbar ── */}
-      <div className="flex flex-shrink-0 items-center gap-0.5 border-b px-2 py-1 bg-muted/20 overflow-x-auto">
+      {/* ── Toolbar (two rows) ── */}
+      <div className="flex flex-shrink-0 flex-col border-b bg-muted/20">
 
-        {/* Clipboard */}
-        <TBtn onClick={paste} title="Paste (Ctrl+V)"><Clipboard className="h-3.5 w-3.5" /></TBtn>
-        <TBtn onClick={copy}  title="Copy (Ctrl+C)"><Copy     className="h-3.5 w-3.5" /></TBtn>
-        <TBtn onClick={cut}   title="Cut (Ctrl+X)"><Scissors  className="h-3.5 w-3.5" /></TBtn>
-        <Sep />
+        {/* Row 1: Clipboard | Font | Style | Colors | Alignment | Number */}
+        <div className="flex items-center gap-0.5 px-2 pt-1 pb-0.5">
+          {/* Clipboard */}
+          <TBtn onClick={paste} title="Paste (Ctrl+V)"><Clipboard className="h-3.5 w-3.5" /></TBtn>
+          <TBtn onClick={copy}  title="Copy (Ctrl+C)"><Copy     className="h-3.5 w-3.5" /></TBtn>
+          <TBtn onClick={cut}   title="Cut (Ctrl+X)"><Scissors  className="h-3.5 w-3.5" /></TBtn>
+          <Sep />
 
-        {/* Font family + size */}
-        <select
-          value={ac?.fontFamily ?? "Default"}
-          onChange={(e) => applyFmt({ fontFamily: e.target.value })}
-          className="h-6 rounded border border-border/60 bg-background px-1 text-[11px] cursor-pointer w-28"
-        >
-          {FONTS.map((f) => <option key={f} value={f}>{f}</option>)}
-        </select>
-        <select
-          value={ac?.fontSize ?? ""}
-          onChange={(e) => applyFmt({ fontSize: parseInt(e.target.value) || undefined })}
-          className="h-6 w-12 rounded border border-border/60 bg-background px-1 text-[11px] cursor-pointer"
-        >
-          <option value="">—</option>
-          {SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <TBtn onClick={() => changeFontSize(1)}  title="Grow font"><ChevronUp   className="h-3 w-3" /></TBtn>
-        <TBtn onClick={() => changeFontSize(-1)} title="Shrink font"><ChevronDown className="h-3 w-3" /></TBtn>
-        <Sep />
+          {/* Font family + size */}
+          <select
+            value={ac?.fontFamily ?? "Default"}
+            onChange={(e) => applyFmt({ fontFamily: e.target.value })}
+            className="h-6 rounded border border-border/60 bg-background px-1 text-[11px] cursor-pointer w-28"
+          >
+            {FONTS.map((f) => <option key={f} value={f}>{f}</option>)}
+          </select>
+          <select
+            value={ac?.fontSize ?? ""}
+            onChange={(e) => applyFmt({ fontSize: parseInt(e.target.value) || undefined })}
+            className="h-6 w-12 rounded border border-border/60 bg-background px-1 text-[11px] cursor-pointer"
+          >
+            <option value="">—</option>
+            {SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+          <TBtn onClick={() => changeFontSize(1)}  title="Grow font"><ChevronUp   className="h-3 w-3" /></TBtn>
+          <TBtn onClick={() => changeFontSize(-1)} title="Shrink font"><ChevronDown className="h-3 w-3" /></TBtn>
+          <Sep />
 
-        {/* Style */}
-        <TBtn active={ac?.bold}      onClick={() => applyFmt({ bold:      !ac?.bold })}      title="Bold (Ctrl+B)">      <Bold      className="h-3.5 w-3.5" /></TBtn>
-        <TBtn active={ac?.italic}    onClick={() => applyFmt({ italic:    !ac?.italic })}    title="Italic (Ctrl+I)">    <Italic    className="h-3.5 w-3.5" /></TBtn>
-        <TBtn active={ac?.underline} onClick={() => applyFmt({ underline: !ac?.underline })} title="Underline (Ctrl+U)"> <Underline className="h-3.5 w-3.5" /></TBtn>
-        <Sep />
+          {/* Style */}
+          <TBtn active={ac?.bold}      onClick={() => applyFmt({ bold:      !ac?.bold })}      title="Bold (Ctrl+B)">      <Bold      className="h-3.5 w-3.5" /></TBtn>
+          <TBtn active={ac?.italic}    onClick={() => applyFmt({ italic:    !ac?.italic })}    title="Italic (Ctrl+I)">    <Italic    className="h-3.5 w-3.5" /></TBtn>
+          <TBtn active={ac?.underline} onClick={() => applyFmt({ underline: !ac?.underline })} title="Underline (Ctrl+U)"> <Underline className="h-3.5 w-3.5" /></TBtn>
+          <Sep />
 
-        {/* Fill color */}
-        <div className="relative">
-          <TBtn onClick={() => setColorPicker((p) => p === "bg" ? null : "bg")} title="Fill Color">
-            <PaintBucket className="h-3.5 w-3.5" />
-            <span className="absolute bottom-0.5 left-1 right-1 h-0.5 rounded border border-border/20"
-              style={{ backgroundColor: ac?.bg ?? "#ffff00" }} />
+          {/* Fill color */}
+          <div className="relative">
+            <TBtn onClick={() => setColorPicker((p) => p === "bg" ? null : "bg")} title="Fill Color">
+              <PaintBucket className="h-3.5 w-3.5" />
+              <span className="absolute bottom-0.5 left-1 right-1 h-0.5 rounded border border-border/20"
+                style={{ backgroundColor: ac?.bg ?? "#ffff00" }} />
+            </TBtn>
+            {colorPicker === "bg" && <ColorPicker value={ac?.bg ?? "#ffff00"} onChange={(v) => applyFmt({ bg: v })} onClose={() => setColorPicker(null)} />}
+          </div>
+          {/* Text color */}
+          <div className="relative">
+            <TBtn onClick={() => setColorPicker((p) => p === "text" ? null : "text")} title="Font Color">
+              <Type className="h-3.5 w-3.5" />
+              <span className="absolute bottom-0.5 left-1 right-1 h-0.5 rounded"
+                style={{ backgroundColor: ac?.color ?? "#ff0000" }} />
+            </TBtn>
+            {colorPicker === "text" && <ColorPicker value={ac?.color ?? "#000000"} onChange={(v) => applyFmt({ color: v })} onClose={() => setColorPicker(null)} />}
+          </div>
+          <TBtn onClick={clearFormatting} title="Clear Formatting" className="text-[10px] text-muted-foreground">Clear</TBtn>
+          <Sep />
+
+          {/* Alignment */}
+          <TBtn active={ac?.align === "left"}   onClick={() => applyFmt({ align: "left" })}   title="Align Left">  <AlignLeft   className="h-3.5 w-3.5" /></TBtn>
+          <TBtn active={ac?.align === "center"} onClick={() => applyFmt({ align: "center" })} title="Align Center"><AlignCenter className="h-3.5 w-3.5" /></TBtn>
+          <TBtn active={ac?.align === "right"}  onClick={() => applyFmt({ align: "right" })}  title="Align Right"> <AlignRight  className="h-3.5 w-3.5" /></TBtn>
+          <TBtn active={ac?.wrap} onClick={() => applyFmt({ wrap: !ac?.wrap })} title="Wrap Text"><WrapText className="h-3.5 w-3.5" /></TBtn>
+          <Sep />
+
+          {/* Number format */}
+          <select
+            value={ac?.numFmt ?? "general"}
+            onChange={(e) => applyFmt({ numFmt: e.target.value as NumFmt })}
+            className="h-6 rounded border border-border/60 bg-background px-1 text-[11px] cursor-pointer w-24"
+          >
+            <option value="general">General</option>
+            <option value="number">Number</option>
+            <option value="currency">₹ Currency</option>
+            <option value="percent">Percent</option>
+          </select>
+          <TBtn onClick={() => changeDecPlaces(1)}  title="Increase decimal places" className="font-mono text-[10px]">.0+</TBtn>
+          <TBtn onClick={() => changeDecPlaces(-1)} title="Decrease decimal places" className="font-mono text-[10px]">.0-</TBtn>
+        </div>
+
+        {/* Row 2: Row/Col | Undo/Redo/Export | Sort | Find | History | Save status */}
+        <div className="flex items-center gap-0.5 px-2 pb-1 pt-0.5 border-t border-border/20">
+          {/* Row / Col */}
+          <TBtn onClick={insertRow} title="Insert Row Above"><Plus  className="h-3 w-3" /><span>Row</span></TBtn>
+          <TBtn onClick={deleteRow} title="Delete Row">      <Trash2 className="h-3 w-3" /><span>Row</span></TBtn>
+          <TBtn onClick={insertCol} title="Insert Column">   <Plus  className="h-3 w-3" /><span>Col</span></TBtn>
+          <TBtn onClick={deleteCol} title="Delete Column">   <Trash2 className="h-3 w-3" /><span>Col</span></TBtn>
+          <Sep />
+
+          {/* Undo / Redo / Export */}
+          <TBtn onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)"><Undo2    className="h-3.5 w-3.5" /></TBtn>
+          <TBtn onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)"><Redo2    className="h-3.5 w-3.5" /></TBtn>
+          <TBtn onClick={exportCSV}  title="Export CSV">  <Download className="h-3.5 w-3.5" /><span>CSV</span></TBtn>
+          <TBtn onClick={exportXLSX} title="Export Excel"><Download className="h-3.5 w-3.5 text-green-600" /><span className="text-green-600 font-medium">Excel</span></TBtn>
+          <Sep />
+
+          {/* Sort */}
+          <TBtn onClick={() => sortColumn("asc")}  title="Sort A → Z (by active column)"><SortAsc  className="h-3.5 w-3.5" /></TBtn>
+          <TBtn onClick={() => sortColumn("desc")} title="Sort Z → A (by active column)"><SortDesc className="h-3.5 w-3.5" /></TBtn>
+          <Sep />
+
+          {/* Find & Replace */}
+          <TBtn onClick={() => { setShowFind((v) => !v); setShowHistory(false); }} active={showFind} title="Find & Replace (Ctrl+H)">
+            <Search className="h-3.5 w-3.5" /><span>Find</span>
           </TBtn>
-          {colorPicker === "bg" && <ColorPicker value={ac?.bg ?? "#ffff00"} onChange={(v) => applyFmt({ bg: v })} onClose={() => setColorPicker(null)} />}
+          <Sep />
+
+          {/* History */}
+          <TBtn onClick={() => { openHistory(); setShowFind(false); }} active={showHistory} title="Version History"><History  className="h-3.5 w-3.5" /><span>History</span></TBtn>
+          <TBtn onClick={() => saveVersionNow()} title="Save version snapshot"><BookOpen className="h-3.5 w-3.5" /></TBtn>
+
+          {/* Save status — right edge */}
+          <div className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground pr-1 flex-shrink-0">
+            {saveStatus === "saving"  && <><Loader2      className="h-3 w-3 animate-spin" />Saving…</>}
+            {saveStatus === "saved"   && <><CheckCircle2 className="h-3 w-3 text-green-500" />Saved</>}
+            {saveStatus === "unsaved" && <><Save         className="h-3 w-3" />Unsaved</>}
+            {saveStatus === "error"   && <><AlertCircle  className="h-3 w-3 text-destructive" />Error</>}
+          </div>
         </div>
-        {/* Text color */}
-        <div className="relative">
-          <TBtn onClick={() => setColorPicker((p) => p === "text" ? null : "text")} title="Font Color">
-            <Type className="h-3.5 w-3.5" />
-            <span className="absolute bottom-0.5 left-1 right-1 h-0.5 rounded"
-              style={{ backgroundColor: ac?.color ?? "#ff0000" }} />
-          </TBtn>
-          {colorPicker === "text" && <ColorPicker value={ac?.color ?? "#000000"} onChange={(v) => applyFmt({ color: v })} onClose={() => setColorPicker(null)} />}
-        </div>
-        <TBtn onClick={clearFormatting} title="Clear Formatting" className="text-[10px] text-muted-foreground">Clear</TBtn>
-        <Sep />
 
-        {/* Alignment */}
-        <TBtn active={ac?.align === "left"}   onClick={() => applyFmt({ align: "left" })}   title="Align Left">  <AlignLeft   className="h-3.5 w-3.5" /></TBtn>
-        <TBtn active={ac?.align === "center"} onClick={() => applyFmt({ align: "center" })} title="Align Center"><AlignCenter className="h-3.5 w-3.5" /></TBtn>
-        <TBtn active={ac?.align === "right"}  onClick={() => applyFmt({ align: "right" })}  title="Align Right"> <AlignRight  className="h-3.5 w-3.5" /></TBtn>
-        <TBtn active={ac?.wrap} onClick={() => applyFmt({ wrap: !ac?.wrap })} title="Wrap Text"><WrapText className="h-3.5 w-3.5" /></TBtn>
-        <Sep />
-
-        {/* Number format */}
-        <select
-          value={ac?.numFmt ?? "general"}
-          onChange={(e) => applyFmt({ numFmt: e.target.value as NumFmt })}
-          className="h-6 rounded border border-border/60 bg-background px-1 text-[11px] cursor-pointer w-24"
-        >
-          <option value="general">General</option>
-          <option value="number">Number</option>
-          <option value="currency">₹ Currency</option>
-          <option value="percent">Percent</option>
-        </select>
-        <TBtn onClick={() => changeDecPlaces(1)}  title="Increase decimal places" className="font-mono text-[10px]">.0+</TBtn>
-        <TBtn onClick={() => changeDecPlaces(-1)} title="Decrease decimal places" className="font-mono text-[10px]">.0-</TBtn>
-        <Sep />
-
-        {/* Row / Col */}
-        <TBtn onClick={insertRow} title="Insert Row Above"><Plus  className="h-3 w-3" /><span>Row</span></TBtn>
-        <TBtn onClick={deleteRow} title="Delete Row">      <Trash2 className="h-3 w-3" /><span>Row</span></TBtn>
-        <TBtn onClick={insertCol} title="Insert Column">   <Plus  className="h-3 w-3" /><span>Col</span></TBtn>
-        <TBtn onClick={deleteCol} title="Delete Column">   <Trash2 className="h-3 w-3" /><span>Col</span></TBtn>
-        <Sep />
-
-        {/* Undo / Redo / Export */}
-        <TBtn onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)"><Undo2    className="h-3.5 w-3.5" /></TBtn>
-        <TBtn onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)"><Redo2    className="h-3.5 w-3.5" /></TBtn>
-        <TBtn onClick={exportCSV}  title="Export CSV">  <Download className="h-3.5 w-3.5" /><span>CSV</span></TBtn>
-        <TBtn onClick={exportXLSX} title="Export Excel"><Download className="h-3.5 w-3.5 text-green-600" /><span className="text-green-600 font-medium">Excel</span></TBtn>
-        <Sep />
-
-        {/* Sort */}
-        <TBtn onClick={() => sortColumn("asc")}  title="Sort A → Z (by active column)"><SortAsc  className="h-3.5 w-3.5" /></TBtn>
-        <TBtn onClick={() => sortColumn("desc")} title="Sort Z → A (by active column)"><SortDesc className="h-3.5 w-3.5" /></TBtn>
-        <Sep />
-
-        {/* Find & Replace */}
-        <TBtn onClick={() => { setShowFind((v) => !v); setShowHistory(false); }} active={showFind} title="Find & Replace (Ctrl+H)">
-          <Search className="h-3.5 w-3.5" /><span>Find</span>
-        </TBtn>
-        <Sep />
-
-        {/* History */}
-        <TBtn onClick={() => { openHistory(); setShowFind(false); }} active={showHistory} title="Version History"><History  className="h-3.5 w-3.5" /><span>History</span></TBtn>
-        <TBtn onClick={() => saveVersionNow()} title="Save version snapshot"><BookOpen className="h-3.5 w-3.5" /></TBtn>
-
-        {/* Save status — right edge */}
-        <div className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground pr-1 flex-shrink-0">
-          {saveStatus === "saving"  && <><Loader2      className="h-3 w-3 animate-spin" />Saving…</>}
-          {saveStatus === "saved"   && <><CheckCircle2 className="h-3 w-3 text-green-500" />Saved</>}
-          {saveStatus === "unsaved" && <><Save         className="h-3 w-3" />Unsaved</>}
-          {saveStatus === "error"   && <><AlertCircle  className="h-3 w-3 text-destructive" />Error</>}
-        </div>
       </div>
 
       {/* ── Formula bar ── */}
