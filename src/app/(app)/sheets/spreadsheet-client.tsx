@@ -783,162 +783,108 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
       className="-m-3 lg:-m-4 flex flex-col bg-background overflow-hidden text-[12px]"
       style={{ height: "calc(100vh - 2.75rem)" }}
     >
-      {/* ══ Excel-style Ribbon ══ */}
-      <div className="flex flex-shrink-0 items-stretch border-b bg-muted/10 overflow-x-auto">
+      {/* ── Toolbar ── */}
+      <div className="flex flex-shrink-0 items-center gap-0.5 border-b px-2 py-1 bg-muted/20 overflow-x-auto">
 
         {/* Clipboard */}
-        <RibbonGroup label="Clipboard">
-          <TBtnLg onClick={paste} title="Paste (Ctrl+V)"
-            icon={<Clipboard className="h-6 w-6 text-primary" />} label="Paste" />
-          <div className="flex flex-col gap-0.5 ml-1 justify-center">
-            <TBtn onClick={copy} title="Copy (Ctrl+C)">
-              <Copy className="h-3 w-3" /><span>Copy</span>
-            </TBtn>
-            <TBtn onClick={cut} title="Cut (Ctrl+X)">
-              <Scissors className="h-3 w-3" /><span>Cut</span>
-            </TBtn>
-          </div>
-        </RibbonGroup>
+        <TBtn onClick={paste} title="Paste (Ctrl+V)"><Clipboard className="h-3.5 w-3.5" /></TBtn>
+        <TBtn onClick={copy}  title="Copy (Ctrl+C)"><Copy     className="h-3.5 w-3.5" /></TBtn>
+        <TBtn onClick={cut}   title="Cut (Ctrl+X)"><Scissors  className="h-3.5 w-3.5" /></TBtn>
+        <Sep />
 
-        {/* Font */}
-        <RibbonGroup label="Font">
-          <div className="flex flex-col gap-1">
-            {/* Row 1: family, size, grow/shrink */}
-            <div className="flex items-center gap-0.5">
-              <select
-                value={ac?.fontFamily ?? "Default"}
-                onChange={(e) => applyFmt({ fontFamily: e.target.value })}
-                className="h-6 rounded border border-border/60 bg-background px-1 text-[11px] cursor-pointer min-w-[120px]"
-              >
-                {FONTS.map((f) => <option key={f} value={f}>{f}</option>)}
-              </select>
-              <select
-                value={ac?.fontSize ?? ""}
-                onChange={(e) => applyFmt({ fontSize: parseInt(e.target.value) || undefined })}
-                className="h-6 w-14 rounded border border-border/60 bg-background px-1 text-[11px] cursor-pointer"
-              >
-                <option value="">—</option>
-                {SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-              <TBtn onClick={() => changeFontSize(1)}  title="Grow font"><ChevronUp className="h-3 w-3" /></TBtn>
-              <TBtn onClick={() => changeFontSize(-1)} title="Shrink font"><ChevronDown className="h-3 w-3" /></TBtn>
-            </div>
-            {/* Row 2: B I U | fill | color */}
-            <div className="flex items-center gap-0.5">
-              <TBtn active={ac?.bold}      onClick={() => applyFmt({ bold: !ac?.bold })}         title="Bold (Ctrl+B)"><Bold className="h-3.5 w-3.5" /></TBtn>
-              <TBtn active={ac?.italic}    onClick={() => applyFmt({ italic: !ac?.italic })}     title="Italic (Ctrl+I)"><Italic className="h-3.5 w-3.5" /></TBtn>
-              <TBtn active={ac?.underline} onClick={() => applyFmt({ underline: !ac?.underline })} title="Underline (Ctrl+U)"><Underline className="h-3.5 w-3.5" /></TBtn>
-              <Sep />
-              {/* Fill color */}
-              <div className="relative">
-                <TBtn onClick={() => setColorPicker((p) => p === "bg" ? null : "bg")} title="Fill Color">
-                  <PaintBucket className="h-3.5 w-3.5" />
-                  <span className="absolute bottom-0.5 left-1 right-1 h-0.5 rounded border border-border/20"
-                    style={{ backgroundColor: ac?.bg ?? "#ffff00" }} />
-                </TBtn>
-                {colorPicker === "bg" && (
-                  <ColorPicker value={ac?.bg ?? "#ffff00"} onChange={(v) => applyFmt({ bg: v })} onClose={() => setColorPicker(null)} />
-                )}
-              </div>
-              {/* Text color */}
-              <div className="relative">
-                <TBtn onClick={() => setColorPicker((p) => p === "text" ? null : "text")} title="Font Color">
-                  <Type className="h-3.5 w-3.5" />
-                  <span className="absolute bottom-0.5 left-1 right-1 h-0.5 rounded"
-                    style={{ backgroundColor: ac?.color ?? "#ff0000" }} />
-                </TBtn>
-                {colorPicker === "text" && (
-                  <ColorPicker value={ac?.color ?? "#000000"} onChange={(v) => applyFmt({ color: v })} onClose={() => setColorPicker(null)} />
-                )}
-              </div>
-              <Sep />
-              <TBtn onClick={clearFormatting} title="Clear Formatting" className="text-[10px] text-muted-foreground">
-                Clear
-              </TBtn>
-            </div>
-          </div>
-        </RibbonGroup>
+        {/* Font family + size */}
+        <select
+          value={ac?.fontFamily ?? "Default"}
+          onChange={(e) => applyFmt({ fontFamily: e.target.value })}
+          className="h-6 rounded border border-border/60 bg-background px-1 text-[11px] cursor-pointer w-28"
+        >
+          {FONTS.map((f) => <option key={f} value={f}>{f}</option>)}
+        </select>
+        <select
+          value={ac?.fontSize ?? ""}
+          onChange={(e) => applyFmt({ fontSize: parseInt(e.target.value) || undefined })}
+          className="h-6 w-12 rounded border border-border/60 bg-background px-1 text-[11px] cursor-pointer"
+        >
+          <option value="">—</option>
+          {SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <TBtn onClick={() => changeFontSize(1)}  title="Grow font"><ChevronUp   className="h-3 w-3" /></TBtn>
+        <TBtn onClick={() => changeFontSize(-1)} title="Shrink font"><ChevronDown className="h-3 w-3" /></TBtn>
+        <Sep />
+
+        {/* Style */}
+        <TBtn active={ac?.bold}      onClick={() => applyFmt({ bold:      !ac?.bold })}      title="Bold (Ctrl+B)">      <Bold      className="h-3.5 w-3.5" /></TBtn>
+        <TBtn active={ac?.italic}    onClick={() => applyFmt({ italic:    !ac?.italic })}    title="Italic (Ctrl+I)">    <Italic    className="h-3.5 w-3.5" /></TBtn>
+        <TBtn active={ac?.underline} onClick={() => applyFmt({ underline: !ac?.underline })} title="Underline (Ctrl+U)"> <Underline className="h-3.5 w-3.5" /></TBtn>
+        <Sep />
+
+        {/* Fill color */}
+        <div className="relative">
+          <TBtn onClick={() => setColorPicker((p) => p === "bg" ? null : "bg")} title="Fill Color">
+            <PaintBucket className="h-3.5 w-3.5" />
+            <span className="absolute bottom-0.5 left-1 right-1 h-0.5 rounded border border-border/20"
+              style={{ backgroundColor: ac?.bg ?? "#ffff00" }} />
+          </TBtn>
+          {colorPicker === "bg" && <ColorPicker value={ac?.bg ?? "#ffff00"} onChange={(v) => applyFmt({ bg: v })} onClose={() => setColorPicker(null)} />}
+        </div>
+        {/* Text color */}
+        <div className="relative">
+          <TBtn onClick={() => setColorPicker((p) => p === "text" ? null : "text")} title="Font Color">
+            <Type className="h-3.5 w-3.5" />
+            <span className="absolute bottom-0.5 left-1 right-1 h-0.5 rounded"
+              style={{ backgroundColor: ac?.color ?? "#ff0000" }} />
+          </TBtn>
+          {colorPicker === "text" && <ColorPicker value={ac?.color ?? "#000000"} onChange={(v) => applyFmt({ color: v })} onClose={() => setColorPicker(null)} />}
+        </div>
+        <TBtn onClick={clearFormatting} title="Clear Formatting" className="text-[10px] text-muted-foreground">Clear</TBtn>
+        <Sep />
 
         {/* Alignment */}
-        <RibbonGroup label="Alignment">
-          <div className="flex flex-col gap-1 justify-center">
-            <div className="flex items-center gap-0.5">
-              <TBtn active={ac?.align === "left"}   onClick={() => applyFmt({ align: "left" })}   title="Align Left"><AlignLeft className="h-3.5 w-3.5" /></TBtn>
-              <TBtn active={ac?.align === "center"} onClick={() => applyFmt({ align: "center" })} title="Align Center"><AlignCenter className="h-3.5 w-3.5" /></TBtn>
-              <TBtn active={ac?.align === "right"}  onClick={() => applyFmt({ align: "right" })}  title="Align Right"><AlignRight className="h-3.5 w-3.5" /></TBtn>
-            </div>
-            <div className="flex items-center gap-0.5">
-              <TBtn active={ac?.wrap} onClick={() => applyFmt({ wrap: !ac?.wrap })} title="Wrap Text">
-                <WrapText className="h-3.5 w-3.5" />
-                <span className="text-[10px]">Wrap</span>
-              </TBtn>
-            </div>
-          </div>
-        </RibbonGroup>
+        <TBtn active={ac?.align === "left"}   onClick={() => applyFmt({ align: "left" })}   title="Align Left">  <AlignLeft   className="h-3.5 w-3.5" /></TBtn>
+        <TBtn active={ac?.align === "center"} onClick={() => applyFmt({ align: "center" })} title="Align Center"><AlignCenter className="h-3.5 w-3.5" /></TBtn>
+        <TBtn active={ac?.align === "right"}  onClick={() => applyFmt({ align: "right" })}  title="Align Right"> <AlignRight  className="h-3.5 w-3.5" /></TBtn>
+        <TBtn active={ac?.wrap} onClick={() => applyFmt({ wrap: !ac?.wrap })} title="Wrap Text"><WrapText className="h-3.5 w-3.5" /></TBtn>
+        <Sep />
 
-        {/* Number */}
-        <RibbonGroup label="Number">
-          <div className="flex flex-col gap-1">
-            <select
-              value={ac?.numFmt ?? "general"}
-              onChange={(e) => applyFmt({ numFmt: e.target.value as NumFmt })}
-              className="h-6 rounded border border-border/60 bg-background px-1 text-[11px] cursor-pointer min-w-[120px]"
-            >
-              <option value="general">General</option>
-              <option value="number">Number</option>
-              <option value="currency">Currency (₹)</option>
-              <option value="percent">Percentage</option>
-            </select>
-            <div className="flex items-center gap-0.5">
-              <TBtn onClick={() => applyFmt({ numFmt: "currency" })} title="Currency style" className="font-semibold text-[11px] px-2">₹</TBtn>
-              <TBtn onClick={() => applyFmt({ numFmt: "percent" })}  title="Percent style"><Percent className="h-3 w-3" /></TBtn>
-              <TBtn onClick={() => applyFmt({ numFmt: "number" })}   title="Number with commas" className="font-semibold text-[11px] px-2">,</TBtn>
-              <Sep />
-              <TBtn onClick={() => changeDecPlaces(1)}  title="Increase decimal places" className="font-mono text-[10px]">.0↑</TBtn>
-              <TBtn onClick={() => changeDecPlaces(-1)} title="Decrease decimal places" className="font-mono text-[10px]">.0↓</TBtn>
-            </div>
-          </div>
-        </RibbonGroup>
+        {/* Number format */}
+        <select
+          value={ac?.numFmt ?? "general"}
+          onChange={(e) => applyFmt({ numFmt: e.target.value as NumFmt })}
+          className="h-6 rounded border border-border/60 bg-background px-1 text-[11px] cursor-pointer w-24"
+        >
+          <option value="general">General</option>
+          <option value="number">Number</option>
+          <option value="currency">₹ Currency</option>
+          <option value="percent">Percent</option>
+        </select>
+        <TBtn onClick={() => changeDecPlaces(1)}  title="Increase decimal places" className="font-mono text-[10px]">.0+</TBtn>
+        <TBtn onClick={() => changeDecPlaces(-1)} title="Decrease decimal places" className="font-mono text-[10px]">.0-</TBtn>
+        <Sep />
 
-        {/* Cells */}
-        <RibbonGroup label="Cells">
-          <div className="flex flex-col gap-0.5 justify-center">
-            <TBtn onClick={insertRow} title="Insert Row Above"><Plus className="h-3 w-3" /><span>Insert Row</span></TBtn>
-            <TBtn onClick={deleteRow} title="Delete Row"><Trash2 className="h-3 w-3" /><span>Delete Row</span></TBtn>
-            <TBtn onClick={insertCol} title="Insert Column"><Plus className="h-3 w-3" /><span>Insert Col</span></TBtn>
-            <TBtn onClick={deleteCol} title="Delete Column"><Trash2 className="h-3 w-3" /><span>Delete Col</span></TBtn>
-          </div>
-        </RibbonGroup>
+        {/* Row / Col */}
+        <TBtn onClick={insertRow} title="Insert Row Above"><Plus  className="h-3 w-3" /><span>Row</span></TBtn>
+        <TBtn onClick={deleteRow} title="Delete Row">      <Trash2 className="h-3 w-3" /><span>Row</span></TBtn>
+        <TBtn onClick={insertCol} title="Insert Column">   <Plus  className="h-3 w-3" /><span>Col</span></TBtn>
+        <TBtn onClick={deleteCol} title="Delete Column">   <Trash2 className="h-3 w-3" /><span>Col</span></TBtn>
+        <Sep />
 
-        {/* Editing */}
-        <RibbonGroup label="Editing">
-          <div className="flex flex-col gap-1 justify-center">
-            <div className="flex items-center gap-0.5">
-              <TBtn onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)"><Undo2 className="h-3.5 w-3.5" /></TBtn>
-              <TBtn onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)"><Redo2 className="h-3.5 w-3.5" /></TBtn>
-              <TBtn onClick={exportCSV} title="Export as CSV"><Download className="h-3.5 w-3.5" /><span>CSV</span></TBtn>
-            </div>
-            {/* Save status */}
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground px-1">
-              {saveStatus === "saving"  && <><Loader2 className="h-3 w-3 animate-spin" />Saving…</>}
-              {saveStatus === "saved"   && <><CheckCircle2 className="h-3 w-3 text-green-500" />Saved</>}
-              {saveStatus === "unsaved" && <><Save className="h-3 w-3" />Unsaved</>}
-              {saveStatus === "error"   && <><AlertCircle className="h-3 w-3 text-destructive" />Error</>}
-            </div>
-          </div>
-        </RibbonGroup>
+        {/* Undo / Redo / Export */}
+        <TBtn onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)"><Undo2    className="h-3.5 w-3.5" /></TBtn>
+        <TBtn onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)"><Redo2    className="h-3.5 w-3.5" /></TBtn>
+        <TBtn onClick={exportCSV} title="Export CSV">                   <Download className="h-3.5 w-3.5" /><span>CSV</span></TBtn>
+        <Sep />
 
         {/* History */}
-        <RibbonGroup label="History">
-          <div className="flex flex-col gap-1 justify-center">
-            <TBtn onClick={openHistory} active={showHistory} title="Version History">
-              <History className="h-3.5 w-3.5" /><span>History</span>
-            </TBtn>
-            <TBtn onClick={() => saveVersionNow()} title="Save a version snapshot now">
-              <BookOpen className="h-3 w-3" /><span>Save Version</span>
-            </TBtn>
-          </div>
-        </RibbonGroup>
+        <TBtn onClick={openHistory}        active={showHistory} title="Version History">       <History  className="h-3.5 w-3.5" /><span>History</span></TBtn>
+        <TBtn onClick={() => saveVersionNow()} title="Save version snapshot"><BookOpen className="h-3.5 w-3.5" /></TBtn>
+
+        {/* Save status — right edge */}
+        <div className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground pr-1 flex-shrink-0">
+          {saveStatus === "saving"  && <><Loader2      className="h-3 w-3 animate-spin" />Saving…</>}
+          {saveStatus === "saved"   && <><CheckCircle2 className="h-3 w-3 text-green-500" />Saved</>}
+          {saveStatus === "unsaved" && <><Save         className="h-3 w-3" />Unsaved</>}
+          {saveStatus === "error"   && <><AlertCircle  className="h-3 w-3 text-destructive" />Error</>}
+        </div>
       </div>
 
       {/* ── Formula bar ── */}
