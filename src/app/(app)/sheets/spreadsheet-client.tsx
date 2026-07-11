@@ -916,7 +916,7 @@ export function SpreadsheetClient({
         case "y": redo();  e.preventDefault(); return;
         case "c": copy();  e.preventDefault(); return;
         case "x": cut();   e.preventDefault(); return;
-        case "v": paste(); e.preventDefault(); return;
+        // "v" is handled by the onPaste event so the browser can supply clipboardData
         case "b": applyFmt({ bold: !activeCell()?.bold });         e.preventDefault(); return;
         case "i": applyFmt({ italic: !activeCell()?.italic });     e.preventDefault(); return;
         case "u": applyFmt({ underline: !activeCell()?.underline }); e.preventDefault(); return;
@@ -1213,6 +1213,30 @@ export function SpreadsheetClient({
         className="flex-1 overflow-auto outline-none thin-scroll"
         tabIndex={0}
         onKeyDown={onKeyDown}
+        onPaste={(e) => {
+          // Skip if the user is actively editing a cell (let the input handle it)
+          if (editing) return;
+          const text = e.clipboardData.getData("text/plain");
+          if (text) {
+            e.preventDefault();
+            // Normalise line endings and split into rows/cols (TSV — what Excel copies)
+            const rows = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+            if (rows[rows.length - 1] === "") rows.pop(); // remove trailing blank row
+            if (!rows.length) return;
+            const next = { ...cells };
+            rows.forEach((row, ri) => {
+              row.split("\t").forEach((val, ci) => {
+                const key = cid(sel.ac + ci, sel.ar + ri);
+                next[key] = { ...(next[key] ?? {}), v: val };
+              });
+            });
+            commitCells(next);
+          } else if (clipRef.current) {
+            // No system-clipboard text — fall back to in-app clipboard (preserves formatting)
+            e.preventDefault();
+            paste();
+          }
+        }}
       >
         <table className="border-separate" style={{ borderSpacing: 0, tableLayout: "fixed", minWidth: "100%" }}>
           <colgroup>
