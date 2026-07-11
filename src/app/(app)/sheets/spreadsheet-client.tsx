@@ -9,6 +9,7 @@ import {
   Scissors, Copy, Clipboard, WrapText, ChevronUp, ChevronDown,
   Percent, History, RotateCcw, X, Clock, BookOpen,
   SortAsc, SortDesc, Search, Replace, ArrowUp, ArrowDown,
+  Grid3x3,
 } from "lucide-react";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -40,6 +41,10 @@ type Fmt = {
   numFmt?:     NumFmt;
   decPlaces?:  number;
   wrap?:       boolean;
+  bT?:         boolean;   // border top
+  bB?:         boolean;   // border bottom
+  bL?:         boolean;   // border left
+  bR?:         boolean;   // border right
 };
 
 type Cell = Fmt & { v: string };
@@ -353,6 +358,7 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
   const [editing, setEditing]     = React.useState<{ c: number; r: number } | null>(null);
   const [editVal, setEditVal]     = React.useState("");
   const [colorPicker, setColorPicker] = React.useState<"text" | "bg" | null>(null);
+  const [borderMenu,  setBorderMenu]  = React.useState(false);
   const [saveStatus, setSaveStatus]   = React.useState<"saved" | "saving" | "unsaved" | "error">("saved");
   const [showHistory, setShowHistory] = React.useState(false);
   const [showFind,    setShowFind]    = React.useState(false);
@@ -372,6 +378,17 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
   const lastHistorySave   = React.useRef<Record<string, number>>({});  // tabId → epoch ms
   const gridRef           = React.useRef<HTMLDivElement>(null);
   const editInputRef      = React.useRef<HTMLInputElement>(null);
+  const borderMenuRef     = React.useRef<HTMLDivElement>(null);
+
+  // Close border menu on outside click
+  React.useEffect(() => {
+    if (!borderMenu) return;
+    function h(e: MouseEvent) {
+      if (!borderMenuRef.current?.contains(e.target as Node)) setBorderMenu(false);
+    }
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [borderMenu]);
 
   // Reset history on tab switch
   const prevActiveId = React.useRef(activeId);
@@ -397,7 +414,8 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
   function hasStyle(cell?: Cell) {
     return !!(cell?.bold || cell?.italic || cell?.underline || cell?.align ||
               cell?.color || cell?.bg || cell?.fontSize || cell?.fontFamily ||
-              cell?.numFmt || cell?.wrap);
+              cell?.numFmt || cell?.wrap ||
+              cell?.bT || cell?.bB || cell?.bL || cell?.bR);
   }
 
   // ── Auto-save ──
@@ -483,6 +501,34 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
         next[key] = { ...(next[key] ?? { v: "" }), ...fmt };
       }
     commitCells(next);
+  }
+
+  // ── Borders ──
+  function applyBorders(mode: "all" | "outline" | "top" | "bottom" | "left" | "right" | "none") {
+    const next = { ...cells };
+    const setB = (c: number, r: number, patch: Partial<Fmt>) => {
+      const key = cid(c, r);
+      next[key] = { ...(next[key] ?? { v: "" }), ...patch };
+    };
+    for (let r = minR; r <= maxR; r++)
+      for (let c = minC; c <= maxC; c++) {
+        if (mode === "all")  setB(c, r, { bT: true, bB: true, bL: true, bR: true });
+        else if (mode === "none") setB(c, r, { bT: false, bB: false, bL: false, bR: false });
+        else if (mode === "outline") {
+          const patch: Partial<Fmt> = {};
+          if (r === minR) patch.bT = true;
+          if (r === maxR) patch.bB = true;
+          if (c === minC) patch.bL = true;
+          if (c === maxC) patch.bR = true;
+          if (Object.keys(patch).length) setB(c, r, patch);
+        }
+        else if (mode === "top"    && r === minR) setB(c, r, { bT: true });
+        else if (mode === "bottom" && r === maxR) setB(c, r, { bB: true });
+        else if (mode === "left"   && c === minC) setB(c, r, { bL: true });
+        else if (mode === "right"  && c === maxC) setB(c, r, { bR: true });
+      }
+    commitCells(next);
+    setBorderMenu(false);
   }
 
   function changeFontSize(delta: number) {
@@ -984,6 +1030,30 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
             </TBtn>
             {colorPicker === "text" && <ColorPicker value={ac?.color ?? "#000000"} onChange={(v) => applyFmt({ color: v })} onClose={() => setColorPicker(null)} />}
           </div>
+          {/* Borders */}
+          <div className="relative" ref={borderMenuRef}>
+            <TBtn onClick={() => setBorderMenu((v) => !v)} active={borderMenu} title="Borders">
+              <Grid3x3 className="h-3.5 w-3.5" /><ChevronDown className="h-2.5 w-2.5 -ml-0.5" />
+            </TBtn>
+            {borderMenu && (
+              <div className="absolute top-full left-0 z-50 mt-1 flex flex-col rounded-lg border bg-popover shadow-xl py-1 min-w-[130px]">
+                {([
+                  ["all",     "All Borders"],
+                  ["outline", "Outside Borders"],
+                  ["top",     "Top Border"],
+                  ["bottom",  "Bottom Border"],
+                  ["left",    "Left Border"],
+                  ["right",   "Right Border"],
+                  ["none",    "No Border"],
+                ] as const).map(([mode, label]) => (
+                  <button key={mode}
+                    className="px-3 py-1 text-left text-[11px] hover:bg-muted transition-colors"
+                    onClick={() => applyBorders(mode)}
+                  >{label}</button>
+                ))}
+              </div>
+            )}
+          </div>
           <TBtn onClick={clearFormatting} title="Clear Formatting" className="text-[10px] text-muted-foreground">Clear</TBtn>
           <Sep />
 
@@ -1194,6 +1264,15 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
                   const isCurMatch = findMatches[findIdx] === key;
                   const refColor = refColorMap[key];
 
+                  const shadows: string[] = [];
+                  if (isAc && !isEdit) shadows.push("inset 0 0 0 2px hsl(var(--primary))");
+                  else if (refColor)   shadows.push(`inset 0 0 0 2px ${refColor}`);
+                  const bc = "hsl(var(--foreground) / 0.85)";
+                  if (cell?.bT) shadows.push(`inset 0 1px 0 0 ${bc}`);
+                  if (cell?.bB) shadows.push(`inset 0 -1px 0 0 ${bc}`);
+                  if (cell?.bL) shadows.push(`inset 1px 0 0 0 ${bc}`);
+                  if (cell?.bR) shadows.push(`inset -1px 0 0 0 ${bc}`);
+
                   return (
                     <td key={c}
                       className={cn(
@@ -1206,11 +1285,7 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
                         backgroundColor: refColor
                           ? (cell?.bg ?? `${refColor}18`)
                           : (cell?.bg ?? undefined),
-                        boxShadow: isAc && !isEdit
-                          ? "inset 0 0 0 2px hsl(var(--primary))"
-                          : refColor
-                            ? `inset 0 0 0 2px ${refColor}`
-                            : undefined,
+                        boxShadow: shadows.length ? shadows.join(", ") : undefined,
                         height: cell?.wrap ? "auto" : DEF_H,
                         verticalAlign: "middle",
                       }}
