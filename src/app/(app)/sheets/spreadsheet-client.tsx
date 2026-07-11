@@ -756,7 +756,10 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
       case "F2":         startEdit(sel.ac, sel.ar); e.preventDefault(); break;
       case "Escape":     setColorPicker(null); break;
       default:
-        if (!ctrl && !e.altKey && e.key.length === 1) startEdit(sel.ac, sel.ar, e.key);
+        if (!ctrl && !e.altKey && e.key.length === 1) {
+          e.preventDefault(); // stops browser re-firing the keypress on the input after it gains focus
+          startEdit(sel.ac, sel.ar, e.key);
+        }
     }
   }
 
