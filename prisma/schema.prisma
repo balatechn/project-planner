@@ -903,15 +903,28 @@ model Spreadsheet {
 }
 
 model SpreadsheetTab {
-  id            String      @id @default(cuid())
+  id            String                @id @default(cuid())
   spreadsheetId String
-  spreadsheet   Spreadsheet @relation(fields: [spreadsheetId], references: [id], onDelete: Cascade)
-  name          String      @default("Sheet1")
-  orderIndex    Int         @default(0)
-  cells         Json        @default("{}")
-  colWidths     Json        @default("{}")
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
+  spreadsheet   Spreadsheet           @relation(fields: [spreadsheetId], references: [id], onDelete: Cascade)
+  name          String                @default("Sheet1")
+  orderIndex    Int                   @default(0)
+  cells         Json                  @default("{}")
+  colWidths     Json                  @default("{}")
+  history       SpreadsheetHistory[]
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
 
   @@index([spreadsheetId])
+}
+
+model SpreadsheetHistory {
+  id        String         @id @default(cuid())
+  tabId     String
+  tab       SpreadsheetTab @relation(fields: [tabId], references: [id], onDelete: Cascade)
+  cells     Json           @default("{}")
+  colWidths Json           @default("{}")
+  label     String?
+  createdAt DateTime       @default(now())
+
+  @@index([tabId, createdAt(sort: Desc)])
 }

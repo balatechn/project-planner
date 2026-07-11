@@ -7,7 +7,7 @@ import {
   Plus, Trash2, Undo2, Redo2, Download, PaintBucket, Type,
   Save, CheckCircle2, AlertCircle, Loader2,
   Scissors, Copy, Clipboard, WrapText, ChevronUp, ChevronDown,
-  Percent,
+  Percent, History, RotateCcw, X, Clock, BookOpen,
 } from "lucide-react";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -54,6 +54,12 @@ export type InitialTab = {
   order: number;
   cells: Record<string, unknown>;
   cw:    Record<string, number>;
+};
+
+type HistoryEntry = {
+  id:        string;
+  label:     string | null;
+  createdAt: string;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -326,14 +332,19 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
   const [editVal, setEditVal]     = React.useState("");
   const [colorPicker, setColorPicker] = React.useState<"text" | "bg" | null>(null);
   const [saveStatus, setSaveStatus]   = React.useState<"saved" | "saving" | "unsaved" | "error">("saved");
+  const [showHistory, setShowHistory] = React.useState(false);
+  const [historyList, setHistoryList] = React.useState<HistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = React.useState(false);
+  const [restoring, setRestoring]     = React.useState<string | null>(null);
 
   // ── Refs ──
   const histRef      = React.useRef<{ past: Record<string, Cell>[]; future: Record<string, Cell>[] }>({ past: [], future: [] });
   const clipRef      = React.useRef<Record<string, Cell> | null>(null);
   const isDragging   = React.useRef(false);
-  const saveTimer    = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const gridRef      = React.useRef<HTMLDivElement>(null);
-  const editInputRef = React.useRef<HTMLInputElement>(null);
+  const saveTimer         = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastHistorySave   = React.useRef<Record<string, number>>({});  // tabId → epoch ms
+  const gridRef           = React.useRef<HTMLDivElement>(null);
+  const editInputRef      = React.useRef<HTMLInputElement>(null);
 
   // Reset history on tab switch
   const prevActiveId = React.useRef(activeId);
@@ -376,6 +387,17 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
           body: JSON.stringify({ cells: newCells, colWidths: newCw ?? t?.cw ?? {} }),
         });
         setSaveStatus("saved");
+
+        // Auto-snapshot every 5 minutes
+        const last = lastHistorySave.current[tabId] ?? 0;
+        if (Date.now() - last >= 5 * 60 * 1000) {
+          lastHistorySave.current[tabId] = Date.now();
+          const res = await fetch(`/api/sheets/tabs/${tabId}/history`, { method: "POST" });
+          if (res.ok) {
+            const entry = await res.json();
+            setHistoryList((prev) => [entry, ...prev].slice(0, 50));
+          }
+        }
       } catch { setSaveStatus("error"); }
     }, 1500);
   }
@@ -649,6 +671,48 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
     await fetch(`/api/sheets/tabs/${id}`, { method: "DELETE" });
   }
 
+  // ── History ──
+  async function openHistory() {
+    setShowHistory(true);
+    setHistoryLoading(true);
+    try {
+      const res = await fetch(`/api/sheets/tabs/${activeId}/history`);
+      const data = await res.json();
+      setHistoryList(Array.isArray(data) ? data : []);
+    } catch { setHistoryList([]); }
+    finally { setHistoryLoading(false); }
+  }
+
+  async function saveVersionNow(label?: string) {
+    const res = await fetch(`/api/sheets/tabs/${activeId}/history`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: label ?? null }),
+    });
+    if (res.ok) {
+      const entry = await res.json();
+      setHistoryList((prev) => [entry, ...prev].slice(0, 50));
+      lastHistorySave.current[activeId] = Date.now();
+    }
+  }
+
+  async function restoreVersion(historyId: string) {
+    setRestoring(historyId);
+    try {
+      const res = await fetch(`/api/sheets/tabs/${activeId}/history/${historyId}`);
+      const snapshot = await res.json();
+      // Save current state as a new history entry before restoring
+      await saveVersionNow("Before restore");
+      const restoredCells = (snapshot.cells as Record<string, Cell>) ?? {};
+      commitCells(restoredCells);
+    } finally { setRestoring(null); }
+  }
+
+  async function deleteHistoryEntry(historyId: string) {
+    await fetch(`/api/sheets/tabs/${activeId}/history/${historyId}`, { method: "DELETE" });
+    setHistoryList((prev) => prev.filter((e) => e.id !== historyId));
+  }
+
   // ── Global mouse-up ──
   React.useEffect(() => {
     const up = () => { isDragging.current = false; };
@@ -863,6 +927,18 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
             </div>
           </div>
         </RibbonGroup>
+
+        {/* History */}
+        <RibbonGroup label="History">
+          <div className="flex flex-col gap-1 justify-center">
+            <TBtn onClick={openHistory} active={showHistory} title="Version History">
+              <History className="h-3.5 w-3.5" /><span>History</span>
+            </TBtn>
+            <TBtn onClick={() => saveVersionNow()} title="Save a version snapshot now">
+              <BookOpen className="h-3 w-3" /><span>Save Version</span>
+            </TBtn>
+          </div>
+        </RibbonGroup>
       </div>
 
       {/* ── Formula bar ── */}
@@ -885,6 +961,9 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
           }}
         />
       </div>
+
+      {/* ── Grid + History panel ── */}
+      <div className="flex flex-1 overflow-hidden">
 
       {/* ── Grid ── */}
       <div
@@ -1024,6 +1103,101 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
           </tbody>
         </table>
       </div>
+
+      {/* ── History panel ── */}
+      {showHistory && (
+        <div className="flex flex-col w-72 flex-shrink-0 border-l bg-background overflow-hidden">
+          {/* Panel header */}
+          <div className="flex items-center justify-between border-b px-3 py-2 bg-muted/20">
+            <div className="flex items-center gap-1.5 text-[12px] font-semibold">
+              <History className="h-3.5 w-3.5 text-primary" />
+              Version History
+            </div>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => saveVersionNow()}
+                title="Save version now"
+                className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-primary hover:bg-primary/10 transition-colors"
+              >
+                <Save className="h-3 w-3" /> Save Now
+              </button>
+              <button onClick={() => setShowHistory(false)} className="rounded p-0.5 hover:bg-muted transition-colors">
+                <X className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+            </div>
+          </div>
+
+          {/* Active sheet indicator */}
+          <div className="px-3 py-1.5 border-b bg-muted/10 text-[10px] text-muted-foreground flex items-center gap-1">
+            <BookOpen className="h-3 w-3" />
+            Sheet: <span className="font-medium text-foreground">{tab?.name}</span>
+            <span className="ml-auto">{historyList.length} version{historyList.length !== 1 ? "s" : ""}</span>
+          </div>
+
+          {/* Entry list */}
+          <div className="flex-1 overflow-y-auto thin-scroll">
+            {historyLoading ? (
+              <div className="flex items-center justify-center gap-2 py-8 text-[11px] text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Loading…
+              </div>
+            ) : historyList.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-2 py-12 px-4 text-center">
+                <Clock className="h-8 w-8 text-muted-foreground/30" />
+                <p className="text-[11px] text-muted-foreground">No versions saved yet.</p>
+                <p className="text-[10px] text-muted-foreground/60">Versions save automatically every 5 min, or click &ldquo;Save Now&rdquo;.</p>
+              </div>
+            ) : (
+              historyList.map((entry, i) => {
+                const dt = new Date(entry.createdAt);
+                const isRestoring = restoring === entry.id;
+                const relTime = (() => {
+                  const diff = Date.now() - dt.getTime();
+                  if (diff < 60_000)  return "Just now";
+                  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`;
+                  if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`;
+                  return `${Math.floor(diff / 86_400_000)}d ago`;
+                })();
+
+                return (
+                  <div key={entry.id}
+                    className="group flex flex-col gap-0.5 border-b border-border/40 px-3 py-2 hover:bg-muted/30 transition-colors">
+                    <div className="flex items-start justify-between gap-1">
+                      <div className="flex flex-col gap-0.5 min-w-0">
+                        <span className="text-[11px] font-medium truncate">
+                          {entry.label ?? (i === 0 ? "Latest version" : `Version ${historyList.length - i}`)}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {relTime} · {dt.toLocaleDateString()} {dt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => restoreVersion(entry.id)}
+                          disabled={!!restoring}
+                          title="Restore this version"
+                          className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[10px] bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-40 transition-colors"
+                        >
+                          {isRestoring ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <RotateCcw className="h-2.5 w-2.5" />}
+                          Restore
+                        </button>
+                        <button
+                          onClick={() => deleteHistoryEntry(entry.id)}
+                          title="Delete this version"
+                          className="rounded p-0.5 hover:bg-destructive/10 hover:text-destructive transition-colors"
+                        >
+                          <Trash2 className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      </div>{/* end grid+history wrapper */}
 
       {/* ── Sheet tabs ── */}
       <div className="flex flex-shrink-0 items-center border-t bg-muted/20 h-8 gap-0 px-2 overflow-x-auto thin-scroll">
