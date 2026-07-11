@@ -34,14 +34,6 @@ const FEATURES = [
   },
 ];
 
-// Group companies — nationalgroupindia.com
-const GROUP_COMPANIES = [
-  { icon: "🏗️", name: "National Infrabuild", field: "Roads, bridges & public infrastructure" },
-  { icon: "🚆", name: "iSky Transport Systems", field: "Smart transport solutions" },
-  { icon: "💎", name: "National Gold & Diamond", field: "Fine jewellery" },
-  { icon: "🛒", name: "National Super Bazar", field: "Retail" },
-  { icon: "🚗", name: "Rainland Autocorp", field: "Automotive" },
-];
 
 export default async function LoginPage({
   searchParams,
@@ -137,29 +129,10 @@ export default async function LoginPage({
             </ul>
           </div>
 
-          {/* Group companies + footer */}
-          <div className="space-y-1.5">
-            <div className="animate-fade-in delay-450">
-              <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#16283e]/45">
-                The National Group family
-              </p>
-              <div className="flex flex-nowrap gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
-                {GROUP_COMPANIES.map((c) => (
-                  <span
-                    key={c.name}
-                    title={c.field}
-                    className="inline-flex flex-shrink-0 items-center gap-1 rounded-full border border-[#1e3a5f]/12 bg-white/70 px-2.5 py-1 text-[11px] text-[#16283e]/75 backdrop-blur-sm shadow-sm transition-colors hover:border-amber-500/40 hover:bg-white hover:text-[#16283e]"
-                  >
-                    <span aria-hidden="true">{c.icon}</span>
-                    {c.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <p className="animate-fade-in delay-600 text-[11px] text-[#16283e]/40">
-              © {new Date().getFullYear()} National Group India. All rights reserved.
-            </p>
-          </div>
+          {/* Footer */}
+          <p className="animate-fade-in delay-450 text-[11px] text-[#16283e]/40">
+            © {new Date().getFullYear()} National Group India. All rights reserved.
+          </p>
         </div>
 
         {/* ── Form panel — scrollable on mobile, centered on desktop ── */}
