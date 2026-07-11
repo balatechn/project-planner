@@ -4,7 +4,7 @@ import { unstable_cache } from "next/cache";
 import { format, formatDistanceToNow, isPast, isToday } from "date-fns";
 import {
   BarChart3, CalendarDays, CheckSquare, Circle, Cloud, Clock,
-  FolderKanban, GraduationCap, Landmark, Layers, Mail, Plus, UserCog, Users, Video,
+  FileSpreadsheet, FolderKanban, GraduationCap, Landmark, Mail, Plus, UserCog, Users, Video,
 } from "lucide-react";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
@@ -111,7 +111,7 @@ const SHORTCUTS = [
   { label: "Calendar", href: "/calendar",                                            icon: CalendarDays,  bg: "bg-violet-500",  external: false },
   { label: "Training", href: "/training",                                            icon: GraduationCap, bg: "bg-amber-500",   external: false },
   { label: "Rooms",      href: "/meeting-rooms",                                                   icon: Video,   bg: "bg-indigo-500",  external: false },
-  { label: "WorkSphere", href: "https://n6co0az1uzf7qcxxsmymtwiy.187.127.134.246.sslip.io",      icon: Layers,  bg: "bg-orange-500",  external: true  },
+  { label: "Sheets",     href: "/sheets",                                                         icon: FileSpreadsheet, bg: "bg-emerald-500", external: false },
   { label: "Outlook",    href: "https://outlook.office365.com",                                   icon: Mail,    bg: "bg-sky-500",     external: true  },
   { label: "Team",     href: "/team",                                                icon: Users,         bg: "bg-pink-500",    external: false },
   { label: "OneDrive", href: "https://nationalconsultingindia-my.sharepoint.com/",   icon: Cloud,         bg: "bg-teal-500",    external: true  },
