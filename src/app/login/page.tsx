@@ -103,9 +103,8 @@ export default async function LoginPage({
                 <br />Transforming communities.
               </h1>
               <p className="text-sm text-[#16283e]/60 max-w-md leading-relaxed">
-                One workspace for the entire group — Infrabuild, iSky Transport,
-                Gold &amp; Diamond, Super Bazar and Rainland Autocorp — powered
-                by Microsoft 365.
+                One workspace for the entire group — Infrabuild, iSky Transport
+                and Rainland Autocorp — powered by Microsoft 365.
               </p>
             </div>
 
