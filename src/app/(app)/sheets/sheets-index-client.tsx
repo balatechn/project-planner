@@ -186,7 +186,7 @@ export function SheetsIndexClient({
           {workbooks.length === 0 && !creating ? (
             <div className="flex flex-col items-center justify-center py-12 gap-3 text-muted-foreground border border-dashed rounded-lg">
               <FileSpreadsheet className="h-10 w-10 opacity-20" />
-              <p className="text-[12px]">No workbooks yet. Click "New Workbook" to get started.</p>
+              <p className="text-[12px]">No workbooks yet. Click &ldquo;New Workbook&rdquo; to get started.</p>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
