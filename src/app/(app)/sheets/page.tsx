@@ -14,8 +14,7 @@ export default async function SheetsPage() {
       include: { _count: { select: { tabs: true } } },
       orderBy: { updatedAt: "desc" },
     }),
-    // @ts-ignore — SpreadsheetShare model added; types update after prisma generate
-    prisma.spreadsheetShare.findMany({
+    (prisma as any).spreadsheetShare.findMany({
       where: { sharedWithId: user.id },
       include: {
         spreadsheet: { include: { _count: { select: { tabs: true } } } },

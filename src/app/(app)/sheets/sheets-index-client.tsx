@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileSpreadsheet, Plus, Trash2, Edit2, Check, X, Share2, Eye, Pencil as PencilIcon } from "lucide-react";
+import { FileSpreadsheet, Plus, Trash2, Edit2, Check, X, Share2, Eye } from "lucide-react";
 import { ShareDialog } from "./share-dialog";
 
 type Workbook = {
@@ -226,7 +226,7 @@ export function SheetsIndexClient({
                     <div className="mt-1">
                       {entry.permission === "EDIT" ? (
                         <span className="inline-flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400">
-                          <PencilIcon className="h-2.5 w-2.5" /> Can edit
+                          <Edit2 className="h-2.5 w-2.5" /> Can edit
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-0.5 text-[9px] font-medium px-1.5 py-0.5 rounded bg-sky-100 dark:bg-sky-900/40 text-sky-700 dark:text-sky-400">
