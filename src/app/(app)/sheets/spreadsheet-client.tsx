@@ -10,7 +10,7 @@ import {
   Scissors, Copy, Clipboard, WrapText, ChevronUp, ChevronDown,
   Percent, History, RotateCcw, X, Clock, BookOpen,
   SortAsc, SortDesc, Search, Replace, ArrowUp, ArrowDown,
-  Grid3x3, ChevronLeft,
+  Grid3x3, ChevronLeft, Lock,
 } from "lucide-react";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -56,6 +56,8 @@ type TabState = {
   order: number;
   cells: Record<string, Cell>;
   cw:    Record<string, number>;
+  fzR:   number;  // frozen row count
+  fzC:   number;  // frozen col count
 };
 
 export type InitialTab = {
@@ -364,7 +366,9 @@ export function SpreadsheetClient({
     initialTabs.map((t) => ({
       id: t.id, name: t.name, order: t.order,
       cells: (t.cells as Record<string, Cell>) ?? {},
-      cw: t.cw ?? {},
+      cw:  t.cw ?? {},
+      fzR: (t.cw as Record<string, number>).__fr ?? 0,
+      fzC: (t.cw as Record<string, number>).__fc ?? 0,
     }))
   );
   const [activeId, setActiveId]   = React.useState(initialTabs[0]?.id ?? "");
@@ -373,6 +377,7 @@ export function SpreadsheetClient({
   const [editVal, setEditVal]     = React.useState("");
   const [colorPicker, setColorPicker] = React.useState<"text" | "bg" | null>(null);
   const [borderMenu,  setBorderMenu]  = React.useState(false);
+  const [freezeMenu,  setFreezeMenu]  = React.useState(false);
   const [saveStatus, setSaveStatus]   = React.useState<"saved" | "saving" | "unsaved" | "error">("saved");
   const [showHistory, setShowHistory] = React.useState(false);
   const [showFind,    setShowFind]    = React.useState(false);
@@ -393,6 +398,7 @@ export function SpreadsheetClient({
   const gridRef           = React.useRef<HTMLDivElement>(null);
   const editInputRef      = React.useRef<HTMLInputElement>(null);
   const borderMenuRef     = React.useRef<HTMLDivElement>(null);
+  const freezeMenuRef     = React.useRef<HTMLDivElement>(null);
 
   // Close border menu on outside click
   React.useEffect(() => {
@@ -403,6 +409,16 @@ export function SpreadsheetClient({
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [borderMenu]);
+
+  // Close freeze menu on outside click
+  React.useEffect(() => {
+    if (!freezeMenu) return;
+    function h(e: MouseEvent) {
+      if (!freezeMenuRef.current?.contains(e.target as Node)) setFreezeMenu(false);
+    }
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [freezeMenu]);
 
   // Reset history on tab switch
   const prevActiveId = React.useRef(activeId);
@@ -418,6 +434,33 @@ export function SpreadsheetClient({
   const minR  = Math.min(sel.ar, sel.fr), maxR = Math.max(sel.ar, sel.fr);
 
   function cw(c: number) { return tab?.cw[String(c)] ?? DEF_W; }
+
+  const fzR = tab?.fzR ?? 0;
+  const fzC = tab?.fzC ?? 0;
+
+  // Left offset (px) where frozen column c begins (accounts for row-number gutter)
+  function colLeftOffset(c: number): number {
+    let left = RNW;
+    for (let i = 0; i < c; i++) left += cw(i);
+    return left;
+  }
+
+  // Set freeze and persist to DB (stores __fr/__fc inside colWidths JSON)
+  function setFreeze(rows: number, cols: number) {
+    setFreezeMenu(false);
+    setTabs((prev) => {
+      const t = prev.find((t) => t.id === activeId);
+      if (!t) return prev;
+      const newCw = { ...t.cw, __fr: rows, __fc: cols };
+      fetch(`/api/sheets/tabs/${activeId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cells: t.cells, colWidths: newCw }),
+      });
+      return prev.map((t) => t.id === activeId ? { ...t, fzR: rows, fzC: cols, cw: newCw } : t);
+    });
+  }
+
   function display(c: number, r: number) {
     const cell = cells[cid(c, r)];
     if (!cell?.v) return "";
@@ -753,7 +796,7 @@ export function SpreadsheetClient({
         body: JSON.stringify({ name, orderIndex: tabs.length }),
       });
       const newTab = await res.json();
-      setTabs((prev) => [...prev, { id: newTab.id, name, order: tabs.length, cells: {}, cw: {} }]);
+      setTabs((prev) => [...prev, { id: newTab.id, name, order: tabs.length, cells: {}, cw: {}, fzR: 0, fzC: 0 }]);
       setActiveId(newTab.id);
       setSel({ ac: 0, ar: 0, fc: 0, fr: 0 });
     } catch { /* silent */ }
@@ -1140,6 +1183,62 @@ export function SpreadsheetClient({
           <TBtn onClick={() => sortColumn("desc")} title="Sort Z → A (by active column)"><SortDesc className="h-3.5 w-3.5" /></TBtn>
           <Sep />
 
+          {/* Freeze panes */}
+          <div className="relative" ref={freezeMenuRef}>
+            <TBtn
+              onClick={() => setFreezeMenu((v) => !v)}
+              active={freezeMenu || fzR > 0 || fzC > 0}
+              title="Freeze rows / columns"
+            >
+              <Lock className="h-3.5 w-3.5" /><span>Freeze</span>
+              {(fzR > 0 || fzC > 0) && (
+                <span className="ml-0.5 text-[9px] text-primary font-semibold">
+                  {fzR > 0 && fzC > 0 ? `${fzR}R,${fzC}C` : fzR > 0 ? `${fzR}R` : `${fzC}C`}
+                </span>
+              )}
+            </TBtn>
+            {freezeMenu && (
+              <div className="absolute top-full left-0 z-50 mt-1 flex flex-col rounded-lg border bg-popover shadow-xl py-1 min-w-[175px]">
+                <div className="px-3 py-1 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Rows</div>
+                <button className="px-3 py-1 text-left text-[11px] hover:bg-muted transition-colors" onClick={() => setFreeze(1, fzC)}>Freeze 1 row</button>
+                <button className="px-3 py-1 text-left text-[11px] hover:bg-muted transition-colors" onClick={() => setFreeze(2, fzC)}>Freeze 2 rows</button>
+                {sel.ar >= 1 && (
+                  <button className="px-3 py-1 text-left text-[11px] hover:bg-muted transition-colors" onClick={() => setFreeze(sel.ar + 1, fzC)}>
+                    Freeze {sel.ar + 1} rows (up to row {sel.ar + 1})
+                  </button>
+                )}
+                {fzR > 0 && (
+                  <button className="px-3 py-1 text-left text-[11px] hover:bg-muted text-amber-600 dark:text-amber-400 transition-colors" onClick={() => setFreeze(0, fzC)}>
+                    Unfreeze rows
+                  </button>
+                )}
+                <div className="mx-3 my-1 border-t border-border/40" />
+                <div className="px-3 py-1 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">Columns</div>
+                <button className="px-3 py-1 text-left text-[11px] hover:bg-muted transition-colors" onClick={() => setFreeze(fzR, 1)}>Freeze 1 column</button>
+                <button className="px-3 py-1 text-left text-[11px] hover:bg-muted transition-colors" onClick={() => setFreeze(fzR, 2)}>Freeze 2 columns</button>
+                {sel.ac >= 1 && (
+                  <button className="px-3 py-1 text-left text-[11px] hover:bg-muted transition-colors" onClick={() => setFreeze(fzR, sel.ac + 1)}>
+                    Freeze {sel.ac + 1} cols (up to col {colLabel(sel.ac)})
+                  </button>
+                )}
+                {fzC > 0 && (
+                  <button className="px-3 py-1 text-left text-[11px] hover:bg-muted text-amber-600 dark:text-amber-400 transition-colors" onClick={() => setFreeze(fzR, 0)}>
+                    Unfreeze columns
+                  </button>
+                )}
+                {(fzR > 0 || fzC > 0) && (
+                  <>
+                    <div className="mx-3 my-1 border-t border-border/40" />
+                    <button className="px-3 py-1 text-left text-[11px] hover:bg-muted text-destructive transition-colors" onClick={() => setFreeze(0, 0)}>
+                      Unfreeze all
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+          <Sep />
+
           {/* Find & Replace */}
           <TBtn onClick={() => { setShowFind((v) => !v); setShowHistory(false); }} active={showFind} title="Find & Replace (Ctrl+H)">
             <Search className="h-3.5 w-3.5" /><span>Find</span>
@@ -1278,6 +1377,8 @@ export function SpreadsheetClient({
               />
               {Array.from({ length: COLS }, (_, c) => {
                 const selected = c >= minC && c <= maxC;
+                const isFzBoundary = fzC > 0 && c === fzC - 1;
+                const isFrozenCol  = fzC > 0 && c < fzC;
                 return (
                   <th key={c}
                     className={cn(
@@ -1285,6 +1386,12 @@ export function SpreadsheetClient({
                       "text-[10px] font-semibold text-center select-none cursor-pointer",
                       selected ? "bg-primary/15 text-primary" : "bg-muted/70 text-muted-foreground hover:bg-muted",
                     )}
+                    style={isFrozenCol ? {
+                      position: "sticky",
+                      left: colLeftOffset(c),
+                      zIndex: 25,
+                      boxShadow: isFzBoundary ? "2px 0 0 0 hsl(var(--primary))" : undefined,
+                    } : isFzBoundary ? { boxShadow: "2px 0 0 0 hsl(var(--primary))" } : undefined}
                     onClick={() => setSel({ ac: c, ar: 0, fc: c, fr: ROWS - 1 })}
                   >
                     {colLabel(c)}
@@ -1300,7 +1407,11 @@ export function SpreadsheetClient({
 
           {/* Data rows */}
           <tbody>
-            {Array.from({ length: ROWS }, (_, r) => (
+            {Array.from({ length: ROWS }, (_, r) => {
+              const isFrozenRow = fzR > 0 && r < fzR;
+              const isFzRowBoundary = fzR > 0 && r === fzR - 1;
+              const rowTop = CHH + r * DEF_H;
+              return (
               <tr key={r} style={{ height: DEF_H }}>
                 {/* Row number */}
                 <td
@@ -1311,6 +1422,13 @@ export function SpreadsheetClient({
                       ? "bg-primary/15 text-primary"
                       : "bg-muted/70 text-muted-foreground hover:bg-muted",
                   )}
+                  style={isFrozenRow ? {
+                    position: "sticky",
+                    top: rowTop,
+                    left: 0,
+                    zIndex: 18,
+                    boxShadow: isFzRowBoundary ? "0 2px 0 0 hsl(var(--primary))" : undefined,
+                  } : isFzRowBoundary ? { boxShadow: "0 2px 0 0 hsl(var(--primary))" } : undefined}
                   onClick={() => setSel({ ac: 0, ar: r, fc: COLS - 1, fr: r })}
                 >
                   {r + 1}
@@ -1327,6 +1445,9 @@ export function SpreadsheetClient({
                   const isCurMatch = findMatches[findIdx] === key;
                   const refColor = refColorMap[key];
 
+                  const isFrozenCol    = fzC > 0 && c < fzC;
+                  const isFzColBound   = fzC > 0 && c === fzC - 1;
+
                   const shadows: string[] = [];
                   if (isAc && !isEdit) shadows.push("inset 0 0 0 2px hsl(var(--primary))");
                   else if (refColor)   shadows.push(`inset 0 0 0 2px ${refColor}`);
@@ -1335,6 +1456,26 @@ export function SpreadsheetClient({
                   if (cell?.bB) shadows.push(`inset 0 -1px 0 0 ${bc}`);
                   if (cell?.bL) shadows.push(`inset 1px 0 0 0 ${bc}`);
                   if (cell?.bR) shadows.push(`inset -1px 0 0 0 ${bc}`);
+                  // Freeze boundary line indicator
+                  if (isFzRowBoundary) shadows.push("0 2px 0 0 hsl(var(--primary))");
+                  if (isFzColBound)    shadows.push("2px 0 0 0 hsl(var(--primary))");
+
+                  // Sticky style for frozen rows / cols
+                  const stickyStyle: React.CSSProperties = {};
+                  if (isFrozenRow && isFrozenCol) {
+                    stickyStyle.position = "sticky";
+                    stickyStyle.top  = rowTop;
+                    stickyStyle.left = colLeftOffset(c);
+                    stickyStyle.zIndex = 16;
+                  } else if (isFrozenRow) {
+                    stickyStyle.position = "sticky";
+                    stickyStyle.top  = rowTop;
+                    stickyStyle.zIndex = 13;
+                  } else if (isFrozenCol) {
+                    stickyStyle.position = "sticky";
+                    stickyStyle.left = colLeftOffset(c);
+                    stickyStyle.zIndex = 11;
+                  }
 
                   return (
                     <td key={c}
@@ -1345,9 +1486,10 @@ export function SpreadsheetClient({
                         isCurMatch && !refColor && "bg-amber-300 dark:bg-amber-600/60",
                       )}
                       style={{
+                        ...stickyStyle,
                         backgroundColor: refColor
                           ? (cell?.bg ?? `${refColor}18`)
-                          : (cell?.bg ?? undefined),
+                          : (cell?.bg ?? (isFrozenRow || isFrozenCol ? "hsl(var(--background))" : undefined)),
                         boxShadow: shadows.length ? shadows.join(", ") : undefined,
                         height: cell?.wrap ? "auto" : DEF_H,
                         verticalAlign: "middle",
@@ -1428,7 +1570,8 @@ export function SpreadsheetClient({
                   );
                 })}
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
