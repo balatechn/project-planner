@@ -666,6 +666,23 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
     URL.revokeObjectURL(a.href);
   }
 
+  // ── Excel (.xlsx) export ──
+  async function exportXLSX() {
+    const XLSX = await import("xlsx");
+    let mR = 0, mC = 0;
+    for (const key of Object.keys(cells)) {
+      const ref = parseRef(key);
+      if (ref) { mR = Math.max(mR, ref.r); mC = Math.max(mC, ref.c); }
+    }
+    const aoa: string[][] = Array.from({ length: mR + 1 }, (_, r) =>
+      Array.from({ length: mC + 1 }, (_, c) => display(c, r))
+    );
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, tab.name);
+    XLSX.writeFile(wb, `${tab.name}.xlsx`);
+  }
+
   // ── Tab management ──
   async function addTab() {
     const name = `Sheet${tabs.length + 1}`;
@@ -1000,7 +1017,8 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
         {/* Undo / Redo / Export */}
         <TBtn onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)"><Undo2    className="h-3.5 w-3.5" /></TBtn>
         <TBtn onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)"><Redo2    className="h-3.5 w-3.5" /></TBtn>
-        <TBtn onClick={exportCSV} title="Export CSV">                   <Download className="h-3.5 w-3.5" /><span>CSV</span></TBtn>
+        <TBtn onClick={exportCSV}  title="Export CSV">  <Download className="h-3.5 w-3.5" /><span>CSV</span></TBtn>
+        <TBtn onClick={exportXLSX} title="Export Excel"><Download className="h-3.5 w-3.5 text-green-600" /><span className="text-green-600 font-medium">Excel</span></TBtn>
         <Sep />
 
         {/* Sort */}
