@@ -1403,14 +1403,92 @@ export function SpreadsheetClient({
                 );
               })}
             </tr>
+            {/* ── Frozen data rows — live in <thead> so column-header sticky is not broken ── */}
+            {Array.from({ length: fzR }, (_, r) => {
+              const isFzRowBoundary = r === fzR - 1;
+              const rowTop = CHH + r * DEF_H;
+              return (
+                <tr key={`fz${r}`} style={{ height: DEF_H }}>
+                  <td
+                    className={cn(
+                      "border-b border-r border-border/60",
+                      "text-[10px] font-medium text-center select-none cursor-pointer",
+                      r >= minR && r <= maxR ? "bg-primary/15 text-primary" : "bg-muted/80 text-muted-foreground hover:bg-muted",
+                    )}
+                    style={{ position: "sticky", top: rowTop, left: 0, zIndex: 18, boxShadow: isFzRowBoundary ? "0 2px 0 0 hsl(var(--primary))" : undefined }}
+                    onClick={() => setSel({ ac: 0, ar: r, fc: COLS - 1, fr: r })}
+                  >{r + 1}</td>
+                  {Array.from({ length: COLS }, (_, c) => {
+                    const key = cid(c, r);
+                    const cell = cells[key];
+                    const inSel = c >= minC && c <= maxC && r >= minR && r <= maxR;
+                    const isAc = c === sel.ac && r === sel.ar;
+                    const isEdit = editing?.c === c && editing?.r === r;
+                    const isMatch = findMatches.includes(key);
+                    const isCurMatch = findMatches[findIdx] === key;
+                    const refColor = refColorMap[key];
+                    const isFrozenCol = fzC > 0 && c < fzC;
+                    const isFzColBound = fzC > 0 && c === fzC - 1;
+                    const shadows: string[] = [];
+                    if (isAc && !isEdit) shadows.push("inset 0 0 0 2px hsl(var(--primary))");
+                    else if (refColor)   shadows.push(`inset 0 0 0 2px ${refColor}`);
+                    const bc = "hsl(var(--foreground) / 0.85)";
+                    if (cell?.bT) shadows.push(`inset 0 1px 0 0 ${bc}`);
+                    if (cell?.bB) shadows.push(`inset 0 -1px 0 0 ${bc}`);
+                    if (cell?.bL) shadows.push(`inset 1px 0 0 0 ${bc}`);
+                    if (cell?.bR) shadows.push(`inset -1px 0 0 0 ${bc}`);
+                    if (isFzRowBoundary) shadows.push("0 2px 0 0 hsl(var(--primary))");
+                    if (isFzColBound)    shadows.push("2px 0 0 0 hsl(var(--primary))");
+                    return (
+                      <td key={c}
+                        className={cn(
+                          "border-b border-r border-border/30 p-0 relative overflow-visible",
+                          inSel && !isAc && !refColor && "bg-primary/10",
+                          isMatch && !isCurMatch && !inSel && !refColor && "bg-amber-100 dark:bg-amber-900/30",
+                          isCurMatch && !refColor && "bg-amber-300 dark:bg-amber-600/60",
+                        )}
+                        style={{
+                          position: "sticky", top: rowTop,
+                          ...(isFrozenCol ? { left: colLeftOffset(c) } : {}),
+                          zIndex: isFrozenCol ? 16 : 13,
+                          backgroundColor: refColor ? (cell?.bg ?? `${refColor}18`) : (cell?.bg ?? "hsl(var(--background))"),
+                          boxShadow: shadows.length ? shadows.join(", ") : undefined,
+                          height: cell?.wrap ? "auto" : DEF_H, verticalAlign: "middle",
+                        }}
+                        onMouseDown={(e) => { if (isEdit) return; commitEdit(); if (e.shiftKey) setSel((s) => ({ ...s, fc: c, fr: r })); else setSel({ ac: c, ar: r, fc: c, fr: r }); isDragging.current = true; gridRef.current?.focus(); e.preventDefault(); }}
+                        onMouseEnter={() => { if (isDragging.current) setSel((s) => ({ ...s, fc: c, fr: r })); }}
+                        onDoubleClick={() => canEdit && startEdit(c, r)}
+                      >
+                        {isEdit ? (
+                          <div className="absolute inset-0 z-20 bg-background">
+                            {editVal.startsWith("=") && (
+                              <div aria-hidden className="absolute inset-0 flex items-center font-mono pointer-events-none overflow-hidden whitespace-pre px-1" style={{ fontSize: cell?.fontSize ? `${cell.fontSize}px` : "12px", zIndex: 22 }}>
+                                {tokenizeFormula(editVal).map((token, i) => <span key={i} style={{ color: token.ref ? (refColorMap[token.ref] ?? "currentColor") : "currentColor" }}>{token.text}</span>)}
+                              </div>
+                            )}
+                            <input ref={editInputRef} value={editVal} onChange={(e) => setEditVal(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Escape") { cancelEdit(); gridRef.current?.focus(); e.preventDefault(); } if (e.key === "Enter") { commitEdit(); move(0, 1); gridRef.current?.focus(); e.preventDefault(); } if (e.key === "Tab") { commitEdit(); move(e.shiftKey ? -1 : 1, 0); gridRef.current?.focus(); e.preventDefault(); } e.stopPropagation(); }}
+                              className="absolute inset-0 w-full h-full px-1 font-mono outline-none bg-transparent"
+                              style={{ ...cellStyle(cell), textAlign: cell?.align ?? "left", color: editVal.startsWith("=") ? "transparent" : undefined, caretColor: "currentColor", zIndex: 21 }}
+                            />
+                          </div>
+                        ) : (
+                          <div className="w-full h-full px-1 flex items-center overflow-hidden" style={{ ...cellStyle(cell), justifyContent: cell?.align === "right" ? "flex-end" : cell?.align === "center" ? "center" : "flex-start", whiteSpace: cell?.wrap ? "normal" : "nowrap", minHeight: DEF_H }}>
+                            <span className={cell?.wrap ? "break-words w-full" : "truncate w-full"} style={{ textAlign: cell?.align ?? "left" }}>{display(c, r)}</span>
+                          </div>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </thead>
 
-          {/* Data rows */}
+          {/* Data rows — non-frozen only; frozen rows are rendered in <thead> above */}
           <tbody>
             {Array.from({ length: ROWS }, (_, r) => {
-              const isFrozenRow = fzR > 0 && r < fzR;
-              const isFzRowBoundary = fzR > 0 && r === fzR - 1;
-              const rowTop = CHH + r * DEF_H;
+              if (r < fzR) return null;
               return (
               <tr key={r} style={{ height: DEF_H }}>
                 {/* Row number */}
@@ -1422,13 +1500,6 @@ export function SpreadsheetClient({
                       ? "bg-primary/15 text-primary"
                       : "bg-muted/70 text-muted-foreground hover:bg-muted",
                   )}
-                  style={isFrozenRow ? {
-                    position: "sticky",
-                    top: rowTop,
-                    left: 0,
-                    zIndex: 18,
-                    boxShadow: isFzRowBoundary ? "0 2px 0 0 hsl(var(--primary))" : undefined,
-                  } : isFzRowBoundary ? { boxShadow: "0 2px 0 0 hsl(var(--primary))" } : undefined}
                   onClick={() => setSel({ ac: 0, ar: r, fc: COLS - 1, fr: r })}
                 >
                   {r + 1}
@@ -1444,9 +1515,8 @@ export function SpreadsheetClient({
                   const isMatch  = findMatches.includes(key);
                   const isCurMatch = findMatches[findIdx] === key;
                   const refColor = refColorMap[key];
-
-                  const isFrozenCol    = fzC > 0 && c < fzC;
-                  const isFzColBound   = fzC > 0 && c === fzC - 1;
+                  const isFrozenCol  = fzC > 0 && c < fzC;
+                  const isFzColBound = fzC > 0 && c === fzC - 1;
 
                   const shadows: string[] = [];
                   if (isAc && !isEdit) shadows.push("inset 0 0 0 2px hsl(var(--primary))");
@@ -1456,26 +1526,7 @@ export function SpreadsheetClient({
                   if (cell?.bB) shadows.push(`inset 0 -1px 0 0 ${bc}`);
                   if (cell?.bL) shadows.push(`inset 1px 0 0 0 ${bc}`);
                   if (cell?.bR) shadows.push(`inset -1px 0 0 0 ${bc}`);
-                  // Freeze boundary line indicator
-                  if (isFzRowBoundary) shadows.push("0 2px 0 0 hsl(var(--primary))");
-                  if (isFzColBound)    shadows.push("2px 0 0 0 hsl(var(--primary))");
-
-                  // Sticky style for frozen rows / cols
-                  const stickyStyle: React.CSSProperties = {};
-                  if (isFrozenRow && isFrozenCol) {
-                    stickyStyle.position = "sticky";
-                    stickyStyle.top  = rowTop;
-                    stickyStyle.left = colLeftOffset(c);
-                    stickyStyle.zIndex = 16;
-                  } else if (isFrozenRow) {
-                    stickyStyle.position = "sticky";
-                    stickyStyle.top  = rowTop;
-                    stickyStyle.zIndex = 13;
-                  } else if (isFrozenCol) {
-                    stickyStyle.position = "sticky";
-                    stickyStyle.left = colLeftOffset(c);
-                    stickyStyle.zIndex = 11;
-                  }
+                  if (isFzColBound) shadows.push("2px 0 0 0 hsl(var(--primary))");
 
                   return (
                     <td key={c}
@@ -1486,10 +1537,10 @@ export function SpreadsheetClient({
                         isCurMatch && !refColor && "bg-amber-300 dark:bg-amber-600/60",
                       )}
                       style={{
-                        ...stickyStyle,
+                        ...(isFrozenCol ? { position: "sticky" as const, left: colLeftOffset(c), zIndex: 11 } : {}),
                         backgroundColor: refColor
                           ? (cell?.bg ?? `${refColor}18`)
-                          : (cell?.bg ?? (isFrozenRow || isFrozenCol ? "hsl(var(--background))" : undefined)),
+                          : (cell?.bg ?? (isFrozenCol ? "hsl(var(--background))" : undefined)),
                         boxShadow: shadows.length ? shadows.join(", ") : undefined,
                         height: cell?.wrap ? "auto" : DEF_H,
                         verticalAlign: "middle",
@@ -1510,23 +1561,14 @@ export function SpreadsheetClient({
                     >
                       {isEdit ? (
                         <div className="absolute inset-0 z-20 bg-background">
-                          {/* Colored formula overlay for in-cell editing */}
                           {editVal.startsWith("=") && (
                             <div
                               aria-hidden
                               className="absolute inset-0 flex items-center font-mono pointer-events-none overflow-hidden whitespace-pre px-1"
-                              style={{
-                                fontSize: cell?.fontSize ? `${cell.fontSize}px` : "12px",
-                                zIndex: 22,
-                              }}
+                              style={{ fontSize: cell?.fontSize ? `${cell.fontSize}px` : "12px", zIndex: 22 }}
                             >
                               {tokenizeFormula(editVal).map((token, i) => (
-                                <span
-                                  key={i}
-                                  style={{ color: token.ref ? (refColorMap[token.ref] ?? "currentColor") : "currentColor" }}
-                                >
-                                  {token.text}
-                                </span>
+                                <span key={i} style={{ color: token.ref ? (refColorMap[token.ref] ?? "currentColor") : "currentColor" }}>{token.text}</span>
                               ))}
                             </div>
                           )}
