@@ -211,6 +211,8 @@ model User {
   organizedBookings RoomBooking[]  @relation("RoomBookingOrganizer")
   bookedForMeetings RoomBooking[]  @relation("RoomBookingFor")
   spreadsheets      Spreadsheet[]
+  sharedWithMe      SpreadsheetShare[] @relation("SharedWithMe")
+  sharedByMe        SpreadsheetShare[] @relation("SharedByMe")
 
   @@index([department])
   @@index([role])
@@ -891,17 +893,39 @@ model Holiday {
   createdAt DateTime @default(now())
 }
 
+enum SharePermission {
+  VIEW
+  EDIT
+}
+
 // ── Sheets (Excel-like spreadsheet workspace, multiple per user) ─────────────
 model Spreadsheet {
-  id        String           @id @default(cuid())
-  name      String           @default("My Spreadsheet")
+  id        String             @id @default(cuid())
+  name      String             @default("My Spreadsheet")
   ownerId   String
-  owner     User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  owner     User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
   tabs      SpreadsheetTab[]
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  shares    SpreadsheetShare[]
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
 
   @@index([ownerId])
+}
+
+model SpreadsheetShare {
+  id            String          @id @default(cuid())
+  spreadsheetId String
+  spreadsheet   Spreadsheet     @relation(fields: [spreadsheetId], references: [id], onDelete: Cascade)
+  sharedWithId  String
+  sharedWith    User            @relation("SharedWithMe", fields: [sharedWithId], references: [id], onDelete: Cascade)
+  sharedById    String
+  sharedBy      User            @relation("SharedByMe",   fields: [sharedById],   references: [id], onDelete: Cascade)
+  permission    SharePermission @default(VIEW)
+  createdAt     DateTime        @default(now())
+
+  @@unique([spreadsheetId, sharedWithId])
+  @@index([sharedWithId])
+  @@index([spreadsheetId])
 }
 
 model SpreadsheetTab {

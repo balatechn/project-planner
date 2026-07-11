@@ -14,12 +14,27 @@ export default async function WorkbookPage({
   const user = await requireUser();
   const { spreadsheetId } = await params;
 
+  // Load the workbook — accessible if user is the owner OR has a share
   const sheet = await prisma.spreadsheet.findFirst({
-    where: { id: spreadsheetId, ownerId: user.id },
-    include: { tabs: { orderBy: { orderIndex: "asc" } } },
+    where: {
+      id: spreadsheetId,
+      OR: [
+        { ownerId: user.id },
+        { shares: { some: { sharedWithId: user.id } } },
+      ],
+    },
+    include: {
+      tabs: { orderBy: { orderIndex: "asc" } },
+      shares: { where: { sharedWithId: user.id }, select: { permission: true } },
+    },
   });
 
   if (!sheet) notFound();
+
+  const isOwner = sheet.ownerId === user.id;
+  const permission = isOwner
+    ? "EDIT"
+    : (sheet.shares[0]?.permission ?? "VIEW");
 
   const initialTabs: InitialTab[] = sheet.tabs.map((t) => ({
     id: t.id,
@@ -33,6 +48,8 @@ export default async function WorkbookPage({
     <SpreadsheetClient
       spreadsheetId={sheet.id}
       spreadsheetName={sheet.name}
+      permission={permission as "VIEW" | "EDIT"}
+      isOwner={isOwner}
       initialTabs={initialTabs}
     />
   );

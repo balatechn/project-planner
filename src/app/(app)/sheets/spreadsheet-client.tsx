@@ -348,12 +348,17 @@ function SheetTabBtn({ name, active, onClick, onRename, onDelete, canDelete }: {
 export function SpreadsheetClient({
   spreadsheetId,
   spreadsheetName,
+  permission = "EDIT",
+  isOwner = true,
   initialTabs,
 }: {
   spreadsheetId: string;
   spreadsheetName: string;
+  permission?: "VIEW" | "EDIT";
+  isOwner?: boolean;
   initialTabs: InitialTab[];
 }) {
+  const canEdit = permission === "EDIT";
   // ── State ──
   const [tabs, setTabs] = React.useState<TabState[]>(() =>
     initialTabs.map((t) => ({
@@ -903,6 +908,19 @@ export function SpreadsheetClient({
   function onKeyDown(e: React.KeyboardEvent) {
     const ctrl = e.ctrlKey || e.metaKey;
 
+    // Block all mutations in view-only mode
+    if (!canEdit) {
+      // Still allow navigation arrows + Ctrl+C
+      if (ctrl && e.key.toLowerCase() === "c") { copy(); e.preventDefault(); }
+      if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"].includes(e.key)) {
+        move(e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0,
+             e.key === "ArrowDown"  ? 1 : e.key === "ArrowUp"   ? -1 : 0,
+             e.shiftKey);
+        e.preventDefault();
+      }
+      return;
+    }
+
     if (editing) {
       if (e.key === "Escape") { cancelEdit(); e.preventDefault(); return; }
       if (e.key === "Enter") { commitEdit(); move(0, 1); e.preventDefault(); return; }
@@ -991,9 +1009,14 @@ export function SpreadsheetClient({
         </Link>
         <span className="text-muted-foreground/40">/</span>
         <span className="font-medium truncate max-w-xs">{spreadsheetName}</span>
+        {!canEdit && (
+          <span className="ml-1 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 px-2 py-px text-[10px] font-medium">
+            View only
+          </span>
+        )}
       </div>
-      {/* ── Toolbar (two rows) ── */}
-      <div className="flex flex-shrink-0 flex-col border-b bg-muted/20">
+      {/* ── Toolbar (two rows) — hidden in view-only mode ── */}
+      <div className={cn("flex flex-shrink-0 flex-col border-b bg-muted/20", !canEdit && "pointer-events-none opacity-40 select-none")}>
 
         {/* Row 1: Clipboard | Font | Style | Colors | Alignment | Number */}
         <div className="flex items-center gap-0.5 px-2 pt-1 pb-0.5">
@@ -1214,8 +1237,7 @@ export function SpreadsheetClient({
         tabIndex={0}
         onKeyDown={onKeyDown}
         onPaste={(e) => {
-          // Skip if the user is actively editing a cell (let the input handle it)
-          if (editing) return;
+          if (editing || !canEdit) return;
           const text = e.clipboardData.getData("text/plain");
           if (text) {
             e.preventDefault();
@@ -1342,7 +1364,7 @@ export function SpreadsheetClient({
                       onMouseEnter={() => {
                         if (isDragging.current) setSel((s) => ({ ...s, fc: c, fr: r }));
                       }}
-                      onDoubleClick={() => startEdit(c, r)}
+                      onDoubleClick={() => canEdit && startEdit(c, r)}
                     >
                       {isEdit ? (
                         <div className="absolute inset-0 z-20 bg-background">
