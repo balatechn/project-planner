@@ -22,6 +22,9 @@ const CHH  = 22;
 const FONTS = ["Default", "Arial", "Calibri", "Times New Roman", "Courier New", "Georgia", "Verdana", "Trebuchet MS"];
 const SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 48, 72];
 
+// Colors assigned to each unique cell reference while editing a formula
+const REF_COLORS = ["#2563eb","#dc2626","#16a34a","#9333ea","#ea580c","#0891b2","#d97706","#db2777"];
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 type NumFmt = "general" | "number" | "currency" | "percent";
 
@@ -85,6 +88,24 @@ function parseRef(ref: string): { c: number; r: number } | null {
   let c = 0;
   for (const ch of m[1]) c = c * 26 + (ch.charCodeAt(0) - 64);
   return { c: c - 1, r: parseInt(m[2]) - 1 };
+}
+
+// Split a formula string into plain/ref segments for colored rendering
+function tokenizeFormula(formula: string): Array<{ text: string; ref?: string }> {
+  if (!formula.startsWith("=")) return [{ text: formula }];
+  const tokens: Array<{ text: string; ref?: string }> = [{ text: "=" }];
+  let rest = formula.slice(1);
+  while (rest.length > 0) {
+    const m = /^([A-Za-z]{1,3}\d{1,7})/i.exec(rest);
+    if (m) {
+      tokens.push({ text: m[1], ref: m[1].toUpperCase() });
+      rest = rest.slice(m[1].length);
+    } else {
+      tokens.push({ text: rest[0] });
+      rest = rest.slice(1);
+    }
+  }
+  return tokens;
 }
 
 function applyNumFmt(val: string, cell?: Cell): string {
@@ -857,6 +878,23 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
   const canUndo = histRef.current.past.length > 0;
   const canRedo = histRef.current.future.length > 0;
 
+  // Map each unique cell ref in the active formula to a highlight color
+  const refColorMap = React.useMemo<Record<string, string>>(() => {
+    const formula = editing ? editVal : "";
+    if (!formula.startsWith("=")) return {};
+    const seen = new Set<string>();
+    const order: string[] = [];
+    const re = /\b([A-Za-z]{1,3}\d{1,7})\b/g;
+    let m;
+    while ((m = re.exec(formula)) !== null) {
+      const ref = m[1].toUpperCase();
+      if (!seen.has(ref)) { seen.add(ref); order.push(ref); }
+    }
+    const map: Record<string, string> = {};
+    order.forEach((ref, i) => { map[ref] = REF_COLORS[i % REF_COLORS.length]; });
+    return map;
+  }, [editing, editVal]);
+
   // ── Cell style helper ──
   function cellStyle(cell?: Cell): React.CSSProperties {
     return {
@@ -990,24 +1028,69 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
       </div>
 
       {/* ── Formula bar ── */}
-      <div className="flex flex-shrink-0 items-center gap-1.5 border-b px-2 py-0.5 bg-background">
-        <div className="w-14 flex-shrink-0 rounded border bg-muted/40 px-1.5 py-0.5 text-center text-[11px] font-mono font-semibold tracking-wider">
-          {namebox}
+      <div className="flex flex-shrink-0 flex-col border-b bg-background">
+        <div className="flex items-center gap-1.5 px-2 py-0.5">
+          <div className="w-14 flex-shrink-0 rounded border bg-muted/40 px-1.5 py-0.5 text-center text-[11px] font-mono font-semibold tracking-wider">
+            {namebox}
+          </div>
+          <span className="text-[10px] font-semibold italic text-muted-foreground">fx</span>
+          <div className="relative flex-1 flex items-center">
+            {/* Colored formula overlay — shown when editing a formula */}
+            {editing && editVal.startsWith("=") && (
+              <div
+                aria-hidden
+                className="absolute inset-0 flex items-center font-mono text-[12px] pointer-events-none overflow-hidden whitespace-pre"
+                style={{ padding: "0 1px" }}
+              >
+                {tokenizeFormula(editVal).map((token, i) => (
+                  <span
+                    key={i}
+                    style={{ color: token.ref ? refColorMap[token.ref] : "currentColor" }}
+                  >
+                    {token.text}
+                  </span>
+                ))}
+              </div>
+            )}
+            <input
+              value={formulaBarVal}
+              className="w-full bg-transparent font-mono text-[12px] outline-none"
+              style={{
+                padding: "0 1px",
+                color: editing && editVal.startsWith("=") ? "transparent" : undefined,
+                caretColor: "currentColor",
+              }}
+              onChange={(e) => {
+                if (editing) setEditVal(e.target.value);
+                else { setEditing({ c: sel.ac, r: sel.ar }); setEditVal(e.target.value); }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter")  { commitEdit(); move(0, 1); gridRef.current?.focus(); e.preventDefault(); }
+                if (e.key === "Escape") { cancelEdit(); gridRef.current?.focus(); e.preventDefault(); }
+                e.stopPropagation();
+              }}
+            />
+          </div>
         </div>
-        <span className="text-[10px] font-semibold italic text-muted-foreground">fx</span>
-        <input
-          value={formulaBarVal}
-          className="flex-1 bg-transparent font-mono text-[12px] outline-none"
-          onChange={(e) => {
-            if (editing) setEditVal(e.target.value);
-            else { setEditing({ c: sel.ac, r: sel.ar }); setEditVal(e.target.value); }
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter")  { commitEdit(); move(0, 1); gridRef.current?.focus(); e.preventDefault(); }
-            if (e.key === "Escape") { cancelEdit(); gridRef.current?.focus(); e.preventDefault(); }
-            e.stopPropagation();
-          }}
-        />
+        {/* Colored cell-ref chips — visible only while editing a formula */}
+        {editing && editVal.startsWith("=") && Object.keys(refColorMap).length > 0 && (
+          <div className="flex items-center gap-1 px-2 pb-0.5 overflow-x-auto">
+            <span className="text-[9px] text-muted-foreground italic flex-shrink-0">refs:</span>
+            {Object.entries(refColorMap).map(([ref, color]) => (
+              <span
+                key={ref}
+                className="inline-flex items-center rounded px-1.5 py-px text-[10px] font-semibold font-mono flex-shrink-0"
+                style={{
+                  color,
+                  backgroundColor: `${color}18`,
+                  border: `1.5px solid ${color}88`,
+                }}
+              >
+                {ref}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── Grid + History panel ── */}
@@ -1085,18 +1168,25 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
                   const isEdit   = editing?.c === c && editing?.r === r;
                   const isMatch  = findMatches.includes(key);
                   const isCurMatch = findMatches[findIdx] === key;
+                  const refColor = refColorMap[key];
 
                   return (
                     <td key={c}
                       className={cn(
                         "border-b border-r border-border/30 p-0 relative overflow-visible",
-                        inSel && !isAc && "bg-primary/10",
-                        isMatch && !isCurMatch && !inSel && "bg-amber-100 dark:bg-amber-900/30",
-                        isCurMatch && "bg-amber-300 dark:bg-amber-600/60",
+                        inSel && !isAc && !refColor && "bg-primary/10",
+                        isMatch && !isCurMatch && !inSel && !refColor && "bg-amber-100 dark:bg-amber-900/30",
+                        isCurMatch && !refColor && "bg-amber-300 dark:bg-amber-600/60",
                       )}
                       style={{
-                        backgroundColor: cell?.bg ?? undefined,
-                        boxShadow: isAc && !isEdit ? "inset 0 0 0 2px hsl(var(--primary))" : undefined,
+                        backgroundColor: refColor
+                          ? (cell?.bg ?? `${refColor}18`)
+                          : (cell?.bg ?? undefined),
+                        boxShadow: isAc && !isEdit
+                          ? "inset 0 0 0 2px hsl(var(--primary))"
+                          : refColor
+                            ? `inset 0 0 0 2px ${refColor}`
+                            : undefined,
                         height: cell?.wrap ? "auto" : DEF_H,
                         verticalAlign: "middle",
                       }}
@@ -1115,22 +1205,47 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
                       onDoubleClick={() => startEdit(c, r)}
                     >
                       {isEdit ? (
-                        <input
-                          ref={editInputRef}
-                          value={editVal}
-                          onChange={(e) => setEditVal(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Escape") { cancelEdit(); gridRef.current?.focus(); e.preventDefault(); }
-                            if (e.key === "Enter")  { commitEdit(); move(0, 1); gridRef.current?.focus(); e.preventDefault(); }
-                            if (e.key === "Tab")    { commitEdit(); move(e.shiftKey ? -1 : 1, 0); gridRef.current?.focus(); e.preventDefault(); }
-                            e.stopPropagation();
-                          }}
-                          className="absolute inset-0 w-full h-full px-1 font-mono z-20 outline-none bg-background"
-                          style={{
-                            ...cellStyle(cell),
-                            textAlign: cell?.align ?? "left",
-                          }}
-                        />
+                        <div className="absolute inset-0 z-20 bg-background">
+                          {/* Colored formula overlay for in-cell editing */}
+                          {editVal.startsWith("=") && (
+                            <div
+                              aria-hidden
+                              className="absolute inset-0 flex items-center font-mono pointer-events-none overflow-hidden whitespace-pre px-1"
+                              style={{
+                                fontSize: cell?.fontSize ? `${cell.fontSize}px` : "12px",
+                                zIndex: 22,
+                              }}
+                            >
+                              {tokenizeFormula(editVal).map((token, i) => (
+                                <span
+                                  key={i}
+                                  style={{ color: token.ref ? (refColorMap[token.ref] ?? "currentColor") : "currentColor" }}
+                                >
+                                  {token.text}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <input
+                            ref={editInputRef}
+                            value={editVal}
+                            onChange={(e) => setEditVal(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Escape") { cancelEdit(); gridRef.current?.focus(); e.preventDefault(); }
+                              if (e.key === "Enter")  { commitEdit(); move(0, 1); gridRef.current?.focus(); e.preventDefault(); }
+                              if (e.key === "Tab")    { commitEdit(); move(e.shiftKey ? -1 : 1, 0); gridRef.current?.focus(); e.preventDefault(); }
+                              e.stopPropagation();
+                            }}
+                            className="absolute inset-0 w-full h-full px-1 font-mono outline-none bg-transparent"
+                            style={{
+                              ...cellStyle(cell),
+                              textAlign: cell?.align ?? "left",
+                              color: editVal.startsWith("=") ? "transparent" : undefined,
+                              caretColor: "currentColor",
+                              zIndex: 21,
+                            }}
+                          />
+                        </div>
                       ) : (
                         <div
                           className="w-full h-full px-1 flex items-center overflow-hidden"
