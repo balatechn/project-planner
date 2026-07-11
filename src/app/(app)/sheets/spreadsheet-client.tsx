@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
-const COLS = 26;
+const COLS = 52;
 const ROWS = 100;
 const DEF_W = 100;
 const DEF_H = 24;
