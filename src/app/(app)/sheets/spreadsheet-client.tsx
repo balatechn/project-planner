@@ -8,6 +8,7 @@ import {
   Save, CheckCircle2, AlertCircle, Loader2,
   Scissors, Copy, Clipboard, WrapText, ChevronUp, ChevronDown,
   Percent, History, RotateCcw, X, Clock, BookOpen,
+  SortAsc, SortDesc, Search, Replace, ArrowUp, ArrowDown,
 } from "lucide-react";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -333,6 +334,11 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
   const [colorPicker, setColorPicker] = React.useState<"text" | "bg" | null>(null);
   const [saveStatus, setSaveStatus]   = React.useState<"saved" | "saving" | "unsaved" | "error">("saved");
   const [showHistory, setShowHistory] = React.useState(false);
+  const [showFind,    setShowFind]    = React.useState(false);
+  const [findVal,     setFindVal]     = React.useState("");
+  const [replaceVal,  setReplaceVal]  = React.useState("");
+  const [findMatches, setFindMatches] = React.useState<string[]>([]);
+  const [findIdx,     setFindIdx]     = React.useState(0);
   const [historyList, setHistoryList] = React.useState<HistoryEntry[]>([]);
   const [historyLoading, setHistoryLoading] = React.useState(false);
   const [restoring, setRestoring]     = React.useState<string | null>(null);
@@ -671,6 +677,86 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
     await fetch(`/api/sheets/tabs/${id}`, { method: "DELETE" });
   }
 
+  // ── Sort ──
+  function sortColumn(dir: "asc" | "desc") {
+    // Collect rows that have any data
+    const rowSet = new Set<number>();
+    for (const key of Object.keys(cells)) {
+      const ref = parseRef(key);
+      if (ref) rowSet.add(ref.r);
+    }
+    const rows = Array.from(rowSet).sort((a, b) => a - b);
+    if (rows.length === 0) return;
+
+    const col = sel.ac;
+    const sortedRows = [...rows].sort((a, b) => {
+      const va = display(col, a), vb = display(col, b);
+      const na = parseFloat(va), nb = parseFloat(vb);
+      const cmp = !isNaN(na) && !isNaN(nb) ? na - nb : va.localeCompare(vb);
+      return dir === "asc" ? cmp : -cmp;
+    });
+
+    const next: Record<string, Cell> = {};
+    for (const [key, cell] of Object.entries(cells)) {
+      const ref = parseRef(key);
+      if (!ref || !rowSet.has(ref.r)) { next[key] = cell; continue; }
+      const destRow = rows[sortedRows.indexOf(ref.r)];
+      next[cid(ref.c, destRow)] = { ...cell };
+    }
+    commitCells(next);
+  }
+
+  // ── Find & Replace ──
+  function runFind(query: string) {
+    if (!query) { setFindMatches([]); return; }
+    const q = query.toLowerCase();
+    const matches: string[] = [];
+    for (let r = 0; r < ROWS; r++)
+      for (let c = 0; c < COLS; c++) {
+        const key = cid(c, r);
+        const raw = cells[key]?.v ?? "";
+        const shown = display(c, r);
+        if (raw.toLowerCase().includes(q) || shown.toLowerCase().includes(q))
+          matches.push(key);
+      }
+    setFindMatches(matches);
+    setFindIdx(0);
+    if (matches.length) {
+      const ref = parseRef(matches[0])!;
+      setSel({ ac: ref.c, ar: ref.r, fc: ref.c, fr: ref.r });
+    }
+  }
+
+  function findNext(delta: 1 | -1) {
+    if (!findMatches.length) return;
+    const next = (findIdx + delta + findMatches.length) % findMatches.length;
+    setFindIdx(next);
+    const ref = parseRef(findMatches[next])!;
+    setSel({ ac: ref.c, ar: ref.r, fc: ref.c, fr: ref.r });
+  }
+
+  function replaceOne() {
+    if (!findMatches.length) return;
+    const key = findMatches[findIdx];
+    const cell = cells[key];
+    if (!cell) return;
+    const next = { ...cells, [key]: { ...cell, v: cell.v.replace(new RegExp(findVal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"), replaceVal) } };
+    commitCells(next);
+    runFind(findVal);
+  }
+
+  function replaceAll() {
+    if (!findMatches.length) return;
+    const re = new RegExp(findVal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+    const next = { ...cells };
+    for (const key of findMatches) {
+      const cell = next[key];
+      if (cell) next[key] = { ...cell, v: cell.v.replace(re, replaceVal) };
+    }
+    commitCells(next);
+    setFindMatches([]);
+  }
+
   // ── History ──
   async function openHistory() {
     setShowHistory(true);
@@ -742,6 +828,8 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
         case "i": applyFmt({ italic: !activeCell()?.italic });     e.preventDefault(); return;
         case "u": applyFmt({ underline: !activeCell()?.underline }); e.preventDefault(); return;
         case "a": setSel({ ac: 0, ar: 0, fc: COLS - 1, fr: ROWS - 1 }); e.preventDefault(); return;
+        case "f": setShowFind(true); setShowHistory(false); e.preventDefault(); return;
+        case "h": setShowFind(true); setShowHistory(false); e.preventDefault(); return;
       }
     }
 
@@ -877,8 +965,19 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
         <TBtn onClick={exportCSV} title="Export CSV">                   <Download className="h-3.5 w-3.5" /><span>CSV</span></TBtn>
         <Sep />
 
+        {/* Sort */}
+        <TBtn onClick={() => sortColumn("asc")}  title="Sort A → Z (by active column)"><SortAsc  className="h-3.5 w-3.5" /></TBtn>
+        <TBtn onClick={() => sortColumn("desc")} title="Sort Z → A (by active column)"><SortDesc className="h-3.5 w-3.5" /></TBtn>
+        <Sep />
+
+        {/* Find & Replace */}
+        <TBtn onClick={() => { setShowFind((v) => !v); setShowHistory(false); }} active={showFind} title="Find & Replace (Ctrl+H)">
+          <Search className="h-3.5 w-3.5" /><span>Find</span>
+        </TBtn>
+        <Sep />
+
         {/* History */}
-        <TBtn onClick={openHistory}        active={showHistory} title="Version History">       <History  className="h-3.5 w-3.5" /><span>History</span></TBtn>
+        <TBtn onClick={() => { openHistory(); setShowFind(false); }} active={showHistory} title="Version History"><History  className="h-3.5 w-3.5" /><span>History</span></TBtn>
         <TBtn onClick={() => saveVersionNow()} title="Save version snapshot"><BookOpen className="h-3.5 w-3.5" /></TBtn>
 
         {/* Save status — right edge */}
@@ -981,15 +1080,19 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
                 {Array.from({ length: COLS }, (_, c) => {
                   const key = cid(c, r);
                   const cell = cells[key];
-                  const inSel  = c >= minC && c <= maxC && r >= minR && r <= maxR;
-                  const isAc   = c === sel.ac && r === sel.ar;
-                  const isEdit = editing?.c === c && editing?.r === r;
+                  const inSel    = c >= minC && c <= maxC && r >= minR && r <= maxR;
+                  const isAc     = c === sel.ac && r === sel.ar;
+                  const isEdit   = editing?.c === c && editing?.r === r;
+                  const isMatch  = findMatches.includes(key);
+                  const isCurMatch = findMatches[findIdx] === key;
 
                   return (
                     <td key={c}
                       className={cn(
                         "border-b border-r border-border/30 p-0 relative overflow-visible",
                         inSel && !isAc && "bg-primary/10",
+                        isMatch && !isCurMatch && !inSel && "bg-amber-100 dark:bg-amber-900/30",
+                        isCurMatch && "bg-amber-300 dark:bg-amber-600/60",
                       )}
                       style={{
                         backgroundColor: cell?.bg ?? undefined,
@@ -1052,6 +1155,81 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
           </tbody>
         </table>
       </div>
+
+      {/* ── Find & Replace panel ── */}
+      {showFind && (
+        <div className="flex flex-col w-72 flex-shrink-0 border-l bg-background overflow-hidden">
+          <div className="flex items-center justify-between border-b px-3 py-2 bg-muted/20">
+            <div className="flex items-center gap-1.5 text-[12px] font-semibold">
+              <Search className="h-3.5 w-3.5 text-primary" /> Find &amp; Replace
+            </div>
+            <button onClick={() => setShowFind(false)} className="rounded p-0.5 hover:bg-muted">
+              <X className="h-3.5 w-3.5 text-muted-foreground" />
+            </button>
+          </div>
+          <div className="flex flex-col gap-2 p-3">
+            {/* Find */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Find</label>
+              <div className="flex gap-1">
+                <input
+                  value={findVal}
+                  onChange={(e) => { setFindVal(e.target.value); runFind(e.target.value); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") findNext(1); e.stopPropagation(); }}
+                  placeholder="Search in sheet…"
+                  className="flex-1 h-7 rounded border border-border bg-background px-2 text-[11px] outline-none focus:border-primary"
+                />
+              </div>
+            </div>
+            {/* Replace */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Replace</label>
+              <input
+                value={replaceVal}
+                onChange={(e) => setReplaceVal(e.target.value)}
+                onKeyDown={(e) => e.stopPropagation()}
+                placeholder="Replace with…"
+                className="h-7 rounded border border-border bg-background px-2 text-[11px] outline-none focus:border-primary"
+              />
+            </div>
+            {/* Match count */}
+            {findVal && (
+              <p className="text-[10px] text-muted-foreground">
+                {findMatches.length === 0
+                  ? "No matches"
+                  : `${findIdx + 1} of ${findMatches.length} match${findMatches.length !== 1 ? "es" : ""}`}
+              </p>
+            )}
+            {/* Nav buttons */}
+            <div className="flex gap-1">
+              <button
+                onClick={() => findNext(-1)}
+                disabled={findMatches.length === 0}
+                className="flex items-center gap-1 rounded px-2 py-1 text-[11px] border border-border hover:bg-muted disabled:opacity-30 transition-colors"
+                title="Previous match"
+              ><ArrowUp className="h-3 w-3" /> Prev</button>
+              <button
+                onClick={() => findNext(1)}
+                disabled={findMatches.length === 0}
+                className="flex items-center gap-1 rounded px-2 py-1 text-[11px] border border-border hover:bg-muted disabled:opacity-30 transition-colors"
+                title="Next match"
+              ><ArrowDown className="h-3 w-3" /> Next</button>
+            </div>
+            <div className="flex gap-1 pt-1 border-t border-border/40">
+              <button
+                onClick={replaceOne}
+                disabled={findMatches.length === 0}
+                className="flex items-center gap-1 rounded px-2 py-1 text-[11px] bg-muted hover:bg-muted/80 disabled:opacity-30 transition-colors"
+              ><Replace className="h-3 w-3" /> Replace</button>
+              <button
+                onClick={replaceAll}
+                disabled={findMatches.length === 0}
+                className="flex items-center gap-1 rounded px-2 py-1 text-[11px] bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 transition-colors"
+              >Replace All</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── History panel ── */}
       {showHistory && (
