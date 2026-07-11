@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import {
   Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
@@ -9,7 +10,7 @@ import {
   Scissors, Copy, Clipboard, WrapText, ChevronUp, ChevronDown,
   Percent, History, RotateCcw, X, Clock, BookOpen,
   SortAsc, SortDesc, Search, Replace, ArrowUp, ArrowDown,
-  Grid3x3,
+  Grid3x3, ChevronLeft,
 } from "lucide-react";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -344,7 +345,15 @@ function SheetTabBtn({ name, active, onClick, onRename, onDelete, canDelete }: {
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
-export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }) {
+export function SpreadsheetClient({
+  spreadsheetId,
+  spreadsheetName,
+  initialTabs,
+}: {
+  spreadsheetId: string;
+  spreadsheetName: string;
+  initialTabs: InitialTab[];
+}) {
   // ── State ──
   const [tabs, setTabs] = React.useState<TabState[]>(() =>
     initialTabs.map((t) => ({
@@ -733,7 +742,7 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
   async function addTab() {
     const name = `Sheet${tabs.length + 1}`;
     try {
-      const res = await fetch("/api/sheets", {
+      const res = await fetch(`/api/sheets/${spreadsheetId}/tabs`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, orderIndex: tabs.length }),
@@ -975,6 +984,14 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
       className="-m-3 lg:-m-4 flex flex-col bg-background overflow-hidden text-[12px]"
       style={{ height: "calc(100vh - 2.75rem)" }}
     >
+      {/* ── Workbook breadcrumb bar ── */}
+      <div className="flex flex-shrink-0 items-center gap-2 border-b px-3 py-1 bg-muted/10 text-[11px]">
+        <Link href="/sheets" className="flex items-center gap-0.5 text-muted-foreground hover:text-foreground transition-colors">
+          <ChevronLeft className="h-3 w-3" />Sheets
+        </Link>
+        <span className="text-muted-foreground/40">/</span>
+        <span className="font-medium truncate max-w-xs">{spreadsheetName}</span>
+      </div>
       {/* ── Toolbar (two rows) ── */}
       <div className="flex flex-shrink-0 flex-col border-b bg-muted/20">
 

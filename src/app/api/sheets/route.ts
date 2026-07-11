@@ -1,49 +1,38 @@
 import { getAuthedUser, handle, json } from "@/lib/api";
 import { prisma } from "@/lib/prisma";
 
-// GET /api/sheets — load or auto-create the user's spreadsheet
+// GET /api/sheets — list all workbooks for the current user
 export async function GET() {
   return handle(async () => {
     const user = await getAuthedUser();
-
-    let sheet = await prisma.spreadsheet.findUnique({
+    const sheets = await prisma.spreadsheet.findMany({
       where: { ownerId: user.id },
-      include: { tabs: { orderBy: { orderIndex: "asc" } } },
+      include: { _count: { select: { tabs: true } } },
+      orderBy: { updatedAt: "desc" },
     });
-
-    if (!sheet) {
-      sheet = await prisma.spreadsheet.create({
-        data: {
-          ownerId: user.id,
-          tabs: { create: { name: "Sheet1", orderIndex: 0 } },
-        },
-        include: { tabs: { orderBy: { orderIndex: "asc" } } },
-      });
-    }
-
-    return json(sheet);
+    return json(sheets);
   });
 }
 
-// POST /api/sheets — add a new tab
+// POST /api/sheets — create a new workbook
 export async function POST(req: Request) {
   return handle(async () => {
     const user = await getAuthedUser();
-    const { name, orderIndex } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const name = (body.name as string | undefined)?.trim() || "Untitled Spreadsheet";
 
-    const sheet = await prisma.spreadsheet.findUnique({
-      where: { ownerId: user.id },
-    });
-    if (!sheet) throw new Error("Spreadsheet not found");
-
-    const tab = await prisma.spreadsheetTab.create({
+    const sheet = await prisma.spreadsheet.create({
       data: {
-        spreadsheetId: sheet.id,
-        name: name ?? "Sheet",
-        orderIndex: orderIndex ?? 0,
+        ownerId: user.id,
+        name,
+        tabs: { create: { name: "Sheet1", orderIndex: 0 } },
+      },
+      include: {
+        tabs: { orderBy: { orderIndex: "asc" } },
+        _count: { select: { tabs: true } },
       },
     });
 
-    return json(tab);
+    return json(sheet);
   });
 }

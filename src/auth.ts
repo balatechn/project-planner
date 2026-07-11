@@ -35,6 +35,7 @@ if (entraConfigured) {
     MicrosoftEntraID({
       clientId: process.env.AUTH_MICROSOFT_ENTRA_ID_ID,
       clientSecret: process.env.AUTH_MICROSOFT_ENTRA_ID_SECRET,
+      allowDangerousEmailAccountLinking: true,
       // Single-tenant issuer when a tenant id is provided, else "common".
       issuer: process.env.AUTH_MICROSOFT_ENTRA_ID_TENANT_ID
         ? `https://login.microsoftonline.com/${process.env.AUTH_MICROSOFT_ENTRA_ID_TENANT_ID}/v2.0`
