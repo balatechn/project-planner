@@ -3,9 +3,11 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import {
-  Bold, Italic, AlignLeft, AlignCenter, AlignRight,
+  Bold, Italic, Underline, AlignLeft, AlignCenter, AlignRight,
   Plus, Trash2, Undo2, Redo2, Download, PaintBucket, Type,
   Save, CheckCircle2, AlertCircle, Loader2,
+  Scissors, Copy, Clipboard, WrapText, ChevronUp, ChevronDown,
+  Percent,
 } from "lucide-react";
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -13,34 +15,45 @@ const COLS = 26;
 const ROWS = 100;
 const DEF_W = 100;
 const DEF_H = 24;
-const RNW = 48;
-const CHH = 22;
+const RNW  = 48;
+const CHH  = 22;
+
+const FONTS = ["Default", "Arial", "Calibri", "Times New Roman", "Courier New", "Georgia", "Verdana", "Trebuchet MS"];
+const SIZES = [8, 9, 10, 11, 12, 14, 16, 18, 20, 22, 24, 28, 32, 36, 48, 72];
 
 // ── Types ─────────────────────────────────────────────────────────────────────
+type NumFmt = "general" | "number" | "currency" | "percent";
+
 type Fmt = {
-  bold?: boolean;
-  italic?: boolean;
-  align?: "left" | "center" | "right";
-  color?: string;
-  bg?: string;
+  bold?:       boolean;
+  italic?:     boolean;
+  underline?:  boolean;
+  align?:      "left" | "center" | "right";
+  color?:      string;
+  bg?:         string;
+  fontSize?:   number;
+  fontFamily?: string;
+  numFmt?:     NumFmt;
+  decPlaces?:  number;
+  wrap?:       boolean;
 };
 
 type Cell = Fmt & { v: string };
 
 type TabState = {
-  id: string;
-  name: string;
+  id:    string;
+  name:  string;
   order: number;
   cells: Record<string, Cell>;
-  cw: Record<string, number>;
+  cw:    Record<string, number>;
 };
 
 export type InitialTab = {
-  id: string;
-  name: string;
+  id:    string;
+  name:  string;
   order: number;
   cells: Record<string, unknown>;
-  cw: Record<string, number>;
+  cw:    Record<string, number>;
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -67,13 +80,28 @@ function parseRef(ref: string): { c: number; r: number } | null {
   return { c: c - 1, r: parseInt(m[2]) - 1 };
 }
 
+function applyNumFmt(val: string, cell?: Cell): string {
+  if (!cell) return val;
+  const { numFmt, decPlaces } = cell;
+  const n = parseFloat(val);
+  if (!numFmt || numFmt === "general") {
+    if (!isNaN(n) && decPlaces !== undefined) return n.toFixed(decPlaces);
+    return val;
+  }
+  if (isNaN(n)) return val;
+  const dp = decPlaces ?? 2;
+  if (numFmt === "currency") return "₹" + n.toLocaleString("en-IN", { minimumFractionDigits: dp, maximumFractionDigits: dp });
+  if (numFmt === "percent")  return (n * 100).toFixed(dp) + "%";
+  if (numFmt === "number")   return n.toLocaleString("en-IN", { minimumFractionDigits: dp, maximumFractionDigits: dp });
+  return val;
+}
+
 // ── Formula evaluator ─────────────────────────────────────────────────────────
 function evalCell(raw: string, cells: Record<string, Cell>, guard = new Set<string>()): string {
   if (!raw || !raw.startsWith("=")) return raw ?? "";
 
   let expr = raw.slice(1).trim().toUpperCase();
 
-  // Range functions: SUM(A1:B3), AVERAGE, COUNT, MAX, MIN, PRODUCT
   expr = expr.replace(
     /(SUM|AVERAGE|AVG|COUNT|MAX|MIN|PRODUCT)\(([A-Z]{1,3}\d{1,7}):([A-Z]{1,3}\d{1,7})\)/g,
     (_, fn, a, b) => {
@@ -84,23 +112,20 @@ function evalCell(raw: string, cells: Record<string, Cell>, guard = new Set<stri
         case "MAX":     return vals.length ? String(Math.max(...vals)) : "0";
         case "MIN":     return vals.length ? String(Math.min(...vals)) : "0";
         case "PRODUCT": return String(vals.reduce((s, v) => s * v, 1));
-        default:        return vals.length
-          ? String(vals.reduce((s, v) => s + v, 0) / vals.length) : "0";
+        default:        return vals.length ? String(vals.reduce((s, v) => s + v, 0) / vals.length) : "0";
       }
     }
   );
 
-  // Map Excel math functions to JS
   expr = expr
-    .replace(/SQRT\(/g, "Math.sqrt(")
-    .replace(/ABS\(/g, "Math.abs(")
+    .replace(/SQRT\(/g,  "Math.sqrt(")
+    .replace(/ABS\(/g,   "Math.abs(")
     .replace(/ROUND\(/g, "Math.round(")
     .replace(/FLOOR\(/g, "Math.floor(")
-    .replace(/CEIL\(/g, "Math.ceil(")
-    .replace(/POW\(/g, "Math.pow(")
-    .replace(/LOG\(/g, "Math.log10(");
+    .replace(/CEIL\(/g,  "Math.ceil(")
+    .replace(/POW\(/g,   "Math.pow(")
+    .replace(/LOG\(/g,   "Math.log10(");
 
-  // Resolve individual cell refs
   expr = expr.replace(/([A-Z]{1,3}\d{1,7})/g, (ref) => {
     if (guard.has(ref)) return "0";
     const cell = cells[ref];
@@ -110,14 +135,11 @@ function evalCell(raw: string, cells: Record<string, Cell>, guard = new Set<stri
     return isNaN(n) ? `"${val}"` : (val || "0");
   });
 
-  // Basic IF(cond, t, f)
   expr = expr.replace(/^IF\((.+),(.+),(.+)\)$/, (_, cond, t, f) => {
     try {
       // eslint-disable-next-line no-new-func
       return new Function(`"use strict"; return Boolean(${cond})`)() ? t.trim() : f.trim();
-    } catch {
-      return f.trim();
-    }
+    } catch { return f.trim(); }
   });
 
   try {
@@ -129,9 +151,7 @@ function evalCell(raw: string, cells: Record<string, Cell>, guard = new Set<stri
       return String(Math.round(result * 1e10) / 1e10);
     }
     return String(result);
-  } catch {
-    return "#ERROR";
-  }
+  } catch { return "#ERROR"; }
 }
 
 function rangeNums(a: string, b: string, cells: Record<string, Cell>, guard: Set<string>): number[] {
@@ -161,9 +181,7 @@ const PALETTE = [
 ];
 
 function ColorPicker({ value, onChange, onClose }: {
-  value: string;
-  onChange: (v: string) => void;
-  onClose: () => void;
+  value: string; onChange: (v: string) => void; onClose: () => void;
 }) {
   const ref = React.useRef<HTMLDivElement>(null);
   React.useEffect(() => {
@@ -178,8 +196,10 @@ function ColorPicker({ value, onChange, onClose }: {
     <div ref={ref} className="absolute top-full left-0 z-50 mt-1 p-2 rounded-lg border bg-popover shadow-xl">
       <div className="grid grid-cols-8 gap-1 mb-2">
         {PALETTE.map((c) => (
-          <button key={c} className="h-4 w-4 rounded-sm border border-border/30 hover:scale-125 transition-transform"
-            style={{ backgroundColor: c }} onClick={() => { onChange(c); onClose(); }} />
+          <button key={c}
+            className="h-4 w-4 rounded-sm border border-border/30 hover:scale-125 transition-transform"
+            style={{ backgroundColor: c }}
+            onClick={() => { onChange(c); onClose(); }} />
         ))}
       </div>
       <input type="color" value={value} onChange={(e) => onChange(e.target.value)}
@@ -188,28 +208,53 @@ function ColorPicker({ value, onChange, onClose }: {
   );
 }
 
-// ── Toolbar button ────────────────────────────────────────────────────────────
-function TBtn({ onClick, children, title, disabled, active }: {
-  onClick?: () => void;
-  children: React.ReactNode;
-  title?: string;
-  disabled?: boolean;
-  active?: boolean;
+// ── Ribbon group container ─────────────────────────────────────────────────────
+function RibbonGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col border-r border-border/40 last:border-r-0 px-1.5 py-1 min-w-fit">
+      <div className="flex-1 flex items-start gap-0.5 min-h-[44px]">
+        {children}
+      </div>
+      <div className="text-[9px] text-center text-muted-foreground/60 mt-0.5 leading-none tracking-wide">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+// ── Toolbar icon button ────────────────────────────────────────────────────────
+function TBtn({ onClick, children, title, disabled, active, className }: {
+  onClick?: () => void; children: React.ReactNode; title?: string;
+  disabled?: boolean; active?: boolean; className?: string;
 }) {
   return (
     <button onClick={onClick} disabled={disabled} title={title}
       className={cn(
-        "flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] transition-colors",
+        "relative flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[11px] transition-colors",
         "hover:bg-muted disabled:opacity-30 disabled:cursor-not-allowed",
-        active && "bg-muted text-primary font-semibold",
+        active && "bg-muted text-primary",
+        className,
       )}>
       {children}
     </button>
   );
 }
 
+// ── Large paste-style button ───────────────────────────────────────────────────
+function TBtnLg({ onClick, title, icon, label }: {
+  onClick: () => void; title: string; icon: React.ReactNode; label: string;
+}) {
+  return (
+    <button onClick={onClick} title={title}
+      className="flex flex-col items-center gap-0.5 rounded px-2 py-1 hover:bg-muted transition-colors min-w-[36px]">
+      <span className="flex items-center justify-center">{icon}</span>
+      <span className="text-[9px] text-muted-foreground leading-none">{label}</span>
+    </button>
+  );
+}
+
 function Sep() {
-  return <div className="h-4 w-px bg-border/60 mx-0.5 flex-shrink-0" />;
+  return <div className="h-3.5 w-px bg-border/50 mx-0.5 self-center flex-shrink-0" />;
 }
 
 // ── Sheet tab button ──────────────────────────────────────────────────────────
@@ -225,9 +270,7 @@ function SheetTabBtn({ name, active, onClick, onRename, onDelete, canDelete }: {
 
   function commit() {
     const trimmed = val.trim() || name;
-    onRename(trimmed);
-    setVal(trimmed);
-    setRenaming(false);
+    onRename(trimmed); setVal(trimmed); setRenaming(false);
   }
 
   return (
@@ -277,21 +320,20 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
       cw: t.cw ?? {},
     }))
   );
-  const [activeId, setActiveId] = React.useState(initialTabs[0]?.id ?? "");
-  const [sel, setSel] = React.useState({ ac: 0, ar: 0, fc: 0, fr: 0 });
-  const [editing, setEditing] = React.useState<{ c: number; r: number } | null>(null);
-  const [editVal, setEditVal] = React.useState("");
+  const [activeId, setActiveId]   = React.useState(initialTabs[0]?.id ?? "");
+  const [sel, setSel]             = React.useState({ ac: 0, ar: 0, fc: 0, fr: 0 });
+  const [editing, setEditing]     = React.useState<{ c: number; r: number } | null>(null);
+  const [editVal, setEditVal]     = React.useState("");
   const [colorPicker, setColorPicker] = React.useState<"text" | "bg" | null>(null);
-  const [saveStatus, setSaveStatus] = React.useState<"saved" | "saving" | "unsaved" | "error">("saved");
+  const [saveStatus, setSaveStatus]   = React.useState<"saved" | "saving" | "unsaved" | "error">("saved");
 
   // ── Refs ──
-  const histRef = React.useRef<{ past: Record<string, Cell>[]; future: Record<string, Cell>[] }>({ past: [], future: [] });
-  const clipRef = React.useRef<Record<string, Cell> | null>(null);
-  const isDragging = React.useRef(false);
-  const saveTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-  const gridRef = React.useRef<HTMLDivElement>(null);
+  const histRef      = React.useRef<{ past: Record<string, Cell>[]; future: Record<string, Cell>[] }>({ past: [], future: [] });
+  const clipRef      = React.useRef<Record<string, Cell> | null>(null);
+  const isDragging   = React.useRef(false);
+  const saveTimer    = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const gridRef      = React.useRef<HTMLDivElement>(null);
   const editInputRef = React.useRef<HTMLInputElement>(null);
-  const cellRefs = React.useRef<Record<string, HTMLTableCellElement>>({});
 
   // Reset history on tab switch
   const prevActiveId = React.useRef(activeId);
@@ -301,19 +343,23 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
   }
 
   // ── Derived ──
-  const tab = tabs.find((t) => t.id === activeId)!;
+  const tab   = tabs.find((t) => t.id === activeId)!;
   const cells = tab?.cells ?? {};
-  const minC = Math.min(sel.ac, sel.fc), maxC = Math.max(sel.ac, sel.fc);
-  const minR = Math.min(sel.ar, sel.fr), maxR = Math.max(sel.ar, sel.fr);
+  const minC  = Math.min(sel.ac, sel.fc), maxC = Math.max(sel.ac, sel.fc);
+  const minR  = Math.min(sel.ar, sel.fr), maxR = Math.max(sel.ar, sel.fr);
 
   function cw(c: number) { return tab?.cw[String(c)] ?? DEF_W; }
   function display(c: number, r: number) {
     const cell = cells[cid(c, r)];
-    return cell?.v ? evalCell(cell.v, cells) : "";
+    if (!cell?.v) return "";
+    const raw = evalCell(cell.v, cells);
+    return applyNumFmt(raw, cell);
   }
   function activeCell() { return cells[cid(sel.ac, sel.ar)]; }
   function hasStyle(cell?: Cell) {
-    return !!(cell?.bold || cell?.italic || cell?.align || cell?.color || cell?.bg);
+    return !!(cell?.bold || cell?.italic || cell?.underline || cell?.align ||
+              cell?.color || cell?.bg || cell?.fontSize || cell?.fontFamily ||
+              cell?.numFmt || cell?.wrap);
   }
 
   // ── Auto-save ──
@@ -330,9 +376,7 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
           body: JSON.stringify({ cells: newCells, colWidths: newCw ?? t?.cw ?? {} }),
         });
         setSaveStatus("saved");
-      } catch {
-        setSaveStatus("error");
-      }
+      } catch { setSaveStatus("error"); }
     }, 1500);
   }
 
@@ -362,7 +406,6 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
 
   function cancelEdit() { setEditing(null); }
 
-  // Focus management
   React.useEffect(() => {
     if (editing) editInputRef.current?.focus();
     else gridRef.current?.focus();
@@ -393,7 +436,19 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
     commitCells(next);
   }
 
-  // ── Delete ──
+  function changeFontSize(delta: number) {
+    const current = activeCell()?.fontSize ?? 12;
+    const idx = SIZES.findIndex((s) => s >= current);
+    const newIdx = Math.max(0, Math.min(SIZES.length - 1, (idx < 0 ? SIZES.length - 1 : idx) + delta));
+    applyFmt({ fontSize: SIZES[newIdx] });
+  }
+
+  function changeDecPlaces(delta: number) {
+    const current = activeCell()?.decPlaces ?? 0;
+    applyFmt({ decPlaces: Math.max(0, Math.min(10, current + delta)) });
+  }
+
+  // ── Delete / Clear ──
   function deleteSelection() {
     const next = { ...cells };
     for (let r = minR; r <= maxR; r++)
@@ -401,6 +456,16 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
         const key = cid(c, r);
         if (hasStyle(next[key])) next[key] = { ...next[key]!, v: "" };
         else delete next[key];
+      }
+    commitCells(next);
+  }
+
+  function clearFormatting() {
+    const next = { ...cells };
+    for (let r = minR; r <= maxR; r++)
+      for (let c = minC; c <= maxC; c++) {
+        const key = cid(c, r);
+        if (next[key]) next[key] = { v: next[key].v };
       }
     commitCells(next);
   }
@@ -424,7 +489,7 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
     scheduleAutoSave(activeId, next);
   }
 
-  // ── Copy / Paste ──
+  // ── Copy / Cut / Paste ──
   function copy() {
     const data: Record<string, Cell> = {};
     for (let r = minR; r <= maxR; r++)
@@ -441,14 +506,15 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
     navigator.clipboard?.writeText(text).catch(() => {});
   }
 
+  function cut() { copy(); deleteSelection(); }
+
   function paste() {
     const clip = clipRef.current;
     if (!clip) return;
     const next = { ...cells };
     for (const [key, cell] of Object.entries(clip)) {
       const ref = parseRef(key);
-      if (!ref) continue;
-      next[cid(sel.ac + ref.c, sel.ar + ref.r)] = { ...cell };
+      if (ref) next[cid(sel.ac + ref.c, sel.ar + ref.r)] = { ...cell };
     }
     commitCells(next);
   }
@@ -507,8 +573,7 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
 
   // ── Column resize ──
   function onColResizeStart(e: React.MouseEvent, c: number) {
-    e.preventDefault();
-    e.stopPropagation();
+    e.preventDefault(); e.stopPropagation();
     const startX = e.clientX, startW = cw(c);
     function onMove(ev: MouseEvent) {
       const w = Math.max(20, startW + ev.clientX - startX);
@@ -535,13 +600,13 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
 
   // ── CSV export ──
   function exportCSV() {
-    let maxR = 0, maxC = 0;
+    let mR = 0, mC = 0;
     for (const key of Object.keys(cells)) {
       const ref = parseRef(key);
-      if (ref) { maxR = Math.max(maxR, ref.r); maxC = Math.max(maxC, ref.c); }
+      if (ref) { mR = Math.max(mR, ref.r); mC = Math.max(mC, ref.c); }
     }
-    const csv = Array.from({ length: maxR + 1 }, (_, r) =>
-      Array.from({ length: maxC + 1 }, (_, c) =>
+    const csv = Array.from({ length: mR + 1 }, (_, r) =>
+      Array.from({ length: mC + 1 }, (_, c) =>
         `"${display(c, r).replace(/"/g, '""')}"`
       ).join(",")
     ).join("\n");
@@ -552,7 +617,7 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
     URL.revokeObjectURL(a.href);
   }
 
-  // ── Sheet tab management ──
+  // ── Tab management ──
   async function addTab() {
     const name = `Sheet${tabs.length + 1}`;
     try {
@@ -565,14 +630,13 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
       setTabs((prev) => [...prev, { id: newTab.id, name, order: tabs.length, cells: {}, cw: {} }]);
       setActiveId(newTab.id);
       setSel({ ac: 0, ar: 0, fc: 0, fr: 0 });
-    } catch { /* silent — tab creation failed */ }
+    } catch { /* silent */ }
   }
 
   async function renameTab(id: string, name: string) {
     setTabs((prev) => prev.map((t) => (t.id === id ? { ...t, name } : t)));
     await fetch(`/api/sheets/tabs/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      method: "PATCH", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name }),
     });
   }
@@ -585,7 +649,7 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
     await fetch(`/api/sheets/tabs/${id}`, { method: "DELETE" });
   }
 
-  // ── Global mouse-up (end drag-select) ──
+  // ── Global mouse-up ──
   React.useEffect(() => {
     const up = () => { isDragging.current = false; };
     window.addEventListener("mouseup", up);
@@ -608,9 +672,11 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
         case "z": undo();  e.preventDefault(); return;
         case "y": redo();  e.preventDefault(); return;
         case "c": copy();  e.preventDefault(); return;
+        case "x": cut();   e.preventDefault(); return;
         case "v": paste(); e.preventDefault(); return;
-        case "b": applyFmt({ bold: !activeCell()?.bold });     e.preventDefault(); return;
-        case "i": applyFmt({ italic: !activeCell()?.italic }); e.preventDefault(); return;
+        case "b": applyFmt({ bold: !activeCell()?.bold });         e.preventDefault(); return;
+        case "i": applyFmt({ italic: !activeCell()?.italic });     e.preventDefault(); return;
+        case "u": applyFmt({ underline: !activeCell()?.underline }); e.preventDefault(); return;
         case "a": setSel({ ac: 0, ar: 0, fc: COLS - 1, fr: ROWS - 1 }); e.preventDefault(); return;
       }
     }
@@ -630,64 +696,173 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
     }
   }
 
-  const ac = activeCell();
+  const ac      = activeCell();
   const namebox = `${colLabel(sel.ac)}${sel.ar + 1}`;
   const formulaBarVal = editing ? editVal : (ac?.v ?? "");
   const canUndo = histRef.current.past.length > 0;
   const canRedo = histRef.current.future.length > 0;
+
+  // ── Cell style helper ──
+  function cellStyle(cell?: Cell): React.CSSProperties {
+    return {
+      fontWeight:     cell?.bold      ? "bold"   : "normal",
+      fontStyle:      cell?.italic    ? "italic" : "normal",
+      textDecoration: cell?.underline ? "underline" : undefined,
+      color:          cell?.color,
+      fontSize:       cell?.fontSize  ? `${cell.fontSize}px` : undefined,
+      fontFamily:     cell?.fontFamily && cell.fontFamily !== "Default" ? cell.fontFamily : undefined,
+    };
+  }
 
   return (
     <div
       className="-m-3 lg:-m-4 flex flex-col bg-background overflow-hidden text-[12px]"
       style={{ height: "calc(100vh - 2.75rem)" }}
     >
-      {/* ── Toolbar ── */}
-      <div className="flex flex-shrink-0 items-center gap-0.5 border-b px-2 py-1 bg-muted/20 flex-wrap">
-        <TBtn onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)"><Undo2 className="h-3.5 w-3.5" /></TBtn>
-        <TBtn onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)"><Redo2 className="h-3.5 w-3.5" /></TBtn>
-        <Sep />
-        <TBtn active={ac?.bold}   onClick={() => applyFmt({ bold: !ac?.bold })}     title="Bold (Ctrl+B)"><Bold className="h-3.5 w-3.5" /></TBtn>
-        <TBtn active={ac?.italic} onClick={() => applyFmt({ italic: !ac?.italic })} title="Italic (Ctrl+I)"><Italic className="h-3.5 w-3.5" /></TBtn>
-        <Sep />
-        <TBtn active={ac?.align === "left"}   onClick={() => applyFmt({ align: "left" })}   title="Align Left"><AlignLeft className="h-3.5 w-3.5" /></TBtn>
-        <TBtn active={ac?.align === "center"} onClick={() => applyFmt({ align: "center" })} title="Align Center"><AlignCenter className="h-3.5 w-3.5" /></TBtn>
-        <TBtn active={ac?.align === "right"}  onClick={() => applyFmt({ align: "right" })}  title="Align Right"><AlignRight className="h-3.5 w-3.5" /></TBtn>
-        <Sep />
-        {/* Text color */}
-        <div className="relative">
-          <TBtn onClick={() => setColorPicker((p) => p === "text" ? null : "text")} title="Text Color">
-            <Type className="h-3.5 w-3.5" />
-            <span className="absolute bottom-0.5 left-1.5 right-1.5 h-0.5 rounded" style={{ backgroundColor: ac?.color ?? "#000" }} />
-          </TBtn>
-          {colorPicker === "text" && (
-            <ColorPicker value={ac?.color ?? "#000000"} onChange={(v) => applyFmt({ color: v })} onClose={() => setColorPicker(null)} />
-          )}
-        </div>
-        {/* Fill color */}
-        <div className="relative">
-          <TBtn onClick={() => setColorPicker((p) => p === "bg" ? null : "bg")} title="Fill Color">
-            <PaintBucket className="h-3.5 w-3.5" />
-            <span className="absolute bottom-0.5 left-1.5 right-1.5 h-0.5 rounded border border-border/30" style={{ backgroundColor: ac?.bg ?? "transparent" }} />
-          </TBtn>
-          {colorPicker === "bg" && (
-            <ColorPicker value={ac?.bg ?? "#ffffff"} onChange={(v) => applyFmt({ bg: v })} onClose={() => setColorPicker(null)} />
-          )}
-        </div>
-        <Sep />
-        <TBtn onClick={insertRow} title="Insert Row Above"><Plus className="h-3 w-3" /><span>Row</span></TBtn>
-        <TBtn onClick={deleteRow} title="Delete Row"><Trash2 className="h-3 w-3" /><span>Row</span></TBtn>
-        <TBtn onClick={insertCol} title="Insert Column"><Plus className="h-3 w-3" /><span>Col</span></TBtn>
-        <TBtn onClick={deleteCol} title="Delete Column"><Trash2 className="h-3 w-3" /><span>Col</span></TBtn>
-        <Sep />
-        <TBtn onClick={exportCSV} title="Download as CSV"><Download className="h-3 w-3" /><span>CSV</span></TBtn>
+      {/* ══ Excel-style Ribbon ══ */}
+      <div className="flex flex-shrink-0 items-stretch border-b bg-muted/10 overflow-x-auto">
 
-        {/* Save status */}
-        <div className="ml-auto flex items-center gap-1 text-[10px] text-muted-foreground pr-1">
-          {saveStatus === "saving"  && <><Loader2 className="h-3 w-3 animate-spin" /> Saving…</>}
-          {saveStatus === "saved"   && <><CheckCircle2 className="h-3 w-3 text-green-500" /> Saved</>}
-          {saveStatus === "unsaved" && <><Save className="h-3 w-3" /> Unsaved</>}
-          {saveStatus === "error"   && <><AlertCircle className="h-3 w-3 text-destructive" /> Save failed</>}
-        </div>
+        {/* Clipboard */}
+        <RibbonGroup label="Clipboard">
+          <TBtnLg onClick={paste} title="Paste (Ctrl+V)"
+            icon={<Clipboard className="h-6 w-6 text-primary" />} label="Paste" />
+          <div className="flex flex-col gap-0.5 ml-1 justify-center">
+            <TBtn onClick={copy} title="Copy (Ctrl+C)">
+              <Copy className="h-3 w-3" /><span>Copy</span>
+            </TBtn>
+            <TBtn onClick={cut} title="Cut (Ctrl+X)">
+              <Scissors className="h-3 w-3" /><span>Cut</span>
+            </TBtn>
+          </div>
+        </RibbonGroup>
+
+        {/* Font */}
+        <RibbonGroup label="Font">
+          <div className="flex flex-col gap-1">
+            {/* Row 1: family, size, grow/shrink */}
+            <div className="flex items-center gap-0.5">
+              <select
+                value={ac?.fontFamily ?? "Default"}
+                onChange={(e) => applyFmt({ fontFamily: e.target.value })}
+                className="h-6 rounded border border-border/60 bg-background px-1 text-[11px] cursor-pointer min-w-[120px]"
+              >
+                {FONTS.map((f) => <option key={f} value={f}>{f}</option>)}
+              </select>
+              <select
+                value={ac?.fontSize ?? ""}
+                onChange={(e) => applyFmt({ fontSize: parseInt(e.target.value) || undefined })}
+                className="h-6 w-14 rounded border border-border/60 bg-background px-1 text-[11px] cursor-pointer"
+              >
+                <option value="">—</option>
+                {SIZES.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+              <TBtn onClick={() => changeFontSize(1)}  title="Grow font"><ChevronUp className="h-3 w-3" /></TBtn>
+              <TBtn onClick={() => changeFontSize(-1)} title="Shrink font"><ChevronDown className="h-3 w-3" /></TBtn>
+            </div>
+            {/* Row 2: B I U | fill | color */}
+            <div className="flex items-center gap-0.5">
+              <TBtn active={ac?.bold}      onClick={() => applyFmt({ bold: !ac?.bold })}         title="Bold (Ctrl+B)"><Bold className="h-3.5 w-3.5" /></TBtn>
+              <TBtn active={ac?.italic}    onClick={() => applyFmt({ italic: !ac?.italic })}     title="Italic (Ctrl+I)"><Italic className="h-3.5 w-3.5" /></TBtn>
+              <TBtn active={ac?.underline} onClick={() => applyFmt({ underline: !ac?.underline })} title="Underline (Ctrl+U)"><Underline className="h-3.5 w-3.5" /></TBtn>
+              <Sep />
+              {/* Fill color */}
+              <div className="relative">
+                <TBtn onClick={() => setColorPicker((p) => p === "bg" ? null : "bg")} title="Fill Color">
+                  <PaintBucket className="h-3.5 w-3.5" />
+                  <span className="absolute bottom-0.5 left-1 right-1 h-0.5 rounded border border-border/20"
+                    style={{ backgroundColor: ac?.bg ?? "#ffff00" }} />
+                </TBtn>
+                {colorPicker === "bg" && (
+                  <ColorPicker value={ac?.bg ?? "#ffff00"} onChange={(v) => applyFmt({ bg: v })} onClose={() => setColorPicker(null)} />
+                )}
+              </div>
+              {/* Text color */}
+              <div className="relative">
+                <TBtn onClick={() => setColorPicker((p) => p === "text" ? null : "text")} title="Font Color">
+                  <Type className="h-3.5 w-3.5" />
+                  <span className="absolute bottom-0.5 left-1 right-1 h-0.5 rounded"
+                    style={{ backgroundColor: ac?.color ?? "#ff0000" }} />
+                </TBtn>
+                {colorPicker === "text" && (
+                  <ColorPicker value={ac?.color ?? "#000000"} onChange={(v) => applyFmt({ color: v })} onClose={() => setColorPicker(null)} />
+                )}
+              </div>
+              <Sep />
+              <TBtn onClick={clearFormatting} title="Clear Formatting" className="text-[10px] text-muted-foreground">
+                Clear
+              </TBtn>
+            </div>
+          </div>
+        </RibbonGroup>
+
+        {/* Alignment */}
+        <RibbonGroup label="Alignment">
+          <div className="flex flex-col gap-1 justify-center">
+            <div className="flex items-center gap-0.5">
+              <TBtn active={ac?.align === "left"}   onClick={() => applyFmt({ align: "left" })}   title="Align Left"><AlignLeft className="h-3.5 w-3.5" /></TBtn>
+              <TBtn active={ac?.align === "center"} onClick={() => applyFmt({ align: "center" })} title="Align Center"><AlignCenter className="h-3.5 w-3.5" /></TBtn>
+              <TBtn active={ac?.align === "right"}  onClick={() => applyFmt({ align: "right" })}  title="Align Right"><AlignRight className="h-3.5 w-3.5" /></TBtn>
+            </div>
+            <div className="flex items-center gap-0.5">
+              <TBtn active={ac?.wrap} onClick={() => applyFmt({ wrap: !ac?.wrap })} title="Wrap Text">
+                <WrapText className="h-3.5 w-3.5" />
+                <span className="text-[10px]">Wrap</span>
+              </TBtn>
+            </div>
+          </div>
+        </RibbonGroup>
+
+        {/* Number */}
+        <RibbonGroup label="Number">
+          <div className="flex flex-col gap-1">
+            <select
+              value={ac?.numFmt ?? "general"}
+              onChange={(e) => applyFmt({ numFmt: e.target.value as NumFmt })}
+              className="h-6 rounded border border-border/60 bg-background px-1 text-[11px] cursor-pointer min-w-[120px]"
+            >
+              <option value="general">General</option>
+              <option value="number">Number</option>
+              <option value="currency">Currency (₹)</option>
+              <option value="percent">Percentage</option>
+            </select>
+            <div className="flex items-center gap-0.5">
+              <TBtn onClick={() => applyFmt({ numFmt: "currency" })} title="Currency style" className="font-semibold text-[11px] px-2">₹</TBtn>
+              <TBtn onClick={() => applyFmt({ numFmt: "percent" })}  title="Percent style"><Percent className="h-3 w-3" /></TBtn>
+              <TBtn onClick={() => applyFmt({ numFmt: "number" })}   title="Number with commas" className="font-semibold text-[11px] px-2">,</TBtn>
+              <Sep />
+              <TBtn onClick={() => changeDecPlaces(1)}  title="Increase decimal places" className="font-mono text-[10px]">.0↑</TBtn>
+              <TBtn onClick={() => changeDecPlaces(-1)} title="Decrease decimal places" className="font-mono text-[10px]">.0↓</TBtn>
+            </div>
+          </div>
+        </RibbonGroup>
+
+        {/* Cells */}
+        <RibbonGroup label="Cells">
+          <div className="flex flex-col gap-0.5 justify-center">
+            <TBtn onClick={insertRow} title="Insert Row Above"><Plus className="h-3 w-3" /><span>Insert Row</span></TBtn>
+            <TBtn onClick={deleteRow} title="Delete Row"><Trash2 className="h-3 w-3" /><span>Delete Row</span></TBtn>
+            <TBtn onClick={insertCol} title="Insert Column"><Plus className="h-3 w-3" /><span>Insert Col</span></TBtn>
+            <TBtn onClick={deleteCol} title="Delete Column"><Trash2 className="h-3 w-3" /><span>Delete Col</span></TBtn>
+          </div>
+        </RibbonGroup>
+
+        {/* Editing */}
+        <RibbonGroup label="Editing">
+          <div className="flex flex-col gap-1 justify-center">
+            <div className="flex items-center gap-0.5">
+              <TBtn onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)"><Undo2 className="h-3.5 w-3.5" /></TBtn>
+              <TBtn onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)"><Redo2 className="h-3.5 w-3.5" /></TBtn>
+              <TBtn onClick={exportCSV} title="Export as CSV"><Download className="h-3.5 w-3.5" /><span>CSV</span></TBtn>
+            </div>
+            {/* Save status */}
+            <div className="flex items-center gap-1 text-[10px] text-muted-foreground px-1">
+              {saveStatus === "saving"  && <><Loader2 className="h-3 w-3 animate-spin" />Saving…</>}
+              {saveStatus === "saved"   && <><CheckCircle2 className="h-3 w-3 text-green-500" />Saved</>}
+              {saveStatus === "unsaved" && <><Save className="h-3 w-3" />Unsaved</>}
+              {saveStatus === "error"   && <><AlertCircle className="h-3 w-3 text-destructive" />Error</>}
+            </div>
+          </div>
+        </RibbonGroup>
       </div>
 
       {/* ── Formula bar ── */}
@@ -737,8 +912,7 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
               {Array.from({ length: COLS }, (_, c) => {
                 const selected = c >= minC && c <= maxC;
                 return (
-                  <th
-                    key={c}
+                  <th key={c}
                     className={cn(
                       "sticky top-0 z-20 border-b border-r border-border/60 relative",
                       "text-[10px] font-semibold text-center select-none cursor-pointer",
@@ -779,14 +953,12 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
                 {Array.from({ length: COLS }, (_, c) => {
                   const key = cid(c, r);
                   const cell = cells[key];
-                  const inSel = c >= minC && c <= maxC && r >= minR && r <= maxR;
-                  const isAc  = c === sel.ac && r === sel.ar;
+                  const inSel  = c >= minC && c <= maxC && r >= minR && r <= maxR;
+                  const isAc   = c === sel.ac && r === sel.ar;
                   const isEdit = editing?.c === c && editing?.r === r;
 
                   return (
-                    <td
-                      key={c}
-                      ref={(el) => { if (el) cellRefs.current[key] = el; }}
+                    <td key={c}
                       className={cn(
                         "border-b border-r border-border/30 p-0 relative overflow-visible",
                         inSel && !isAc && "bg-primary/10",
@@ -794,6 +966,8 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
                       style={{
                         backgroundColor: cell?.bg ?? undefined,
                         boxShadow: isAc && !isEdit ? "inset 0 0 0 2px hsl(var(--primary))" : undefined,
+                        height: cell?.wrap ? "auto" : DEF_H,
+                        verticalAlign: "middle",
                       }}
                       onMouseDown={(e) => {
                         if (isEdit) return;
@@ -816,29 +990,28 @@ export function SpreadsheetClient({ initialTabs }: { initialTabs: InitialTab[] }
                           onChange={(e) => setEditVal(e.target.value)}
                           onKeyDown={(e) => {
                             if (e.key === "Escape") { cancelEdit(); gridRef.current?.focus(); e.preventDefault(); }
-                            if (e.key === "Enter")  { commitEdit(); move(0, 1);               gridRef.current?.focus(); e.preventDefault(); }
+                            if (e.key === "Enter")  { commitEdit(); move(0, 1); gridRef.current?.focus(); e.preventDefault(); }
                             if (e.key === "Tab")    { commitEdit(); move(e.shiftKey ? -1 : 1, 0); gridRef.current?.focus(); e.preventDefault(); }
                             e.stopPropagation();
                           }}
                           className="absolute inset-0 w-full h-full px-1 font-mono z-20 outline-none bg-background"
                           style={{
-                            fontWeight: cell?.bold   ? "bold"   : "normal",
-                            fontStyle:  cell?.italic ? "italic" : "normal",
-                            textAlign:  cell?.align  ?? "left",
-                            color:      cell?.color,
+                            ...cellStyle(cell),
+                            textAlign: cell?.align ?? "left",
                           }}
                         />
                       ) : (
                         <div
                           className="w-full h-full px-1 flex items-center overflow-hidden"
                           style={{
-                            fontWeight: cell?.bold   ? "bold"   : "normal",
-                            fontStyle:  cell?.italic ? "italic" : "normal",
+                            ...cellStyle(cell),
                             justifyContent: cell?.align === "right" ? "flex-end" : cell?.align === "center" ? "center" : "flex-start",
-                            color: cell?.color,
+                            whiteSpace: cell?.wrap ? "normal" : "nowrap",
+                            minHeight: DEF_H,
                           }}
                         >
-                          <span className="truncate w-full" style={{ textAlign: cell?.align ?? "left" }}>
+                          <span className={cell?.wrap ? "break-words w-full" : "truncate w-full"}
+                            style={{ textAlign: cell?.align ?? "left" }}>
                             {display(c, r)}
                           </span>
                         </div>
