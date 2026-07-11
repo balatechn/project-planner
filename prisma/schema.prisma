@@ -210,6 +210,7 @@ model User {
   trainingVideos    TrainingVideo[]
   organizedBookings RoomBooking[]  @relation("RoomBookingOrganizer")
   bookedForMeetings RoomBooking[]  @relation("RoomBookingFor")
+  spreadsheet       Spreadsheet?
 
   @@index([department])
   @@index([role])
@@ -888,4 +889,29 @@ model Holiday {
   date      DateTime @unique
   name      String
   createdAt DateTime @default(now())
+}
+
+// ── Sheets (Excel-like spreadsheet workspace, one per user) ──────────────────
+model Spreadsheet {
+  id        String           @id @default(cuid())
+  name      String           @default("My Spreadsheet")
+  ownerId   String           @unique
+  owner     User             @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  tabs      SpreadsheetTab[]
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+}
+
+model SpreadsheetTab {
+  id            String      @id @default(cuid())
+  spreadsheetId String
+  spreadsheet   Spreadsheet @relation(fields: [spreadsheetId], references: [id], onDelete: Cascade)
+  name          String      @default("Sheet1")
+  orderIndex    Int         @default(0)
+  cells         Json        @default("{}")
+  colWidths     Json        @default("{}")
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([spreadsheetId])
 }
