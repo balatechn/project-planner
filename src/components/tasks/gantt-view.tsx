@@ -177,6 +177,15 @@ function computeCriticalPath(tasks: TaskListItem[]): Set<string> {
 
 const today = new Date();
 
+// ── Preference persistence ─────────────────────────────────────────────────
+const LS_KEY = "gantt-pref";
+function loadPref(): Record<string, unknown> {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) ?? "{}"); } catch { return {}; }
+}
+function savePref(data: unknown) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(data)); } catch {}
+}
+
 // ── TimescaleDialog ────────────────────────────────────────────────────────────
 const UNIT_LABELS: Record<TierUnit, string> = { year: "Years", quarter: "Quarters", month: "Months", week: "Weeks", day: "Days" };
 const TOP_UNITS: TierUnit[] = ["year", "quarter", "month", "week"];
@@ -336,9 +345,23 @@ export function GanttView({
   }, []);
 
   // ── Panel resize ──────────────────────────────────────────────────────────
-  const [leftWidth, setLeftWidth] = React.useState(LEFT_DEFAULT);
+  const [leftWidth, setLeftWidth] = React.useState(() => {
+    const p = loadPref(); return typeof p.leftWidth === "number" ? p.leftWidth : LEFT_DEFAULT;
+  });
   const savedWidth   = React.useRef(LEFT_DEFAULT);
   const isCollapsed  = leftWidth < LEFT_MIN / 2;
+
+  const [colWidths, setColWidths] = React.useState(() => {
+    const p = loadPref(); const c = (p.colWidths ?? {}) as Record<string, unknown>;
+    return {
+      taskName: typeof c.taskName === "number" ? c.taskName : TASK_NAME_W,
+      dur:      typeof c.dur      === "number" ? c.dur      : DURATION_W,
+      start:    typeof c.start    === "number" ? c.start    : START_W,
+      finish:   typeof c.finish   === "number" ? c.finish   : FINISH_W,
+      assigned: typeof c.assigned === "number" ? c.assigned : ASSIGNED_W,
+    };
+  });
+  const contentW = ROW_NUM_W + colWidths.taskName + colWidths.dur + colWidths.start + colWidths.finish + colWidths.assigned;
 
   function startDrag(e: React.MouseEvent) {
     e.preventDefault();
@@ -354,11 +377,26 @@ export function GanttView({
     else setLeftWidth(savedWidth.current || LEFT_DEFAULT);
   }
 
+  function startColDrag(e: React.MouseEvent, col: keyof typeof colWidths) {
+    e.preventDefault();
+    const x0 = e.clientX; const w0 = colWidths[col];
+    const move = (ev: MouseEvent) => setColWidths(prev => ({ ...prev, [col]: Math.max(40, w0 + ev.clientX - x0) }));
+    const up = () => { document.body.style.cursor = ""; document.body.style.userSelect = ""; window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
+    document.body.style.cursor = "col-resize"; document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", move); window.addEventListener("mouseup", up);
+  }
+
   // ── Timescale state ───────────────────────────────────────────────────────
-  const [tsSettings, setTsSettings] = React.useState<TsSettings>({
-    topUnit: "month", botUnit: "week", dayPx: 24,
+  const [tsSettings, setTsSettings] = React.useState<TsSettings>(() => {
+    const p = loadPref(); const t = p.tsSettings as TsSettings | undefined;
+    if (t?.topUnit && t?.botUnit && typeof t.dayPx === "number") return t;
+    return { topUnit: "month", botUnit: "week", dayPx: 24 };
   });
   const [tsOpen, setTsOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    savePref({ leftWidth, colWidths, tsSettings });
+  }, [leftWidth, colWidths, tsSettings]);
 
   const dayPx = tsSettings.dayPx;
 
@@ -469,13 +507,13 @@ export function GanttView({
   const rowStripe  = (idx: number) => idx % 2 !== 0 ? "bg-muted/[0.07]" : "";
 
   const LeftGhostRow = ({ idx }: { idx: number }) => (
-    <div className={cn("flex border-b border-border/30", rowStripe(idx))} style={{ height: ROW_HEIGHT, minWidth: LEFT_CONTENT_W }}>
-      <div style={{ width: ROW_NUM_W  }} className="shrink-0 border-r border-border/40" />
-      <div style={{ width: TASK_NAME_W}} className="shrink-0 border-r border-border/40" />
-      <div style={{ width: DURATION_W }} className="shrink-0 border-r border-border/40" />
-      <div style={{ width: START_W    }} className="shrink-0 border-r border-border/40" />
-      <div style={{ width: FINISH_W   }} className="shrink-0 border-r border-border/40" />
-      <div style={{ width: ASSIGNED_W }} className="shrink-0" />
+    <div className={cn("flex border-b border-border/30", rowStripe(idx))} style={{ height: ROW_HEIGHT, minWidth: contentW }}>
+      <div style={{ width: ROW_NUM_W           }} className="shrink-0 border-r border-border/40" />
+      <div style={{ width: colWidths.taskName  }} className="shrink-0 border-r border-border/40" />
+      <div style={{ width: colWidths.dur       }} className="shrink-0 border-r border-border/40" />
+      <div style={{ width: colWidths.start     }} className="shrink-0 border-r border-border/40" />
+      <div style={{ width: colWidths.finish    }} className="shrink-0 border-r border-border/40" />
+      <div style={{ width: colWidths.assigned  }} className="shrink-0" />
     </div>
   );
 
@@ -552,28 +590,34 @@ export function GanttView({
         >
           {/* Header */}
           <div className="sticky top-0 z-10 flex border-b bg-muted/50 shadow-sm"
-            style={{ height: HEADER_H, minWidth: LEFT_CONTENT_W }}>
+            style={{ height: HEADER_H, minWidth: contentW }}>
             <div style={{ width: ROW_NUM_W }} className="shrink-0 border-r border-border/70 flex items-center justify-center text-[10px] font-semibold text-muted-foreground">#</div>
-            <div style={{ width: TASK_NAME_W }} className="shrink-0 border-r border-border/70 flex items-center px-3 text-[10px] font-semibold">Task Name</div>
-            <div style={{ width: DURATION_W }} className="shrink-0 border-r border-border/70 flex items-center px-2 text-[10px] font-semibold text-muted-foreground">Dur.</div>
-            <div style={{ width: START_W }} className="shrink-0 border-r border-border/70 flex items-center px-2 text-[10px] font-semibold text-muted-foreground">Start</div>
-            <div style={{ width: FINISH_W }} className="shrink-0 border-r border-border/70 flex items-center px-2 text-[10px] font-semibold text-muted-foreground">Finish</div>
-            <div style={{ width: ASSIGNED_W }} className="shrink-0 flex items-center px-2 text-[10px] font-semibold text-muted-foreground">Assigned</div>
+            {(["taskName", "dur", "start", "finish", "assigned"] as const).map((col, ci) => {
+              const label = { taskName: "Task Name", dur: "Dur.", start: "Start", finish: "Finish", assigned: "Assigned" }[col];
+              return (
+                <div key={col} style={{ width: colWidths[col] }}
+                  className={cn("shrink-0 relative flex items-center px-2 text-[10px] font-semibold text-muted-foreground select-none", ci < 4 ? "border-r border-border/70" : "")}>
+                  <span className="truncate">{label}</span>
+                  <div className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize hover:bg-primary/40 z-10"
+                    onMouseDown={e => startColDrag(e, col)} />
+                </div>
+              );
+            })}
           </div>
 
           {/* Rows */}
-          <div style={{ minWidth: LEFT_CONTENT_W }}>
+          <div style={{ minWidth: contentW }}>
             {sortedTasks.length === 0
               ? Array.from({ length: MIN_ROWS }).map((_, i) => <LeftGhostRow key={i} idx={i} />)
               : <>
                   {visibleTasks.map((task, i) => (
                     <div key={task.id}
                       className={cn("flex border-b border-border/40 transition-colors cursor-pointer", rowStripe(i), hoveredId === task.id && "bg-muted/20")}
-                      style={{ height: ROW_HEIGHT, minWidth: LEFT_CONTENT_W }}
+                      style={{ height: ROW_HEIGHT, minWidth: contentW }}
                       {...hoverProps(task.id)}
                     >
                       <div style={{ width: ROW_NUM_W }} className="shrink-0 border-r border-border/40 flex items-center justify-center text-[10px] text-muted-foreground">{i + 1}</div>
-                      <div style={{ width: TASK_NAME_W }} className="shrink-0 border-r border-border/40 flex items-center overflow-hidden">
+                      <div style={{ width: colWidths.taskName }} className="shrink-0 border-r border-border/40 flex items-center overflow-hidden">
                         {parentIds.has(task.id) ? (
                           <button onClick={() => toggleRow(task.id)}
                             className="flex-shrink-0 ml-1 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -598,10 +642,10 @@ export function GanttView({
                           {criticalPath.has(task.id) && <span className="ml-auto flex-shrink-0 h-1.5 w-1.5 rounded-full bg-red-500" title="Critical path" />}
                         </button>
                       </div>
-                      <div style={{ width: DURATION_W }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{taskDur(task.startDate, task.dueDate)}</div>
-                      <div style={{ width: START_W }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{fmtDate(task.startDate)}</div>
-                      <div style={{ width: FINISH_W }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{fmtDate(task.dueDate)}</div>
-                      <div style={{ width: ASSIGNED_W }} className="shrink-0 px-2 flex items-center text-[10px] text-muted-foreground overflow-hidden">
+                      <div style={{ width: colWidths.dur    }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{taskDur(task.startDate, task.dueDate)}</div>
+                      <div style={{ width: colWidths.start  }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{fmtDate(task.startDate)}</div>
+                      <div style={{ width: colWidths.finish }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{fmtDate(task.dueDate)}</div>
+                      <div style={{ width: colWidths.assigned }} className="shrink-0 px-2 flex items-center text-[10px] text-muted-foreground overflow-hidden">
                         <span className="truncate">{task.assignees.length > 0 ? task.assignees.map(a => a.user.name ?? "").filter(Boolean).join(", ") : "—"}</span>
                       </div>
                     </div>
