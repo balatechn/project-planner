@@ -425,7 +425,7 @@ export function GanttView({
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const sortedTasks = React.useMemo(() => {
-    return [...tasks].sort((a, b) => {
+    function wbsSort(a: TaskListItem, b: TaskListItem) {
       if (!a.wbsNumber && !b.wbsNumber) return 0;
       if (!a.wbsNumber) return 1;
       if (!b.wbsNumber) return -1;
@@ -437,7 +437,27 @@ export function GanttView({
         if (av !== bv) return av - bv;
       }
       return 0;
-    });
+    }
+    const childMap = new Map<string, TaskListItem[]>();
+    const topLevel: TaskListItem[] = [];
+    for (const t of tasks) {
+      if (t.parentId) {
+        if (!childMap.has(t.parentId)) childMap.set(t.parentId, []);
+        childMap.get(t.parentId)!.push(t);
+      } else {
+        topLevel.push(t);
+      }
+    }
+    topLevel.sort(wbsSort);
+    const result: TaskListItem[] = [];
+    function flatten(t: TaskListItem) {
+      result.push(t);
+      const children = childMap.get(t.id) ?? [];
+      children.sort(wbsSort);
+      for (const c of children) flatten(c);
+    }
+    for (const t of topLevel) flatten(t);
+    return result;
   }, [tasks]);
 
   const scheduled    = sortedTasks.filter(t => t.startDate || t.dueDate);

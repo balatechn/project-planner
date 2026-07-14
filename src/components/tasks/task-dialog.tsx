@@ -63,6 +63,7 @@ type SubTask = {
   title: string;
   status: TaskStatus;
   priority: string;
+  wbsNumber?: string | null;
   assignees: { user: Person }[];
 };
 
@@ -477,6 +478,11 @@ export function TaskDialog({
                           <Circle className="h-4 w-4" />
                         )}
                       </button>
+                      {sub.wbsNumber && (
+                        <span className="flex-shrink-0 text-[10px] font-mono font-medium text-muted-foreground">
+                          {sub.wbsNumber}
+                        </span>
+                      )}
                       <span
                         className={cn(
                           "flex-1 text-sm truncate",
