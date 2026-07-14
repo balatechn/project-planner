@@ -14,6 +14,7 @@ import {
   CheckSquare,
   ChevronDown,
   ChevronRight,
+  Pencil,
   Settings2,
   ZoomIn,
   ZoomOut,
@@ -305,6 +306,8 @@ function TimescaleDialog({
   );
 }
 
+type CellPatch = { title?: string; startDate?: string | null; dueDate?: string | null };
+
 // ── GanttView ─────────────────────────────────────────────────────────────────
 export function GanttView({
   tasks, onOpenTask,
@@ -462,7 +465,11 @@ export function GanttView({
 
   const scheduled    = sortedTasks.filter(t => t.startDate || t.dueDate);
   const criticalPath = React.useMemo(() => computeCriticalPath(tasks), [tasks]);
-  const [hoveredId,  setHoveredId]  = React.useState<string | null>(null);
+  const [hoveredId,   setHoveredId]   = React.useState<string | null>(null);
+  const [editingCell, setEditingCell] = React.useState<{ taskId: string; field: "title" | "startDate" | "dueDate" } | null>(null);
+  const [editValue,   setEditValue]   = React.useState("");
+  const [savingCell,  setSavingCell]  = React.useState<string | null>(null);
+  const [localEdits,  setLocalEdits]  = React.useState<Map<string, CellPatch>>(new Map());
 
   const { rangeStart, totalDays } = React.useMemo(() => {
     if (scheduled.length === 0) return { rangeStart: addDays(today, -7), totalDays: 38 };
@@ -525,6 +532,33 @@ export function GanttView({
   const ghostCount = Math.max(0, dynamicMinRows - rowCount);
   const hoverProps = (id: string) => ({ onMouseEnter: () => setHoveredId(id), onMouseLeave: () => setHoveredId(null) });
   const rowStripe  = (idx: number) => idx % 2 !== 0 ? "bg-muted/[0.07]" : "";
+
+  function effectiveTask(task: TaskListItem): TaskListItem {
+    const edits = localEdits.get(task.id);
+    return edits ? { ...task, ...edits } : task;
+  }
+
+  function startCellEdit(taskId: string, field: "title" | "startDate" | "dueDate", current: string) {
+    setEditingCell({ taskId, field });
+    setEditValue(current);
+  }
+
+  async function commitEdit() {
+    if (!editingCell) return;
+    const { taskId, field } = editingCell;
+    const value = editValue.trim();
+    setEditingCell(null);
+    if (field === "title" && !value) return;
+    const patch: CellPatch = {};
+    if (field === "title") patch.title = value;
+    else if (field === "startDate") patch.startDate = value || null;
+    else if (field === "dueDate") patch.dueDate = value || null;
+    setLocalEdits(prev => { const m = new Map(prev); m.set(taskId, { ...m.get(taskId), ...patch }); return m; });
+    setSavingCell(taskId);
+    try {
+      await fetch(`/api/tasks/${taskId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(patch) });
+    } finally { setSavingCell(null); }
+  }
 
   const LeftGhostRow = ({ idx }: { idx: number }) => (
     <div className={cn("flex border-b border-border/30", rowStripe(idx))} style={{ height: ROW_HEIGHT, minWidth: contentW }}>
@@ -630,9 +664,14 @@ export function GanttView({
             {sortedTasks.length === 0
               ? Array.from({ length: MIN_ROWS }).map((_, i) => <LeftGhostRow key={i} idx={i} />)
               : <>
-                  {visibleTasks.map((task, i) => (
+                  {visibleTasks.map((task, i) => {
+                    const et = effectiveTask(task);
+                    const isEditTitle  = editingCell?.taskId === task.id && editingCell.field === "title";
+                    const isEditStart  = editingCell?.taskId === task.id && editingCell.field === "startDate";
+                    const isEditFinish = editingCell?.taskId === task.id && editingCell.field === "dueDate";
+                    return (
                     <div key={task.id}
-                      className={cn("flex border-b border-border/40 transition-colors cursor-pointer", rowStripe(i), hoveredId === task.id && "bg-muted/20")}
+                      className={cn("flex border-b border-border/40 transition-colors cursor-pointer", rowStripe(i), hoveredId === task.id && "bg-muted/20", savingCell === task.id && "opacity-60")}
                       style={{ height: ROW_HEIGHT, minWidth: contentW }}
                       {...hoverProps(task.id)}
                     >
@@ -645,31 +684,82 @@ export function GanttView({
                             {collapsedParents.has(task.id) ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                           </button>
                         ) : <span className="flex-shrink-0 w-5" />}
-                        <button onClick={() => onOpenTask(task)}
-                          className={cn("flex-1 px-1.5 text-left text-[10px] hover:text-primary transition-colors overflow-hidden h-full flex items-center gap-1", task.parentId && "pl-3 text-muted-foreground")}>
-                          {task.parentId && <span className="flex-shrink-0 text-border text-[9px]">└</span>}
-                          {task.isMilestone && <span className="text-amber-500 flex-shrink-0 text-[9px]">◆</span>}
-                          {task.wbsNumber && <span className="text-[9px] text-muted-foreground flex-shrink-0 font-mono">{task.wbsNumber}</span>}
-                          <span className="truncate">{task.title}</span>
-                          {task._count.subtasks > 0 && (
-                            <span className="flex-shrink-0 rounded-full bg-muted px-1 text-[8px] font-medium text-muted-foreground" title={`${task._count.subtasks} subtask(s)`}>⊞{task._count.subtasks}</span>
-                          )}
-                          {task._count.checklistItems > 0 && (
-                            <span className="flex-shrink-0 flex items-center gap-0.5 text-[8px] text-muted-foreground" title={`${task._count.checklistItems} checklist items`}>
-                              <CheckSquare className="h-2 w-2" />{task._count.checklistItems}
-                            </span>
-                          )}
-                          {criticalPath.has(task.id) && <span className="ml-auto flex-shrink-0 h-1.5 w-1.5 rounded-full bg-red-500" title="Critical path" />}
-                        </button>
+                        {isEditTitle ? (
+                          <input
+                            autoFocus
+                            value={editValue}
+                            onChange={e => setEditValue(e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter") { void commitEdit(); } if (e.key === "Escape") setEditingCell(null); }}
+                            onBlur={() => void commitEdit()}
+                            className="flex-1 h-full px-1.5 text-[10px] bg-background border border-primary/60 rounded-sm outline-none"
+                          />
+                        ) : (
+                          <>
+                            <button onClick={() => onOpenTask(task)}
+                              className={cn("flex-1 min-w-0 px-1.5 text-left text-[10px] hover:text-primary transition-colors overflow-hidden h-full flex items-center gap-1", task.parentId && "pl-3 text-muted-foreground")}>
+                              {task.parentId && <span className="flex-shrink-0 text-border text-[9px]">└</span>}
+                              {task.isMilestone && <span className="text-amber-500 flex-shrink-0 text-[9px]">◆</span>}
+                              {et.wbsNumber && <span className="text-[9px] text-muted-foreground flex-shrink-0 font-mono">{et.wbsNumber}</span>}
+                              <span className="truncate">{et.title}</span>
+                              {task._count.subtasks > 0 && (
+                                <span className="flex-shrink-0 rounded-full bg-muted px-1 text-[8px] font-medium text-muted-foreground" title={`${task._count.subtasks} subtask(s)`}>⊞{task._count.subtasks}</span>
+                              )}
+                              {task._count.checklistItems > 0 && (
+                                <span className="flex-shrink-0 flex items-center gap-0.5 text-[8px] text-muted-foreground" title={`${task._count.checklistItems} checklist items`}>
+                                  <CheckSquare className="h-2 w-2" />{task._count.checklistItems}
+                                </span>
+                              )}
+                              {criticalPath.has(task.id) && <span className="ml-auto flex-shrink-0 h-1.5 w-1.5 rounded-full bg-red-500" title="Critical path" />}
+                            </button>
+                            {hoveredId === task.id && (
+                              <button
+                                onClick={e => { e.stopPropagation(); startCellEdit(task.id, "title", et.title); }}
+                                className="flex-shrink-0 mr-1 p-0.5 rounded text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
+                                title="Edit name"
+                              >
+                                <Pencil className="h-2.5 w-2.5" />
+                              </button>
+                            )}
+                          </>
+                        )}
                       </div>
-                      <div style={{ width: colWidths.dur    }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{taskDur(task.startDate, task.dueDate)}</div>
-                      <div style={{ width: colWidths.start  }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{fmtDate(task.startDate)}</div>
-                      <div style={{ width: colWidths.finish }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{fmtDate(task.dueDate)}</div>
+                      <div style={{ width: colWidths.dur }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{taskDur(et.startDate, et.dueDate)}</div>
+                      <div style={{ width: colWidths.start }} className="shrink-0 border-r border-border/40 flex items-center overflow-hidden">
+                        {isEditStart ? (
+                          <input type="date" autoFocus value={editValue}
+                            onChange={e => setEditValue(e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter") { void commitEdit(); } if (e.key === "Escape") setEditingCell(null); }}
+                            onBlur={() => void commitEdit()}
+                            className="w-full h-full px-1 text-[10px] bg-background border-0 outline-none accent-primary"
+                          />
+                        ) : (
+                          <button onClick={() => startCellEdit(task.id, "startDate", et.startDate ? et.startDate.slice(0, 10) : "")}
+                            className="w-full h-full px-2 text-left text-[10px] text-muted-foreground hover:text-primary hover:bg-muted/40 transition-colors">
+                            {fmtDate(et.startDate)}
+                          </button>
+                        )}
+                      </div>
+                      <div style={{ width: colWidths.finish }} className="shrink-0 border-r border-border/40 flex items-center overflow-hidden">
+                        {isEditFinish ? (
+                          <input type="date" autoFocus value={editValue}
+                            onChange={e => setEditValue(e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter") { void commitEdit(); } if (e.key === "Escape") setEditingCell(null); }}
+                            onBlur={() => void commitEdit()}
+                            className="w-full h-full px-1 text-[10px] bg-background border-0 outline-none accent-primary"
+                          />
+                        ) : (
+                          <button onClick={() => startCellEdit(task.id, "dueDate", et.dueDate ? et.dueDate.slice(0, 10) : "")}
+                            className="w-full h-full px-2 text-left text-[10px] text-muted-foreground hover:text-primary hover:bg-muted/40 transition-colors">
+                            {fmtDate(et.dueDate)}
+                          </button>
+                        )}
+                      </div>
                       <div style={{ width: colWidths.assigned }} className="shrink-0 px-2 flex items-center text-[10px] text-muted-foreground overflow-hidden">
                         <span className="truncate">{task.assignees.length > 0 ? task.assignees.map(a => a.user.name ?? "").filter(Boolean).join(", ") : "—"}</span>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                   {Array.from({ length: ghostCount }).map((_, i) => <LeftGhostRow key={`gh-${i}`} idx={visibleTasks.length + i} />)}
                 </>
             }
