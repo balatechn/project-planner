@@ -656,7 +656,7 @@ export function GanttView({
           onScroll={onLeftScroll}
         >
           {/* Header */}
-          <div className="sticky top-0 z-10 flex border-b bg-muted/50 shadow-sm"
+          <div className="sticky top-0 z-10 flex border-b bg-muted shadow-sm"
             style={{ height: HEADER_H, minWidth: contentW }}>
             <div style={{ width: ROW_NUM_W }} className="shrink-0 border-r border-border/70 flex items-center justify-center text-[10px] font-semibold text-muted-foreground">#</div>
             {(["taskName", "dur", "start", "finish", "assigned"] as const).map((col, ci) => {
@@ -763,12 +763,12 @@ export function GanttView({
           <div style={{ width: Math.max(timelineW, 300), minWidth: "100%" }}>
 
             {/* Two-tier header */}
-            <div className="sticky top-0 z-10 bg-muted/50 border-b shadow-sm" style={{ width: timelineW }}>
+            <div className="sticky top-0 z-10 bg-muted border-b shadow-sm" style={{ width: timelineW }}>
               {/* Top tier */}
               <div className="flex" style={{ height: TIER1_H }}>
                 {topSegs.map((seg, i) => (
                   <div key={i}
-                    className="flex-shrink-0 flex items-center px-1.5 border-r border-border/50 bg-muted/20 overflow-hidden"
+                    className="flex-shrink-0 flex items-center px-1.5 border-r border-border/50 bg-muted/40 overflow-hidden"
                     style={{ width: seg.width }}>
                     <span className="truncate text-[10px] font-semibold text-foreground/80">{seg.label}</span>
                   </div>
