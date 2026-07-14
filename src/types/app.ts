@@ -52,6 +52,7 @@ export type ProjectSummary = {
   budget: string | null;
   currency: string;
   isArchived: boolean;
+  published: boolean;
   owner: Person;
 };
 

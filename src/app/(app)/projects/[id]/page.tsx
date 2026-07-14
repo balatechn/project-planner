@@ -90,6 +90,7 @@ export default async function ProjectDetailPage({
         budget: project.budget?.toString() ?? null,
         currency: project.currency,
         isArchived: project.isArchived,
+        published: project.published,
         owner: project.owner,
       }}
       members={memberPeople}

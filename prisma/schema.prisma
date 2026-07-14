@@ -241,6 +241,7 @@ model Project {
   color            String        @default("#f59e0b")
   isArchived       Boolean       @default(false)
   archivedAt       DateTime?
+  published        Boolean       @default(false)
   // Soft delete — set means "in recycle bin"; purged permanently after 30 days
   deletedAt        DateTime?
   ownerId          String

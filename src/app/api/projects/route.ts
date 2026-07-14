@@ -5,9 +5,6 @@ import { projectAccessWhere } from "@/lib/projects";
 import { createProjectSchema } from "@/lib/validation";
 import { projectKeyFromName } from "@/lib/utils";
 import { logActivity } from "@/lib/activity";
-import { sendEmail, renderEmail } from "@/lib/email";
-
-const ADMIN_EMAIL = "bala@nationalgroupindia.com";
 
 // GET /api/projects — list accessible projects.
 export async function GET(req: Request) {
@@ -87,26 +84,7 @@ export async function POST(req: Request) {
       metadata: { name: project.name },
     });
 
-    // Notify admin about the new project (fire-and-forget)
-    sendEmail({
-      to: ADMIN_EMAIL,
-      subject: `New project created: ${project.name}`,
-      html: renderEmail({
-        heading: `New Project: ${project.name}`,
-        body: `
-          <p><strong>${user.name ?? user.email ?? "A user"}</strong> just created a new project.</p>
-          <table style="width:100%;border-collapse:collapse;margin-top:12px;font-size:14px">
-            <tr><td style="padding:6px 0;color:#64748b;width:120px">Project</td><td><strong>${project.name}</strong> (${project.key})</td></tr>
-            ${project.department ? `<tr><td style="padding:6px 0;color:#64748b">Department</td><td>${project.department}</td></tr>` : ""}
-            ${project.status ? `<tr><td style="padding:6px 0;color:#64748b">Status</td><td>${project.status}</td></tr>` : ""}
-            ${project.startDate ? `<tr><td style="padding:6px 0;color:#64748b">Start Date</td><td>${new Date(project.startDate).toDateString()}</td></tr>` : ""}
-            ${project.endDate ? `<tr><td style="padding:6px 0;color:#64748b">End Date</td><td>${new Date(project.endDate).toDateString()}</td></tr>` : ""}
-          </table>
-        `,
-        ctaLabel: "View Project",
-        ctaUrl: `${process.env.NEXTAUTH_URL ?? process.env.AUTH_URL ?? ""}/projects/${project.id}`,
-      }),
-    }).catch((err) => console.error("Admin project-created email failed:", err));
+    // Admin email fires only when the project is published — new projects start unpublished.
 
     return json({ project }, { status: 201 });
   });

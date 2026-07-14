@@ -105,7 +105,7 @@ export async function POST(req: Request) {
       },
       include: {
         assignees: { select: { userId: true } },
-        project: { select: { name: true } },
+        project: { select: { name: true, published: true } },
       },
     });
 
@@ -134,7 +134,7 @@ export async function POST(req: Request) {
     const allAssigneeIds = task.assignees.map((a) => a.userId);
     const assigneeIds = allAssigneeIds.filter((uid) => uid !== user.id);
     console.log(`[tasks] created taskId=${task.id} creatorId=${user.id} allAssignees=[${allAssigneeIds.join(",")}] notifyIds=[${assigneeIds.join(",")}]`);
-    if (assigneeIds.length > 0) {
+    if (assigneeIds.length > 0 && task.project.published) {
       await notifyMany(assigneeIds, {
         type: "TASK_ASSIGNED",
         title: `New task assigned: ${task.title}`,
@@ -143,7 +143,7 @@ export async function POST(req: Request) {
         email: true,
       });
     } else {
-      console.log(`[tasks] no assignees to notify (either no assignees or all are the creator)`);
+      console.log(`[tasks] no assignees to notify (either no assignees, all are the creator, or project not published)`);
     }
 
     return json({ task }, { status: 201 });

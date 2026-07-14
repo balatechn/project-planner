@@ -146,15 +146,18 @@ export async function PATCH(req: Request, { params }: Params) {
     });
 
     if (assigneeIds && assigneeIds.length > 0) {
-      await notifyMany(
-        assigneeIds.filter((uid) => uid !== user.id),
-        {
-          type: "TASK_ASSIGNED",
-          title: `You were assigned: ${existing.title}`,
-          link: `/projects/${existing.projectId}?task=${id}`,
-          email: true,
-        },
-      );
+      const proj = await prisma.project.findUnique({ where: { id: existing.projectId }, select: { published: true } });
+      if (proj?.published) {
+        await notifyMany(
+          assigneeIds.filter((uid) => uid !== user.id),
+          {
+            type: "TASK_ASSIGNED",
+            title: `You were assigned: ${existing.title}`,
+            link: `/projects/${existing.projectId}?task=${id}`,
+            email: true,
+          },
+        );
+      }
     }
 
     return json({ task });

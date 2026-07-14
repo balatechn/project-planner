@@ -20,6 +20,7 @@ export async function POST(req: Request, { params }: Params) {
         projectId: true,
         title: true,
         assignees: { select: { userId: true } },
+        project: { select: { published: true } },
       },
     });
     if (!task) throw new ApiError(404, "Task not found");
@@ -52,13 +53,15 @@ export async function POST(req: Request, { params }: Params) {
       ...(data.mentions ?? []),
     ].filter((uid) => uid !== user.id);
 
-    await notifyMany(recipients, {
-      type: "TASK_COMMENT",
-      title: `New comment on ${task.title}`,
-      body: data.body.slice(0, 140),
-      link: `/projects/${task.projectId}?task=${taskId}`,
-      email: false,
-    });
+    if (task.project.published) {
+      await notifyMany(recipients, {
+        type: "TASK_COMMENT",
+        title: `New comment on ${task.title}`,
+        body: data.body.slice(0, 140),
+        link: `/projects/${task.projectId}?task=${taskId}`,
+        email: false,
+      });
+    }
 
     return json({ comment }, { status: 201 });
   });

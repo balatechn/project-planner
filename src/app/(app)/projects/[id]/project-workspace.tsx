@@ -11,6 +11,7 @@ import {
   FileDown,
   Flag,
   GanttChartSquare,
+  Globe,
   KanbanSquare,
   LayoutList,
   MoreVertical,
@@ -150,6 +151,25 @@ export function ProjectWorkspace({
   const [createStatus, setCreateStatus] = React.useState<TaskStatus>("NOT_STARTED");
   const [membersOpen, setMembersOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
+  const [published, setPublished] = React.useState(project.published);
+  const [isPublishing, setIsPublishing] = React.useState(false);
+
+  const togglePublish = React.useCallback(async () => {
+    setIsPublishing(true);
+    const next = !published;
+    const res = await fetch(`/api/projects/${project.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ published: next }),
+    });
+    if (res.ok) {
+      setPublished(next);
+      toast({ title: next ? "Project published — alerts & emails are now active." : "Project unpublished — alerts & emails paused.", variant: "success" });
+    } else {
+      toast({ title: "Failed to update publish status", variant: "error" });
+    }
+    setIsPublishing(false);
+  }, [published, project.id, toast]);
 
   // ── Memoised derived stats ────────────────────────────────────────────────
   const { completed, pct } = React.useMemo(() => {
@@ -302,6 +322,22 @@ export function ProjectWorkspace({
               {pct}% · {completed}/{tasks.length}
             </span>
           </div>
+          {permissions.canEditProject && (
+            <button
+              type="button"
+              onClick={togglePublish}
+              disabled={isPublishing}
+              title={published ? "Click to unpublish (pauses emails & alerts)" : "Click to publish (activates emails & alerts)"}
+              className={`flex items-center gap-1.5 h-7 px-2.5 rounded-md text-xs font-medium border transition-colors disabled:opacity-50 ${
+                published
+                  ? "border-green-500 text-green-700 bg-green-50 hover:bg-green-100 dark:border-green-600 dark:text-green-400 dark:bg-green-900/20 dark:hover:bg-green-900/40"
+                  : "border-border text-muted-foreground bg-background hover:bg-muted"
+              }`}
+            >
+              <Globe className="h-3.5 w-3.5" />
+              {published ? "Published" : "Publish"}
+            </button>
+          )}
           {permissions.canCreateTask && (
             <Button variant="brand" size="sm" className="h-7 px-2.5 text-xs" onClick={() => openCreate("NOT_STARTED")}>
               <Plus className="h-3.5 w-3.5" /> Add Task

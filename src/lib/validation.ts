@@ -42,6 +42,7 @@ export const createProjectSchema = z.object({
   ownerId: z.string().min(1).optional(),
   projectManagerId: z.string().min(1).optional().nullable(),
   memberIds: z.array(z.string()).optional(),
+  published: z.boolean().optional(),
 });
 
 export const updateProjectSchema = createProjectSchema.partial();

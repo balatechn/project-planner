@@ -47,7 +47,7 @@ export async function GET(req: Request) {
     where: {
       deletedAt: null,
       status: { notIn: ["COMPLETED"] },
-      project: { deletedAt: null, isArchived: false },
+      project: { deletedAt: null, isArchived: false, published: true },
       OR: [
         { dueDate: { gte: day1Start, lte: day1End } },
         { dueDate: { gte: day3Start, lte: day3End } },
@@ -140,7 +140,7 @@ export async function GET(req: Request) {
         where: {
           assignees: { some: { userId: user.id } },
           status: { not: "COMPLETED" },
-          project: { deletedAt: null, isArchived: false },
+          project: { deletedAt: null, isArchived: false, published: true },
         },
         select: {
           title: true,
