@@ -449,7 +449,7 @@ export function GanttView({
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-0">
+    <div className="flex flex-col" style={{ height: "calc(100vh - 220px)" }}>
 
       {/* ── Timescale Ribbon ─────────────────────────────────────────────── */}
       <div className="flex items-center gap-1 rounded-md border bg-muted/30 px-2 py-1 flex-wrap select-none">
@@ -510,7 +510,7 @@ export function GanttView({
       </div>
 
       {/* ── Split-pane Gantt ──────────────────────────────────────────────── */}
-      <div className="flex rounded-lg border overflow-hidden" style={{ height: "calc(100vh - 248px)" }}>
+      <div className="flex rounded-lg border overflow-hidden flex-1 min-h-0">
 
         {/* ── Left panel ───────────────────────────────────────────────── */}
         <div ref={leftRef}
