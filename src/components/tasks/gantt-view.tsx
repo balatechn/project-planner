@@ -309,6 +309,18 @@ export function GanttView({
   const rightRef = React.useRef<HTMLDivElement>(null);
   const syncing  = React.useRef(false);
 
+  const [dynamicMinRows, setDynamicMinRows] = React.useState(MIN_ROWS);
+  React.useEffect(() => {
+    const el = rightRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const h = entry.contentRect.height;
+      setDynamicMinRows(Math.max(MIN_ROWS, Math.ceil((h - HEADER_H) / ROW_HEIGHT) + 1));
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const onLeftScroll = React.useCallback(() => {
     if (syncing.current) return;
     syncing.current = true;
@@ -432,7 +444,7 @@ export function GanttView({
   );
 
   const rowCount   = scheduled.length > 0 ? visibleScheduled.length : tasks.length;
-  const ghostCount = Math.max(0, MIN_ROWS - rowCount);
+  const ghostCount = Math.max(0, dynamicMinRows - rowCount);
   const hoverProps = (id: string) => ({ onMouseEnter: () => setHoveredId(id), onMouseLeave: () => setHoveredId(null) });
   const rowStripe  = (idx: number) => idx % 2 !== 0 ? "bg-muted/[0.07]" : "";
 
