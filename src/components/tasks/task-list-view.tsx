@@ -97,6 +97,11 @@ export function TaskListView({
                         onClick={() => onOpenTask(task)}
                         className="flex flex-1 items-center gap-3 text-left min-w-0"
                       >
+                        {task.wbsNumber && (
+                          <span className="flex-shrink-0 text-[10px] font-mono font-medium text-muted-foreground">
+                            {task.wbsNumber}
+                          </span>
+                        )}
                         <span className="min-w-0 flex-1 truncate text-sm font-medium">
                           {task.title}
                         </span>
@@ -158,6 +163,11 @@ export function TaskListView({
                             <span className="flex-shrink-0 flex items-center pl-6">
                               <span className="mr-2 text-border">└</span>
                             </span>
+                            {sub.wbsNumber && (
+                              <span className="flex-shrink-0 text-[10px] font-mono font-medium text-muted-foreground">
+                                {sub.wbsNumber}
+                              </span>
+                            )}
                             <span className="min-w-0 flex-1 truncate text-sm">
                               {sub.title}
                             </span>

@@ -32,7 +32,14 @@ export function TaskCard({
       className="group cursor-pointer rounded-lg border bg-card p-3 shadow-sm transition-all hover:border-primary/40 hover:shadow-md"
     >
       <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-medium leading-snug">{task.title}</p>
+        <div className="flex flex-col min-w-0">
+          {task.wbsNumber && (
+            <span className="mb-0.5 text-[10px] font-mono font-medium text-muted-foreground">
+              {task.wbsNumber}
+            </span>
+          )}
+          <p className="text-sm font-medium leading-snug">{task.title}</p>
+        </div>
         <PriorityBadge priority={task.priority} className="shrink-0" />
       </div>
 
