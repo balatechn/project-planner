@@ -493,15 +493,6 @@ export function GanttView({
   return (
     <div className="space-y-2 pt-0.5">
 
-      {/* Toolbar row */}
-      {canCreate && projectId && (
-        <div className="flex items-center gap-2">
-          <Button variant="brand" size="sm" className="h-7 px-2.5 text-xs" onClick={() => setAddOpen(v => !v)}>
-            <Plus className="h-3.5 w-3.5" />{addOpen ? "Cancel" : "Add Task"}
-          </Button>
-        </div>
-      )}
-
       {/* Inline add form */}
       {addOpen && (
         <div className="rounded-lg border bg-card p-3 shadow-sm">
@@ -613,10 +604,17 @@ export function GanttView({
         {!activeZoom && (
           <span className="ml-1 text-[9px] text-muted-foreground italic">Custom · {dayPx}px/day</span>
         )}
+
+        {/* Add Task — right-aligned in the ribbon, no separate row needed */}
+        {canCreate && projectId && (
+          <Button variant="brand" size="sm" className="h-7 px-2.5 text-xs ml-auto" onClick={() => setAddOpen(v => !v)}>
+            <Plus className="h-3.5 w-3.5" />{addOpen ? "Cancel" : "Add Task"}
+          </Button>
+        )}
       </div>
 
       {/* ── Split-pane Gantt ──────────────────────────────────────────────── */}
-      <div className="flex rounded-lg border overflow-hidden" style={{ height: "calc(100vh - 284px)" }}>
+      <div className="flex rounded-lg border overflow-hidden" style={{ height: "calc(100vh - 248px)" }}>
 
         {/* ── Left panel ───────────────────────────────────────────────── */}
         <div ref={leftRef}
