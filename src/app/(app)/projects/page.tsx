@@ -14,6 +14,7 @@ import { HealthBadge } from "@/components/health-badge";
 import { projectHealth } from "@/lib/health";
 import { NewProjectButton } from "./new-project-button";
 import { ClaimAdminBanner } from "./claim-admin-banner";
+import { GanttReportModal } from "@/components/reports/gantt-report-modal";
 import { adminEmails } from "@/auth";
 import { format } from "date-fns";
 
@@ -108,6 +109,7 @@ export default async function ProjectsPage({
         title="Projects"
         description={`${projects.length} active ${projects.length === 1 ? "project" : "projects"} in your workspace.`}
       >
+        <GanttReportModal projects={projects.map(p => ({ id: p.id, name: p.name }))} />
         {canCreate && <NewProjectButton {...newProjectProps} />}
       </PageHeader>
 
