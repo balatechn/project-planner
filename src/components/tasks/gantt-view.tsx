@@ -14,21 +14,17 @@ import {
   CheckSquare,
   ChevronDown,
   ChevronRight,
-  Loader2,
-  Plus,
   Settings2,
   ZoomIn,
   ZoomOut,
   CalendarDays,
   Maximize2,
 } from "lucide-react";
-import type { TaskListItem, Person } from "@/types/app";
+import type { TaskListItem } from "@/types/app";
 import { TASK_STATUS_COLORS } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useToast } from "@/components/ui/toast";
 import {
   Select,
   SelectContent,
@@ -179,7 +175,6 @@ function computeCriticalPath(tasks: TaskListItem[]): Set<string> {
   return critical;
 }
 
-type InlineForm = { title: string; priority: string; assigneeId: string; startDate: string; dueDate: string; isMilestone: boolean };
 const today = new Date();
 
 // ── TimescaleDialog ────────────────────────────────────────────────────────────
@@ -303,16 +298,11 @@ function TimescaleDialog({
 
 // ── GanttView ─────────────────────────────────────────────────────────────────
 export function GanttView({
-  tasks, onOpenTask, canCreate, projectId, allUsers = [], onSaved,
+  tasks, onOpenTask,
 }: {
   tasks: TaskListItem[];
   onOpenTask: (task: TaskListItem) => void;
-  canCreate?: boolean;
-  projectId?: string;
-  allUsers?: Person[];
-  onSaved?: () => void;
 }) {
-  const { toast } = useToast();
 
   // ── Scroll sync ───────────────────────────────────────────────────────────
   const leftRef  = React.useRef<HTMLDivElement>(null);
@@ -387,14 +377,6 @@ export function GanttView({
   const scheduled    = tasks.filter(t => t.startDate || t.dueDate);
   const criticalPath = React.useMemo(() => computeCriticalPath(tasks), [tasks]);
   const [hoveredId,  setHoveredId]  = React.useState<string | null>(null);
-  const [addOpen,    setAddOpen]    = React.useState(false);
-  const [saving,     setSaving]     = React.useState(false);
-  const [form, setForm] = React.useState<InlineForm>({
-    title: "", priority: "MEDIUM", assigneeId: "__none__",
-    startDate: today.toISOString().split("T")[0],
-    dueDate:   addDays(today, 7).toISOString().split("T")[0],
-    isMilestone: false,
-  });
 
   const { rangeStart, totalDays } = React.useMemo(() => {
     if (scheduled.length === 0) return { rangeStart: addDays(today, -7), totalDays: 38 };
@@ -449,30 +431,6 @@ export function GanttView({
     [scheduled, collapsedParents],
   );
 
-  async function addTask() {
-    if (!form.title.trim() || !projectId) return;
-    setSaving(true);
-    try {
-      const res = await fetch("/api/tasks", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          projectId, title: form.title, priority: form.priority, isMilestone: form.isMilestone,
-          assigneeIds: form.assigneeId !== "__none__" ? [form.assigneeId] : [],
-          startDate: form.startDate ? new Date(form.startDate).toISOString() : null,
-          dueDate:   form.dueDate   ? new Date(form.dueDate).toISOString()   : null,
-        }),
-      });
-      if (!res.ok) throw new Error();
-      toast({ title: "Task added", variant: "success" });
-      setAddOpen(false);
-      setForm({ title: "", priority: "MEDIUM", assigneeId: "__none__",
-        startDate: today.toISOString().split("T")[0],
-        dueDate:   addDays(today, 7).toISOString().split("T")[0], isMilestone: false });
-      onSaved?.();
-    } catch { toast({ title: "Could not add task", variant: "error" }); }
-    finally { setSaving(false); }
-  }
-
   const rowCount   = scheduled.length > 0 ? visibleScheduled.length : tasks.length;
   const ghostCount = Math.max(0, MIN_ROWS - rowCount);
   const hoverProps = (id: string) => ({ onMouseEnter: () => setHoveredId(id), onMouseLeave: () => setHoveredId(null) });
@@ -491,62 +449,7 @@ export function GanttView({
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-2 pt-0.5">
-
-      {/* Inline add form */}
-      {addOpen && (
-        <div className="rounded-lg border bg-card p-3 shadow-sm">
-          <div className="flex flex-wrap gap-2 items-end">
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Title *</label>
-              <Input className="h-8 w-48" value={form.title}
-                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                placeholder="Task name" onKeyDown={e => e.key === "Enter" && addTask()} />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Priority</label>
-              <Select value={form.priority} onValueChange={v => setForm(f => ({ ...f, priority: v }))}>
-                <SelectTrigger className="h-8 w-28"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {["LOW","MEDIUM","HIGH","CRITICAL"].map(p => (
-                    <SelectItem key={p} value={p}>{p.charAt(0)+p.slice(1).toLowerCase()}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {allUsers.length > 0 && (
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">Assign to</label>
-                <Select value={form.assigneeId} onValueChange={v => setForm(f => ({ ...f, assigneeId: v }))}>
-                  <SelectTrigger className="h-8 w-36"><SelectValue placeholder="Unassigned" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__none__">Unassigned</SelectItem>
-                    {allUsers.map(u => <SelectItem key={u.id} value={u.id}>{u.name ?? u.email}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Start</label>
-              <Input className="h-8 w-36" type="date" value={form.startDate}
-                onChange={e => setForm(f => ({ ...f, startDate: e.target.value }))} />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Due</label>
-              <Input className="h-8 w-36" type="date" value={form.dueDate}
-                onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} />
-            </div>
-            <div className="flex items-center gap-1.5">
-              <input type="checkbox" id="ms-check" checked={form.isMilestone}
-                onChange={e => setForm(f => ({ ...f, isMilestone: e.target.checked }))} className="h-4 w-4" />
-              <label htmlFor="ms-check" className="text-xs">Milestone</label>
-            </div>
-            <Button variant="brand" size="sm" className="h-8" onClick={addTask} disabled={saving || !form.title.trim()}>
-              {saving ? <Loader2 className="animate-spin h-3.5 w-3.5" /> : "Save"}
-            </Button>
-          </div>
-        </div>
-      )}
+    <div className="space-y-0">
 
       {/* ── Timescale Ribbon ─────────────────────────────────────────────── */}
       <div className="flex items-center gap-1 rounded-md border bg-muted/30 px-2 py-1 flex-wrap select-none">
@@ -603,13 +506,6 @@ export function GanttView({
 
         {!activeZoom && (
           <span className="ml-1 text-[9px] text-muted-foreground italic">Custom · {dayPx}px/day</span>
-        )}
-
-        {/* Add Task — right-aligned in the ribbon, no separate row needed */}
-        {canCreate && projectId && (
-          <Button variant="brand" size="sm" className="h-7 px-2.5 text-xs ml-auto" onClick={() => setAddOpen(v => !v)}>
-            <Plus className="h-3.5 w-3.5" />{addOpen ? "Cancel" : "Add Task"}
-          </Button>
         )}
       </div>
 

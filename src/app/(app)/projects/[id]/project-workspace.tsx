@@ -377,14 +377,10 @@ export function ProjectWorkspace({
             <TabsContent value="overview">
               <ProjectOverview project={project} tasks={tasks} members={members} />
             </TabsContent>
-            <TabsContent value="gantt">
+            <TabsContent value="gantt" className="mt-0">
               <GanttView
                 tasks={tasks}
                 onOpenTask={openTask}
-                canCreate={permissions.canCreateTask}
-                projectId={project.id}
-                allUsers={allUsers}
-                onSaved={loadTasks}
               />
             </TabsContent>
             <TabsContent value="board">
