@@ -386,7 +386,23 @@ export function GanttView({
   }
 
   // ── Data ──────────────────────────────────────────────────────────────────
-  const scheduled    = tasks.filter(t => t.startDate || t.dueDate);
+  const sortedTasks = React.useMemo(() => {
+    return [...tasks].sort((a, b) => {
+      if (!a.wbsNumber && !b.wbsNumber) return 0;
+      if (!a.wbsNumber) return 1;
+      if (!b.wbsNumber) return -1;
+      const aParts = a.wbsNumber.split(".").map(Number);
+      const bParts = b.wbsNumber.split(".").map(Number);
+      for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+        const av = aParts[i] ?? 0;
+        const bv = bParts[i] ?? 0;
+        if (av !== bv) return av - bv;
+      }
+      return 0;
+    });
+  }, [tasks]);
+
+  const scheduled    = sortedTasks.filter(t => t.startDate || t.dueDate);
   const criticalPath = React.useMemo(() => computeCriticalPath(tasks), [tasks]);
   const [hoveredId,  setHoveredId]  = React.useState<string | null>(null);
 
@@ -435,15 +451,19 @@ export function GanttView({
     setCollapsedParents(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }
   const parentIds = React.useMemo(
-    () => new Set(scheduled.filter(t => t.parentId).map(t => t.parentId!)),
-    [scheduled],
+    () => new Set(sortedTasks.filter(t => t.parentId).map(t => t.parentId!)),
+    [sortedTasks],
+  );
+  const visibleTasks = React.useMemo(
+    () => sortedTasks.filter(t => !t.parentId || !collapsedParents.has(t.parentId)),
+    [sortedTasks, collapsedParents],
   );
   const visibleScheduled = React.useMemo(
-    () => scheduled.filter(t => !t.parentId || !collapsedParents.has(t.parentId)),
-    [scheduled, collapsedParents],
+    () => visibleTasks.filter(t => t.startDate || t.dueDate),
+    [visibleTasks],
   );
 
-  const rowCount   = scheduled.length > 0 ? visibleScheduled.length : tasks.length;
+  const rowCount   = visibleTasks.length;
   const ghostCount = Math.max(0, dynamicMinRows - rowCount);
   const hoverProps = (id: string) => ({ onMouseEnter: () => setHoveredId(id), onMouseLeave: () => setHoveredId(null) });
   const rowStripe  = (idx: number) => idx % 2 !== 0 ? "bg-muted/[0.07]" : "";
@@ -543,75 +563,52 @@ export function GanttView({
 
           {/* Rows */}
           <div style={{ minWidth: LEFT_CONTENT_W }}>
-            {tasks.length === 0 && Array.from({ length: MIN_ROWS }).map((_, i) => <LeftGhostRow key={i} idx={i} />)}
-
-            {tasks.length > 0 && scheduled.length === 0 && (
-              <>
-                {tasks.map((task, i) => (
-                  <div key={task.id}
-                    className={cn("flex border-b border-border/40 transition-colors cursor-pointer", rowStripe(i), hoveredId === task.id && "bg-muted/20")}
-                    style={{ height: ROW_HEIGHT, minWidth: LEFT_CONTENT_W }}
-                    {...hoverProps(task.id)} onClick={() => onOpenTask(task)}
-                  >
-                    <div style={{ width: ROW_NUM_W }} className="shrink-0 border-r border-border/40 flex items-center justify-center text-[10px] text-muted-foreground">{i + 1}</div>
-                    <div style={{ width: TASK_NAME_W }} className="shrink-0 border-r border-border/40 px-3 flex items-center text-[10px] overflow-hidden"><span className="truncate">{task.title}</span></div>
-                    <div style={{ width: DURATION_W }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{taskDur(task.startDate, task.dueDate)}</div>
-                    <div style={{ width: START_W }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{fmtDate(task.startDate)}</div>
-                    <div style={{ width: FINISH_W }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{fmtDate(task.dueDate)}</div>
-                    <div style={{ width: ASSIGNED_W }} className="shrink-0 px-2 flex items-center text-[10px] text-muted-foreground overflow-hidden">
-                      <span className="truncate">{task.assignees.length > 0 ? task.assignees.map(a => a.user.name ?? "").filter(Boolean).join(", ") : "—"}</span>
-                    </div>
-                  </div>
-                ))}
-                {Array.from({ length: ghostCount }).map((_, i) => <LeftGhostRow key={`gh-${i}`} idx={tasks.length + i} />)}
-              </>
-            )}
-
-            {scheduled.length > 0 && (
-              <>
-                {visibleScheduled.map((task, i) => (
-                  <div key={task.id}
-                    className={cn("flex border-b border-border/40 transition-colors", rowStripe(i), hoveredId === task.id && "bg-muted/20")}
-                    style={{ height: ROW_HEIGHT, minWidth: LEFT_CONTENT_W }}
-                    {...hoverProps(task.id)}
-                  >
-                    <div style={{ width: ROW_NUM_W }} className="shrink-0 border-r border-border/40 flex items-center justify-center text-[10px] text-muted-foreground">{i + 1}</div>
-                    <div style={{ width: TASK_NAME_W }} className="shrink-0 border-r border-border/40 flex items-center overflow-hidden">
-                      {parentIds.has(task.id) ? (
-                        <button onClick={() => toggleRow(task.id)}
-                          className="flex-shrink-0 ml-1 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-                          title={collapsedParents.has(task.id) ? "Expand" : "Collapse"}>
-                          {collapsedParents.has(task.id) ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+            {sortedTasks.length === 0
+              ? Array.from({ length: MIN_ROWS }).map((_, i) => <LeftGhostRow key={i} idx={i} />)
+              : <>
+                  {visibleTasks.map((task, i) => (
+                    <div key={task.id}
+                      className={cn("flex border-b border-border/40 transition-colors cursor-pointer", rowStripe(i), hoveredId === task.id && "bg-muted/20")}
+                      style={{ height: ROW_HEIGHT, minWidth: LEFT_CONTENT_W }}
+                      {...hoverProps(task.id)}
+                    >
+                      <div style={{ width: ROW_NUM_W }} className="shrink-0 border-r border-border/40 flex items-center justify-center text-[10px] text-muted-foreground">{i + 1}</div>
+                      <div style={{ width: TASK_NAME_W }} className="shrink-0 border-r border-border/40 flex items-center overflow-hidden">
+                        {parentIds.has(task.id) ? (
+                          <button onClick={() => toggleRow(task.id)}
+                            className="flex-shrink-0 ml-1 p-0.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                            title={collapsedParents.has(task.id) ? "Expand" : "Collapse"}>
+                            {collapsedParents.has(task.id) ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                          </button>
+                        ) : <span className="flex-shrink-0 w-5" />}
+                        <button onClick={() => onOpenTask(task)}
+                          className={cn("flex-1 px-1.5 text-left text-[10px] hover:text-primary transition-colors overflow-hidden h-full flex items-center gap-1", task.parentId && "pl-3 text-muted-foreground")}>
+                          {task.parentId && <span className="flex-shrink-0 text-border text-[9px]">└</span>}
+                          {task.isMilestone && <span className="text-amber-500 flex-shrink-0 text-[9px]">◆</span>}
+                          {task.wbsNumber && <span className="text-[9px] text-muted-foreground flex-shrink-0 font-mono">{task.wbsNumber}</span>}
+                          <span className="truncate">{task.title}</span>
+                          {task._count.subtasks > 0 && (
+                            <span className="flex-shrink-0 rounded-full bg-muted px-1 text-[8px] font-medium text-muted-foreground" title={`${task._count.subtasks} subtask(s)`}>⊞{task._count.subtasks}</span>
+                          )}
+                          {task._count.checklistItems > 0 && (
+                            <span className="flex-shrink-0 flex items-center gap-0.5 text-[8px] text-muted-foreground" title={`${task._count.checklistItems} checklist items`}>
+                              <CheckSquare className="h-2 w-2" />{task._count.checklistItems}
+                            </span>
+                          )}
+                          {criticalPath.has(task.id) && <span className="ml-auto flex-shrink-0 h-1.5 w-1.5 rounded-full bg-red-500" title="Critical path" />}
                         </button>
-                      ) : <span className="flex-shrink-0 w-5" />}
-                      <button onClick={() => onOpenTask(task)}
-                        className={cn("flex-1 px-1.5 text-left text-[10px] hover:text-primary transition-colors overflow-hidden h-full flex items-center gap-1", task.parentId && "pl-3 text-muted-foreground")}>
-                        {task.parentId && <span className="flex-shrink-0 text-border text-[9px]">└</span>}
-                        {task.isMilestone && <span className="text-amber-500 flex-shrink-0 text-[9px]">◆</span>}
-                        {task.wbsNumber && <span className="text-[9px] text-muted-foreground flex-shrink-0 font-mono">{task.wbsNumber}</span>}
-                        <span className="truncate">{task.title}</span>
-                        {task._count.subtasks > 0 && (
-                          <span className="flex-shrink-0 rounded-full bg-muted px-1 text-[8px] font-medium text-muted-foreground" title={`${task._count.subtasks} subtask(s)`}>⊞{task._count.subtasks}</span>
-                        )}
-                        {task._count.checklistItems > 0 && (
-                          <span className="flex-shrink-0 flex items-center gap-0.5 text-[8px] text-muted-foreground" title={`${task._count.checklistItems} checklist items`}>
-                            <CheckSquare className="h-2 w-2" />{task._count.checklistItems}
-                          </span>
-                        )}
-                        {criticalPath.has(task.id) && <span className="ml-auto flex-shrink-0 h-1.5 w-1.5 rounded-full bg-red-500" title="Critical path" />}
-                      </button>
+                      </div>
+                      <div style={{ width: DURATION_W }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{taskDur(task.startDate, task.dueDate)}</div>
+                      <div style={{ width: START_W }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{fmtDate(task.startDate)}</div>
+                      <div style={{ width: FINISH_W }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{fmtDate(task.dueDate)}</div>
+                      <div style={{ width: ASSIGNED_W }} className="shrink-0 px-2 flex items-center text-[10px] text-muted-foreground overflow-hidden">
+                        <span className="truncate">{task.assignees.length > 0 ? task.assignees.map(a => a.user.name ?? "").filter(Boolean).join(", ") : "—"}</span>
+                      </div>
                     </div>
-                    <div style={{ width: DURATION_W }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{taskDur(task.startDate, task.dueDate)}</div>
-                    <div style={{ width: START_W }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{fmtDate(task.startDate)}</div>
-                    <div style={{ width: FINISH_W }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{fmtDate(task.dueDate)}</div>
-                    <div style={{ width: ASSIGNED_W }} className="shrink-0 px-2 flex items-center text-[10px] text-muted-foreground overflow-hidden">
-                      <span className="truncate">{task.assignees.length > 0 ? task.assignees.map(a => a.user.name ?? "").filter(Boolean).join(", ") : "—"}</span>
-                    </div>
-                  </div>
-                ))}
-                {Array.from({ length: ghostCount }).map((_, i) => <LeftGhostRow key={`gh-${i}`} idx={visibleScheduled.length + i} />)}
-              </>
-            )}
+                  ))}
+                  {Array.from({ length: ghostCount }).map((_, i) => <LeftGhostRow key={`gh-${i}`} idx={visibleTasks.length + i} />)}
+                </>
+            }
           </div>
         </div>
 
@@ -682,8 +679,8 @@ export function GanttView({
                   style={{ left: todayOffset * dayPx }} />
               )}
 
-              {/* CASE 1: no tasks */}
-              {tasks.length === 0 && (
+              {/* No tasks */}
+              {sortedTasks.length === 0 && (
                 <div className="relative">
                   {Array.from({ length: MIN_ROWS }).map((_, i) => (
                     <div key={i} className={cn("border-b border-border/30", rowStripe(i))} style={{ height: ROW_HEIGHT }} />
@@ -696,29 +693,20 @@ export function GanttView({
                 </div>
               )}
 
-              {/* CASE 2: tasks without dates */}
-              {tasks.length > 0 && scheduled.length === 0 && (
-                <div className="relative">
-                  {tasks.map((task, i) => (
-                    <div key={task.id}
-                      className={cn("border-b border-border/40 transition-colors", rowStripe(i), hoveredId === task.id && "bg-muted/20")}
-                      style={{ height: ROW_HEIGHT }} {...hoverProps(task.id)} />
-                  ))}
-                  {Array.from({ length: ghostCount }).map((_, i) => (
-                    <div key={`gh-${i}`} className={cn("border-b border-border/30", rowStripe(tasks.length + i))} style={{ height: ROW_HEIGHT }} />
-                  ))}
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <p className="rounded-md border bg-card/90 px-4 py-2 text-xs text-muted-foreground shadow-sm">
-                      Add start / due dates to see tasks on the timeline.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* CASE 3: scheduled tasks */}
-              {scheduled.length > 0 && (
+              {/* All tasks — bars only for those with dates */}
+              {sortedTasks.length > 0 && (
                 <>
-                  {visibleScheduled.map((task, i) => {
+                  {visibleTasks.map((task, i) => {
+                    const hasBar = !!(task.startDate || task.dueDate);
+                    if (!hasBar) {
+                      return (
+                        <div key={task.id}
+                          className={cn("relative border-b border-border/40 transition-colors", rowStripe(i), hoveredId === task.id && "bg-muted/20")}
+                          style={{ height: ROW_HEIGHT }}
+                          {...hoverProps(task.id)}
+                        />
+                      );
+                    }
                     const s      = task.startDate ? new Date(task.startDate) : new Date(task.dueDate!);
                     const e      = task.dueDate   ? new Date(task.dueDate)   : addDays(new Date(task.startDate!), 1);
                     const offset = Math.max(0, differenceInCalendarDays(s, rangeStart));
@@ -778,13 +766,23 @@ export function GanttView({
                   })}
 
                   {Array.from({ length: ghostCount }).map((_, i) => (
-                    <div key={`gh-${i}`} className={cn("border-b border-border/30", rowStripe(visibleScheduled.length + i))} style={{ height: ROW_HEIGHT }} />
+                    <div key={`gh-${i}`} className={cn("border-b border-border/30", rowStripe(visibleTasks.length + i))} style={{ height: ROW_HEIGHT }} />
                   ))}
+
+                  {/* Overlay when no tasks have dates */}
+                  {visibleScheduled.length === 0 && (
+                    <div className="absolute top-0 left-0 right-0 flex items-center justify-center pointer-events-none" style={{ height: visibleTasks.length * ROW_HEIGHT }}>
+                      <p className="rounded-md border bg-card/90 px-4 py-2 text-xs text-muted-foreground shadow-sm">
+                        Add start / due dates to see tasks on the timeline.
+                      </p>
+                    </div>
+                  )}
 
                   {/* Dependency connector arrows */}
                   {(() => {
                     const posMap = new Map<string, { ri: number; lx: number; rx: number }>();
-                    visibleScheduled.forEach((task, ri) => {
+                    visibleTasks.forEach((task, ri) => {
+                      if (!task.startDate && !task.dueDate) return;
                       const s  = task.startDate ? new Date(task.startDate) : new Date(task.dueDate!);
                       const e  = task.dueDate   ? new Date(task.dueDate)   : addDays(new Date(task.startDate!), 1);
                       const lx = Math.max(0, differenceInCalendarDays(s, rangeStart)) * dayPx;
@@ -792,7 +790,7 @@ export function GanttView({
                       posMap.set(task.id, { ri, lx, rx });
                     });
                     const arrows: React.ReactNode[] = [];
-                    visibleScheduled.forEach(task => {
+                    visibleTasks.forEach(task => {
                       const succ = posMap.get(task.id);
                       if (!succ || !task.dependsOn?.length) return;
                       const sCY = succ.ri * ROW_HEIGHT + ROW_HEIGHT / 2;
@@ -820,7 +818,7 @@ export function GanttView({
                     if (!arrows.length) return null;
                     return (
                       <svg className="absolute inset-0 pointer-events-none"
-                        style={{ zIndex: 9, width: timelineW, height: (visibleScheduled.length + ghostCount) * ROW_HEIGHT }}
+                        style={{ zIndex: 9, width: timelineW, height: (visibleTasks.length + ghostCount) * ROW_HEIGHT }}
                         overflow="visible">
                         {arrows}
                       </svg>

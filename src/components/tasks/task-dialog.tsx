@@ -186,6 +186,16 @@ export function TaskDialog({
           body: JSON.stringify(payload),
         },
       );
+      if (res.status === 401) {
+        toast({
+          title: "Session expired — refreshing…",
+          description: "Your session timed out. The page will reload automatically.",
+          variant: "error",
+        });
+        setTimeout(() => window.location.reload(), 2000);
+        setSaving(false);
+        return;
+      }
       if (!res.ok) {
         const e = await res.json().catch(() => ({}));
         throw new Error(e.error ?? "Save failed");
