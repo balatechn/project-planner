@@ -666,9 +666,7 @@ export function GanttView({
               : <>
                   {visibleTasks.map((task, i) => {
                     const et = effectiveTask(task);
-                    const isEditTitle  = editingCell?.taskId === task.id && editingCell.field === "title";
-                    const isEditStart  = editingCell?.taskId === task.id && editingCell.field === "startDate";
-                    const isEditFinish = editingCell?.taskId === task.id && editingCell.field === "dueDate";
+                    const isEditTitle = editingCell?.taskId === task.id && editingCell.field === "title";
                     return (
                     <div key={task.id}
                       className={cn("flex border-b border-border/40 transition-colors cursor-pointer", rowStripe(i), hoveredId === task.id && "bg-muted/20", savingCell === task.id && "opacity-60")}
@@ -724,36 +722,8 @@ export function GanttView({
                         )}
                       </div>
                       <div style={{ width: colWidths.dur }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{taskDur(et.startDate, et.dueDate)}</div>
-                      <div style={{ width: colWidths.start }} className="shrink-0 border-r border-border/40 flex items-center overflow-hidden">
-                        {isEditStart ? (
-                          <input type="date" autoFocus value={editValue}
-                            onChange={e => setEditValue(e.target.value)}
-                            onKeyDown={e => { if (e.key === "Enter") { void commitEdit(); } if (e.key === "Escape") setEditingCell(null); }}
-                            onBlur={() => void commitEdit()}
-                            className="w-full h-full px-1 text-[10px] bg-background border-0 outline-none accent-primary"
-                          />
-                        ) : (
-                          <button onClick={() => startCellEdit(task.id, "startDate", et.startDate ? et.startDate.slice(0, 10) : "")}
-                            className="w-full h-full px-2 text-left text-[10px] text-muted-foreground hover:text-primary hover:bg-muted/40 transition-colors">
-                            {fmtDate(et.startDate)}
-                          </button>
-                        )}
-                      </div>
-                      <div style={{ width: colWidths.finish }} className="shrink-0 border-r border-border/40 flex items-center overflow-hidden">
-                        {isEditFinish ? (
-                          <input type="date" autoFocus value={editValue}
-                            onChange={e => setEditValue(e.target.value)}
-                            onKeyDown={e => { if (e.key === "Enter") { void commitEdit(); } if (e.key === "Escape") setEditingCell(null); }}
-                            onBlur={() => void commitEdit()}
-                            className="w-full h-full px-1 text-[10px] bg-background border-0 outline-none accent-primary"
-                          />
-                        ) : (
-                          <button onClick={() => startCellEdit(task.id, "dueDate", et.dueDate ? et.dueDate.slice(0, 10) : "")}
-                            className="w-full h-full px-2 text-left text-[10px] text-muted-foreground hover:text-primary hover:bg-muted/40 transition-colors">
-                            {fmtDate(et.dueDate)}
-                          </button>
-                        )}
-                      </div>
+                      <div style={{ width: colWidths.start  }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{fmtDate(et.startDate)}</div>
+                      <div style={{ width: colWidths.finish }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{fmtDate(et.dueDate)}</div>
                       <div style={{ width: colWidths.assigned }} className="shrink-0 px-2 flex items-center text-[10px] text-muted-foreground overflow-hidden">
                         <span className="truncate">{task.assignees.length > 0 ? task.assignees.map(a => a.user.name ?? "").filter(Boolean).join(", ") : "—"}</span>
                       </div>
