@@ -14,7 +14,6 @@ import {
   CheckSquare,
   ChevronDown,
   ChevronRight,
-  Pencil,
   Settings2,
   ZoomIn,
   ZoomOut,
@@ -530,8 +529,9 @@ export function GanttView({
 
   const rowCount   = visibleTasks.length;
   const ghostCount = Math.max(0, dynamicMinRows - rowCount);
-  const hoverProps = (id: string) => ({ onMouseEnter: () => setHoveredId(id), onMouseLeave: () => setHoveredId(null) });
-  const rowStripe  = (idx: number) => idx % 2 !== 0 ? "bg-muted/[0.07]" : "";
+  const hoverProps     = (id: string) => ({ onMouseEnter: () => setHoveredId(id), onMouseLeave: () => setHoveredId(null) });
+  const rowStripe      = (idx: number) => idx % 2 !== 0 ? "bg-muted/[0.07]" : "";
+  const nameClickTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function effectiveTask(task: TaskListItem): TaskListItem {
     const edits = localEdits.get(task.id);
@@ -541,6 +541,19 @@ export function GanttView({
   function startCellEdit(taskId: string, field: "title" | "startDate" | "dueDate", current: string) {
     setEditingCell({ taskId, field });
     setEditValue(current);
+  }
+
+  function handleNameClick(task: TaskListItem, et: TaskListItem) {
+    if (nameClickTimer.current) {
+      clearTimeout(nameClickTimer.current);
+      nameClickTimer.current = null;
+      startCellEdit(task.id, "title", et.title);
+    } else {
+      nameClickTimer.current = setTimeout(() => {
+        nameClickTimer.current = null;
+        onOpenTask(task);
+      }, 250);
+    }
   }
 
   async function commitEdit() {
@@ -692,33 +705,23 @@ export function GanttView({
                             className="flex-1 h-full px-1.5 text-[10px] bg-background border border-primary/60 rounded-sm outline-none"
                           />
                         ) : (
-                          <>
-                            <button onClick={() => onOpenTask(task)}
-                              className={cn("flex-1 min-w-0 px-1.5 text-left text-[10px] hover:text-primary transition-colors overflow-hidden h-full flex items-center gap-1", task.parentId && "pl-3 text-muted-foreground")}>
-                              {task.parentId && <span className="flex-shrink-0 text-border text-[9px]">└</span>}
-                              {task.isMilestone && <span className="text-amber-500 flex-shrink-0 text-[9px]">◆</span>}
-                              {et.wbsNumber && <span className="text-[9px] text-muted-foreground flex-shrink-0 font-mono">{et.wbsNumber}</span>}
-                              <span className="truncate">{et.title}</span>
-                              {task._count.subtasks > 0 && (
-                                <span className="flex-shrink-0 rounded-full bg-muted px-1 text-[8px] font-medium text-muted-foreground" title={`${task._count.subtasks} subtask(s)`}>⊞{task._count.subtasks}</span>
-                              )}
-                              {task._count.checklistItems > 0 && (
-                                <span className="flex-shrink-0 flex items-center gap-0.5 text-[8px] text-muted-foreground" title={`${task._count.checklistItems} checklist items`}>
-                                  <CheckSquare className="h-2 w-2" />{task._count.checklistItems}
-                                </span>
-                              )}
-                              {criticalPath.has(task.id) && <span className="ml-auto flex-shrink-0 h-1.5 w-1.5 rounded-full bg-red-500" title="Critical path" />}
-                            </button>
-                            {hoveredId === task.id && (
-                              <button
-                                onClick={e => { e.stopPropagation(); startCellEdit(task.id, "title", et.title); }}
-                                className="flex-shrink-0 mr-1 p-0.5 rounded text-muted-foreground hover:text-primary hover:bg-muted transition-colors"
-                                title="Edit name"
-                              >
-                                <Pencil className="h-2.5 w-2.5" />
-                              </button>
+                          <button onClick={() => handleNameClick(task, et)}
+                            title="Click to open · Double-click to rename"
+                            className={cn("flex-1 min-w-0 px-1.5 text-left text-[10px] hover:text-primary transition-colors overflow-hidden h-full flex items-center gap-1", task.parentId && "pl-3 text-muted-foreground")}>
+                            {task.parentId && <span className="flex-shrink-0 text-border text-[9px]">└</span>}
+                            {task.isMilestone && <span className="text-amber-500 flex-shrink-0 text-[9px]">◆</span>}
+                            {et.wbsNumber && <span className="text-[9px] text-muted-foreground flex-shrink-0 font-mono">{et.wbsNumber}</span>}
+                            <span className="truncate">{et.title}</span>
+                            {task._count.subtasks > 0 && (
+                              <span className="flex-shrink-0 rounded-full bg-muted px-1 text-[8px] font-medium text-muted-foreground" title={`${task._count.subtasks} subtask(s)`}>⊞{task._count.subtasks}</span>
                             )}
-                          </>
+                            {task._count.checklistItems > 0 && (
+                              <span className="flex-shrink-0 flex items-center gap-0.5 text-[8px] text-muted-foreground" title={`${task._count.checklistItems} checklist items`}>
+                                <CheckSquare className="h-2 w-2" />{task._count.checklistItems}
+                              </span>
+                            )}
+                            {criticalPath.has(task.id) && <span className="ml-auto flex-shrink-0 h-1.5 w-1.5 rounded-full bg-red-500" title="Critical path" />}
+                          </button>
                         )}
                       </div>
                       <div style={{ width: colWidths.dur }} className="shrink-0 border-r border-border/40 px-2 flex items-center text-[10px] text-muted-foreground">{taskDur(et.startDate, et.dueDate)}</div>
