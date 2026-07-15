@@ -86,25 +86,105 @@ export function GanttReportModal({
   const sorted = React.useMemo(() => treeSort(tasks), [tasks]);
 
   async function exportExcel() {
-    const XLSX = await import("xlsx");
-    const rows = sorted.map(t => ({
-      "Type":        taskType(t),
-      "WBS ID":      t.wbsNumber ?? "—",
-      "Title":       t.title,
-      "Status":      TASK_STATUS_LABELS[t.status],
-      "Priority":    PRIORITY_LABELS[t.priority],
-      "Start Date":  fmtDate(t.startDate),
-      "Finish Date": fmtDate(t.dueDate),
-      "Assignee(s)": assignees(t),
-    }));
-    const ws = XLSX.utils.json_to_sheet(rows);
-    ws["!cols"] = [
-      { wch: 12 }, { wch: 10 }, { wch: 50 }, { wch: 16 },
-      { wch: 12 }, { wch: 16 }, { wch: 16 }, { wch: 35 },
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    wb.creator = "Project Planner";
+    wb.created = new Date();
+
+    const ws = wb.addWorksheet("Gantt Report", {
+      pageSetup: { orientation: "landscape", fitToPage: true },
+      views: [{ state: "frozen", xSplit: 0, ySplit: 1 }],
+    });
+
+    ws.columns = [
+      { key: "type",      width: 14 },
+      { key: "wbs",       width: 10 },
+      { key: "title",     width: 54 },
+      { key: "status",    width: 16 },
+      { key: "priority",  width: 12 },
+      { key: "start",     width: 16 },
+      { key: "finish",    width: 16 },
+      { key: "assignees", width: 36 },
     ];
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Gantt Report");
-    XLSX.writeFile(wb, `${projectName.replace(/[^a-z0-9]/gi, "_")}-gantt-report.xlsx`);
+
+    // Header row
+    const headers = ["Type", "WBS ID", "Title", "Status", "Priority", "Start Date", "Finish Date", "Assignee(s)"];
+    const hRow = ws.addRow(headers);
+    hRow.height = 22;
+    hRow.eachCell(cell => {
+      cell.font = { bold: true, color: { argb: "FFFFFFFF" }, size: 10, name: "Calibri" };
+      cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A5F" } };
+      cell.alignment = { vertical: "middle", horizontal: "left", indent: 1 };
+      cell.border = { bottom: { style: "thin", color: { argb: "FFCBD5E1" } }, right: { style: "thin", color: { argb: "FFCBD5E1" } } };
+    });
+
+    // Type badge colors (matching the modal)
+    const typeFill: Record<string, { bg: string; fg: string }> = {
+      Milestone: { bg: "FFFDE68A", fg: "FF92400E" },
+      Task:      { bg: "FFBFDBFE", fg: "FF1D4ED8" },
+      Subtask:   { bg: "FFE2E8F0", fg: "FF475569" },
+    };
+    // Status colors
+    const statusFg: Record<string, string> = {
+      COMPLETED:   "FF16A34A",
+      IN_PROGRESS: "FF2563EB",
+      NOT_STARTED: "FF94A3B8",
+      ON_HOLD:     "FFF59E0B",
+      DELAYED:     "FFDC2626",
+    };
+
+    sorted.forEach((task, idx) => {
+      const type = taskType(task);
+      const rowBg = idx % 2 === 0 ? "FFFFFFFF" : "FFF8FAFC";
+
+      const row = ws.addRow([
+        type,
+        task.wbsNumber ?? "—",
+        task.parentId ? `   └  ${task.title}` : task.title,
+        TASK_STATUS_LABELS[task.status],
+        PRIORITY_LABELS[task.priority],
+        fmtDate(task.startDate),
+        fmtDate(task.dueDate),
+        assignees(task),
+      ]);
+      row.height = 18;
+
+      row.eachCell((cell, col) => {
+        cell.font = { size: 10, color: { argb: "FF1E293B" }, name: "Calibri" };
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: rowBg } };
+        cell.alignment = { vertical: "middle", indent: 1 };
+        cell.border = {
+          bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
+          right:  { style: "thin", color: { argb: "FFE2E8F0" } },
+        };
+        // Type cell — colored badge
+        if (col === 1) {
+          const s = typeFill[type] ?? typeFill.Task;
+          cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: s.bg } };
+          cell.font = { size: 10, bold: true, color: { argb: s.fg }, name: "Calibri" };
+          cell.alignment = { vertical: "middle", horizontal: "center" };
+        }
+        // Status cell — colored text
+        if (col === 4) {
+          const fg = statusFg[task.status] ?? "FF1E293B";
+          cell.font = { size: 10, bold: task.status === "COMPLETED", color: { argb: fg }, name: "Calibri" };
+        }
+        // Subtask title — muted italic
+        if (col === 3 && task.parentId) {
+          cell.font = { size: 10, italic: true, color: { argb: "FF64748B" }, name: "Calibri" };
+        }
+      });
+    });
+
+    // Download
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${projectName.replace(/[^a-z0-9]/gi, "_")}-gantt-report.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   function openReport() {
