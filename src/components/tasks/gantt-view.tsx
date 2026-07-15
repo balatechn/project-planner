@@ -68,7 +68,7 @@ interface TsSettings  { topUnit: TierUnit; botUnit: TierUnit; dayPx: number }
 
 const ZOOM_PRESETS: Record<ZoomLevel, ZoomPreset> = {
   days:     { label: "Days",     dayPx: 28, topUnit: "month",   botUnit: "day"     },
-  weeks:    { label: "Weeks",    dayPx: 24, topUnit: "month",   botUnit: "week"    },
+  weeks:    { label: "Weeks",    dayPx: 20, topUnit: "week",    botUnit: "day"     },
   months:   { label: "Months",   dayPx:  8, topUnit: "year",    botUnit: "month"   },
   quarters: { label: "Quarters", dayPx:  3, topUnit: "year",    botUnit: "quarter" },
 };
@@ -90,13 +90,15 @@ function genSegments(
   }
   if (unit === "week") {
     const segs: { label: string; count: number }[] = [];
-    let cur = { w: getISOWeek(allDays[0]), y: allDays[0].getFullYear(), count: 0 };
+    let curW = getISOWeek(allDays[0]), curY = allDays[0].getFullYear(), firstDay = allDays[0], count = 0;
     for (const d of allDays) {
       const w = getISOWeek(d); const y = d.getFullYear();
-      if (w !== cur.w || y !== cur.y) { segs.push({ label: `W${cur.w}`, count: cur.count }); cur = { w, y, count: 1 }; }
-      else cur.count++;
+      if (w !== curW || y !== curY) {
+        segs.push({ label: format(firstDay, "dd MMM ''yy"), count });
+        curW = w; curY = y; firstDay = d; count = 1;
+      } else count++;
     }
-    segs.push({ label: `W${cur.w}`, count: cur.count });
+    segs.push({ label: format(firstDay, "dd MMM ''yy"), count });
     return segs.map(s => ({ label: s.label, width: s.count * dayPx }));
   }
   if (unit === "month") {
