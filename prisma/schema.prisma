@@ -311,6 +311,8 @@ model Task {
   // Baseline dates for plan-vs-actual comparison
   baselineStart  DateTime?
   baselineEnd    DateTime?
+  // accent colour for the task row (optional hex, e.g. "#ef4444")
+  color          String?
   // ordering within a status column / list
   orderIndex     Int        @default(0)
   // Soft delete — set means "in recycle bin"; purged permanently after 30 days

@@ -176,6 +176,7 @@ export function TaskDialog({
       dueDate: form.dueDate ? new Date(form.dueDate).toISOString() : null,
       assigneeIds: assignees,
       isMilestone: form.isMilestone,
+      color: form.color || null,
       wbsNumber: form.wbsNumber || null,
     };
     try {
@@ -792,6 +793,40 @@ export function TaskDialog({
               />
             </div>
 
+            <div className="space-y-1.5">
+              <Label>Task Colour</Label>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {[
+                  "#ef4444","#f97316","#f59e0b","#eab308",
+                  "#22c55e","#14b8a6","#3b82f6","#6366f1",
+                  "#a855f7","#ec4899","#6b7280",
+                ].map(c => (
+                  <button
+                    key={c}
+                    type="button"
+                    disabled={readOnly}
+                    onClick={() => set("color", form.color === c ? null : c)}
+                    title={c}
+                    className={cn(
+                      "h-6 w-6 rounded-full border-2 transition-transform hover:scale-110 disabled:opacity-50 disabled:cursor-not-allowed",
+                      form.color === c ? "border-foreground scale-110" : "border-transparent",
+                    )}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+                {form.color && (
+                  <button
+                    type="button"
+                    disabled={readOnly}
+                    onClick={() => set("color", null)}
+                    className="ml-1 text-xs text-muted-foreground underline hover:text-foreground disabled:opacity-50"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -936,6 +971,7 @@ function initialForm(task: TaskListItem | null, defaultStatus: TaskStatus) {
     progress: String(task?.progress ?? 0),
     estimatedHours: task?.estimatedHours ? String(task.estimatedHours) : "",
     isMilestone: task?.isMilestone ?? false,
+    color: task?.color ?? null,
     wbsNumber: task?.wbsNumber ?? "",
   };
 }

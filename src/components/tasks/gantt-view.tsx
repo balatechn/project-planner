@@ -710,6 +710,7 @@ export function GanttView({
                             className={cn("flex-1 min-w-0 px-1.5 text-left text-[10px] hover:text-primary transition-colors overflow-hidden h-full flex items-center gap-1", task.parentId && "pl-3 text-muted-foreground")}>
                             {task.parentId && <span className="flex-shrink-0 text-border text-[9px]">└</span>}
                             {task.isMilestone && <span className="text-amber-500 flex-shrink-0 text-[9px]">◆</span>}
+                            {et.color && <span className="flex-shrink-0 h-2 w-2 rounded-full" style={{ backgroundColor: et.color }} />}
                             {et.wbsNumber && <span className="text-[9px] text-muted-foreground flex-shrink-0 font-mono">{et.wbsNumber}</span>}
                             <span className="truncate">{et.title}</span>
                             {task._count.subtasks > 0 && (

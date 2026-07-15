@@ -44,6 +44,7 @@ export default async function CalendarPage() {
     estimatedHours: t.estimatedHours,
     orderIndex: t.orderIndex,
     isMilestone: t.isMilestone,
+    color: t.color,
     wbsNumber: t.wbsNumber,
     completedAt: t.completedAt?.toISOString() ?? null,
     createdById: t.createdBy.id,

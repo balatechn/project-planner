@@ -60,6 +60,7 @@ export const createTaskSchema = z.object({
   estimatedHours: z.coerce.number().nonnegative().optional().nullable(),
   progress: z.coerce.number().min(0).max(100).default(0),
   isMilestone: z.boolean().optional().default(false),
+  color: z.string().regex(/^#([0-9a-fA-F]{6})$/).optional().nullable(),
   wbsNumber: z.string().max(20).optional().nullable(),
   baselineStart: optionalDate,
   baselineEnd: optionalDate,

@@ -27,6 +27,7 @@ export type TaskListItem = {
   estimatedHours: number | null;
   orderIndex: number;
   isMilestone: boolean;
+  color: string | null;
   wbsNumber: string | null;
   baselineStart?: string | null;
   baselineEnd?: string | null;
