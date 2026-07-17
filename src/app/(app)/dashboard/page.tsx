@@ -4,7 +4,7 @@ import { unstable_cache } from "next/cache";
 import { format, formatDistanceToNow, isPast, isToday } from "date-fns";
 import {
   BarChart3, CalendarDays, CheckSquare, Circle, Cloud, Clock,
-  FileSpreadsheet, FolderKanban, GraduationCap, Landmark, Mail, Plus, UserCog, Users, Video,
+  FileSpreadsheet, FolderKanban, GraduationCap, Landmark, Mail, Monitor, Plus, UserCog, Users, Video,
 } from "lucide-react";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
@@ -117,6 +117,7 @@ const SHORTCUTS = [
   { label: "OneDrive", href: "https://nationalconsultingindia-my.sharepoint.com/",   icon: Cloud,         bg: "bg-teal-500",    external: true  },
   { label: "Finance",   href: "https://finance.nationalgroupindia.com/",             icon: Landmark,      bg: "bg-green-600",   external: true  },
   { label: "HR Portal", href: "http://49.206.25.183:3000/login",                    icon: UserCog,       bg: "bg-rose-600",    external: true  },
+  { label: "IT Asset",  href: "https://itasset.nationalgroupindia.com/dashboard",   icon: Monitor,       bg: "bg-sky-500",     external: true  },
 ];
 
 export default async function DashboardPage() {
