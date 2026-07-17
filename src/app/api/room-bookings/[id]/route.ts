@@ -4,7 +4,7 @@ import { requireUser } from "@/lib/session";
 import { cancelTeamsMeeting } from "@/lib/teams-graph";
 import { logActivity } from "@/lib/activity";
 
-// PATCH /api/room-bookings/[id] — update title/description/meetingNotes
+// PATCH /api/room-bookings/[id] — update booking fields
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireUser();
   const { id } = await params;
@@ -12,7 +12,6 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   const booking = await prisma.roomBooking.findUnique({ where: { id } });
   if (!booking) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // meetingNotes can be edited by organizer, admin, or PM
   const isOwner = booking.organizerId === user.id;
   const isAdmin = user.role === "ADMIN" || user.role === "PROJECT_MANAGER";
   if (!isOwner && !isAdmin) {
@@ -20,6 +19,38 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   }
 
   const body = await req.json();
+
+  // If room or time is changing, check for conflicts (excluding current booking)
+  const newRoomId = body.roomId ?? booking.roomId;
+  const newStart = body.startTime ? new Date(body.startTime) : booking.startTime;
+  const newEnd = body.endTime ? new Date(body.endTime) : booking.endTime;
+
+  if (newEnd <= newStart) {
+    return NextResponse.json({ error: "End time must be after start time" }, { status: 400 });
+  }
+
+  const roomOrTimeChanged =
+    newRoomId !== booking.roomId ||
+    newStart.getTime() !== booking.startTime.getTime() ||
+    newEnd.getTime() !== booking.endTime.getTime();
+
+  if (roomOrTimeChanged) {
+    const conflict = await prisma.roomBooking.findFirst({
+      where: {
+        id: { not: id },
+        roomId: newRoomId,
+        status: { not: "CANCELLED" },
+        AND: [
+          { startTime: { lt: newEnd } },
+          { endTime: { gt: newStart } },
+        ],
+      },
+    });
+    if (conflict) {
+      return NextResponse.json({ error: "Room is already booked for this time slot" }, { status: 409 });
+    }
+  }
+
   const updated = await prisma.roomBooking.update({
     where: { id },
     data: {
@@ -27,6 +58,12 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
       ...(body.description !== undefined && { description: body.description }),
       ...(body.status !== undefined && { status: body.status }),
       ...(body.meetingNotes !== undefined && { meetingNotes: body.meetingNotes }),
+      ...(body.roomId !== undefined && { roomId: body.roomId }),
+      ...(body.startTime !== undefined && { startTime: newStart }),
+      ...(body.endTime !== undefined && { endTime: newEnd }),
+      ...(body.attendeeIds !== undefined && { attendeeIds: body.attendeeIds }),
+      ...(body.guestEmails !== undefined && { guestEmails: body.guestEmails }),
+      ...(body.bookedForId !== undefined && { bookedForId: body.bookedForId }),
     },
     include: {
       room: { select: { id: true, name: true, color: true, capacity: true } },

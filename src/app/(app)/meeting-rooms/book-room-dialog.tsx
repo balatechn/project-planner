@@ -226,10 +226,24 @@ export function BookRoomDialog({
     setConflict(null);
     try {
       if (isEdit) {
+        const guestEmails = guestEmailsRaw
+          .split(/[\n,]+/)
+          .map((e) => e.trim())
+          .filter((e) => e.includes("@"));
         const res = await fetch(`/api/room-bookings/${editBooking.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title: title.trim(), description, meetingNotes }),
+          body: JSON.stringify({
+            title: title.trim(),
+            description,
+            meetingNotes,
+            roomId,
+            startTime: localToISO(startTime),
+            endTime: localToISO(endTime),
+            attendeeIds,
+            guestEmails,
+            bookedForId: bookedForId || null,
+          }),
         });
         if (!res.ok) throw new Error("Update failed");
         toast({ title: "Booking updated", variant: "success" });
@@ -335,70 +349,70 @@ export function BookRoomDialog({
           </div>
 
           {/* Room selection */}
-          {!isEdit && (
-            <div className="space-y-1.5">
-              <Label>Room *</Label>
-              <Select value={roomId} onValueChange={setRoomId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a room" />
-                </SelectTrigger>
-                <SelectContent>
-                  {rooms.map((r) => (
-                    <SelectItem key={r.id} value={r.id}>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full flex-shrink-0"
-                          style={{ backgroundColor: r.color }}
-                        />
-                        <span>{r.name}</span>
-                        <span className="text-muted-foreground text-xs">
-                          👥 {r.capacity}
-                          {r.floor ? ` · Floor ${r.floor}` : ""}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {selectedRoom && selectedRoom.amenities.length > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Amenities: {selectedRoom.amenities.join(", ")}
-                </p>
-              )}
-            </div>
-          )}
+          <div className="space-y-1.5">
+            <Label>Room *</Label>
+            <Select value={roomId} onValueChange={canEdit ? setRoomId : undefined} disabled={!canEdit}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a room" />
+              </SelectTrigger>
+              <SelectContent>
+                {rooms.map((r) => (
+                  <SelectItem key={r.id} value={r.id}>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="h-2.5 w-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: r.color }}
+                      />
+                      <span>{r.name}</span>
+                      <span className="text-muted-foreground text-xs">
+                        👥 {r.capacity}
+                        {r.floor ? ` · Floor ${r.floor}` : ""}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedRoom && selectedRoom.amenities.length > 0 && (
+              <p className="text-xs text-muted-foreground">
+                Amenities: {selectedRoom.amenities.join(", ")}
+              </p>
+            )}
+          </div>
 
           {/* Date + Time */}
-          {!isEdit && (
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label className="flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5" /> Start
-                </Label>
-                <Input
-                  type="datetime-local"
-                  value={startTime}
-                  onChange={(e) => {
-                    setStartTime(e.target.value);
-                    setConflict(null);
-                  }}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label className="flex items-center gap-1">
-                  <Clock className="h-3.5 w-3.5" /> End
-                </Label>
-                <Input
-                  type="datetime-local"
-                  value={endTime}
-                  onChange={(e) => {
-                    setEndTime(e.target.value);
-                    setConflict(null);
-                  }}
-                />
-              </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" /> Start
+              </Label>
+              <Input
+                type="datetime-local"
+                value={startTime}
+                readOnly={!canEdit}
+                className={!canEdit ? "bg-muted/40 cursor-default" : ""}
+                onChange={(e) => {
+                  setStartTime(e.target.value);
+                  setConflict(null);
+                }}
+              />
             </div>
-          )}
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1">
+                <Clock className="h-3.5 w-3.5" /> End
+              </Label>
+              <Input
+                type="datetime-local"
+                value={endTime}
+                readOnly={!canEdit}
+                className={!canEdit ? "bg-muted/40 cursor-default" : ""}
+                onChange={(e) => {
+                  setEndTime(e.target.value);
+                  setConflict(null);
+                }}
+              />
+            </div>
+          </div>
 
           {/* Conflict alert */}
           {conflict && (
@@ -453,7 +467,7 @@ export function BookRoomDialog({
           )}
 
           {/* Book on behalf (admin/PM only) */}
-          {canBookOnBehalf && !isEdit && (
+          {canBookOnBehalf && (
             <div className="space-y-1.5">
               <Label className="flex items-center gap-1">
                 <Users className="h-3.5 w-3.5" /> Book on behalf of
@@ -478,11 +492,10 @@ export function BookRoomDialog({
           )}
 
           {/* Attendees */}
-          {!isEdit && (
-            <div className="space-y-1.5">
-              <Label className="flex items-center gap-1">
-                <Users className="h-3.5 w-3.5" /> Invite attendees
-              </Label>
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1">
+              <Users className="h-3.5 w-3.5" /> Invite attendees
+            </Label>
 
               {/* Selected chips */}
               {selectedDir.length > 0 && (
@@ -579,28 +592,26 @@ export function BookRoomDialog({
                     ))}
                 </div>
               )}
-            </div>
-          )}
+          </div>
 
           {/* External / Guest email invites */}
-          {!isEdit && (
-            <div className="space-y-1.5">
-              <Label className="flex items-center gap-1">
-                <MailPlus className="h-3.5 w-3.5" /> External guests
-                <span className="ml-1 text-xs text-muted-foreground font-normal">(optional)</span>
-              </Label>
-              <Textarea
-                placeholder={"vendor@example.com\nclient@company.com"}
-                value={guestEmailsRaw}
-                onChange={(e) => setGuestEmailsRaw(e.target.value)}
-                rows={2}
-                className="text-sm font-mono"
-              />
-              <p className="text-xs text-muted-foreground">
-                One email per line (or comma-separated). Each guest receives a calendar invite (.ics) with the Teams meeting link.
-              </p>
-            </div>
-          )}
+          <div className="space-y-1.5">
+            <Label className="flex items-center gap-1">
+              <MailPlus className="h-3.5 w-3.5" /> External guests
+              <span className="ml-1 text-xs text-muted-foreground font-normal">(optional)</span>
+            </Label>
+            <Textarea
+              placeholder={"vendor@example.com\nclient@company.com"}
+              value={guestEmailsRaw}
+              onChange={(e) => setGuestEmailsRaw(e.target.value)}
+              rows={2}
+              readOnly={!canEdit}
+              className={cn("text-sm font-mono", !canEdit && "bg-muted/40 cursor-default")}
+            />
+            <p className="text-xs text-muted-foreground">
+              One email per line (or comma-separated). Each guest receives a calendar invite (.ics) with the Teams meeting link.
+            </p>
+          </div>
 
           {/* Recurring */}
           {!isEdit && (
