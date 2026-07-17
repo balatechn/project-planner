@@ -13,6 +13,7 @@ import {
   HelpCircle,
   Layers,
   Megaphone,
+  Monitor,
   Users,
   Video,
 } from "lucide-react";
@@ -79,6 +80,11 @@ const ITEMS: Item[] = [
     href: "https://onedrive.live.com", external: true,
   },
   { label: "Announcements", icon: Megaphone, color: "text-red-600 dark:text-red-400", bg: "bg-red-500/10", href: "/announcements" },
+  {
+    label: "IT Asset", icon: Monitor,
+    color: "text-sky-600 dark:text-sky-400", bg: "bg-sky-500/10",
+    href: "https://itasset.nationalgroupindia.com/dashboard", external: true,
+  },
 ];
 
 export function DashboardQuickAccess() {
