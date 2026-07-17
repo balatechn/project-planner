@@ -442,6 +442,7 @@ export function RoomBookingClient({
       {panel === "my-bookings" && (
         <MyBookingsPanel
           currentUserId={currentUserId}
+          currentUserRole={currentUserRole}
           allRooms={rooms}
           onCancel={cancelBooking}
           onEdit={openEdit}

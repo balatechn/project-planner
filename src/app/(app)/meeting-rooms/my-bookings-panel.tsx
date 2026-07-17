@@ -4,15 +4,18 @@ import * as React from "react";
 import { format, isPast, parseISO } from "date-fns";
 import { CalendarX2, Clock, Loader2, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { Role } from "@prisma/client";
 import type { BookingInfo, RoomInfo } from "./room-booking-client";
 
 export function MyBookingsPanel({
   currentUserId,
+  currentUserRole,
   allRooms,
   onCancel,
   onEdit,
 }: {
   currentUserId: string;
+  currentUserRole: Role;
   allRooms: RoomInfo[];
   onCancel: (id: string, cancelAll?: boolean) => void;
   onEdit: (booking: BookingInfo) => void;
@@ -152,7 +155,10 @@ export function MyBookingsPanel({
                       </a>
                     )}
                   </div>
-                  {!cancelled && !isPast(start) && (
+                  {!cancelled && !isPast(start) &&
+                    (b.organizerId === currentUserId ||
+                      currentUserRole === "ADMIN" ||
+                      currentUserRole === "PROJECT_MANAGER") && (
                     <Button
                       variant="ghost"
                       size="sm"
