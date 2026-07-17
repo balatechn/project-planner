@@ -171,21 +171,21 @@ export default async function DashboardPage() {
       )}
 
       {/* ── 2. Shortcuts row ───────────────────────────────────────── */}
-      <div className="grid flex-shrink-0 grid-cols-4 sm:grid-cols-6 md:grid-cols-11 gap-2">
+      <div className="grid flex-shrink-0 grid-cols-6 sm:grid-cols-6 md:grid-cols-12 gap-1.5">
         {SHORTCUTS.map(({ label, href, icon: Icon, bg, external }) => (
           <Link
             key={label}
             href={href}
             {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-            className="group flex flex-col items-center gap-1.5 rounded-xl py-3 neu-card transition-all hover:-translate-y-0.5"
+            className="group flex flex-col items-center gap-1 rounded-xl py-2 neu-card transition-all hover:-translate-y-0.5"
           >
             <div className={cn(
-              "flex h-9 w-9 items-center justify-center rounded-xl shadow-md transition-transform group-hover:scale-110",
+              "flex h-8 w-8 items-center justify-center rounded-lg shadow-md transition-transform group-hover:scale-110",
               bg,
             )}>
-              <Icon className="h-4.5 w-4.5 text-white" strokeWidth={2} />
+              <Icon className="h-4 w-4 text-white" strokeWidth={2} />
             </div>
-            <span className="text-[10px] font-semibold text-foreground/75 tracking-wide">{label}</span>
+            <span className="text-[9px] font-semibold text-foreground/75 tracking-wide leading-tight text-center">{label}</span>
           </Link>
         ))}
       </div>
