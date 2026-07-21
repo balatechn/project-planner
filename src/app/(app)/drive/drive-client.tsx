@@ -4,6 +4,7 @@ import * as React from "react";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import {
   ChevronRight,
+  Download,
   ExternalLink,
   File,
   FileSpreadsheet,
@@ -13,6 +14,8 @@ import {
   Grid2X2,
   HardDrive,
   Image as ImageIcon,
+  Link2,
+  List,
   Loader2,
   Plus,
   Presentation,
@@ -47,9 +50,13 @@ type DriveItem = {
   mimeType?: string;
   childCount?: number;
   downloadUrl?: string;
+  webUrl?: string;
   parentPath?: string;
 };
 
+type SortKey = "name" | "size" | "lastModifiedDateTime";
+type SortDir = "asc" | "desc";
+type FilterTab = "all" | "folders" | "documents" | "spreadsheets" | "presentations" | "pdfs" | "images" | "videos";
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -62,14 +69,9 @@ function formatSize(bytes: number): string {
 }
 
 function formatDate(iso: string): string {
-  try {
-    return formatDistanceToNow(parseISO(iso), { addSuffix: true });
-  } catch {
-    return iso;
-  }
+  try { return formatDistanceToNow(parseISO(iso), { addSuffix: true }); }
+  catch { return iso; }
 }
-
-type FilterTab = "all" | "folders" | "documents" | "spreadsheets" | "presentations" | "pdfs" | "images" | "videos";
 
 function getFilter(item: DriveItem): FilterTab {
   if (item.isFolder) return "folders";
@@ -79,8 +81,8 @@ function getFilter(item: DriveItem): FilterTab {
   if (n.match(/\.(xlsx?|csv)$/) || m.includes("spreadsheet") || m.includes("excel")) return "spreadsheets";
   if (n.match(/\.(pptx?)$/) || m.includes("presentation") || m.includes("powerpoint")) return "presentations";
   if (n.match(/\.(docx?)$/) || m.includes("word") || m.includes("document")) return "documents";
-  if (m.startsWith("image/") || n.match(/\.(png|jpe?g|gif|svg|webp|bmp)$/)) return "images";
-  if (m.startsWith("video/") || n.match(/\.(mp4|mov|avi|mkv|wmv)$/)) return "videos";
+  if (m.startsWith("image/") || n.match(/\.(png|jpe?g|gif|svg|webp|bmp|jfif)$/i)) return "images";
+  if (m.startsWith("video/") || n.match(/\.(mp4|mov|avi|mkv|wmv)$/i)) return "videos";
   return "all";
 }
 
@@ -97,18 +99,97 @@ function ItemIcon({ item, className }: { item: DriveItem; className?: string }) 
   return <File className={cn(cls, "text-muted-foreground")} />;
 }
 
+function totalSize(items: DriveItem[]) {
+  return items.filter((i) => !i.isFolder).reduce((s, i) => s + i.size, 0);
+}
+
+// ── Preview panel ──────────────────────────────────────────────────────────
+
+function PreviewPanel({ item, onClose }: { item: DriveItem; onClose: () => void }) {
+  const f = getFilter(item);
+  const isImage = f === "images";
+  const isOffice = f === "documents" || f === "spreadsheets" || f === "presentations";
+  const isPdf = f === "pdfs";
+  const embedUrl = item.downloadUrl
+    ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(item.downloadUrl)}`
+    : null;
+
+  function copyLink() {
+    const url = item.webUrl ?? item.downloadUrl ?? "";
+    navigator.clipboard.writeText(url).then(() => {/* silent */});
+  }
+
+  return (
+    <div className="w-[420px] flex-shrink-0 flex flex-col border-l bg-card overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 py-2 border-b flex-shrink-0">
+        <ItemIcon item={item} className="h-5 w-5" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold truncate">{item.name}</p>
+          <p className="text-[11px] text-muted-foreground truncate">
+            {formatSize(item.size)} · {formatDate(item.lastModifiedDateTime)}
+            {item.modifiedByName ? ` · ${item.modifiedByName}` : ""}
+          </p>
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {item.webUrl && (
+            <a href={item.webUrl} target="_blank" rel="noopener noreferrer"
+              className="flex items-center gap-1 px-2 py-1 rounded border text-xs font-medium hover:bg-muted/60 transition-colors">
+              <ExternalLink className="h-3 w-3" /> M365
+            </a>
+          )}
+          {item.downloadUrl && (
+            <a href={item.downloadUrl} download={item.name}
+              className="flex items-center gap-1 px-2 py-1 rounded border text-xs font-medium hover:bg-muted/60 transition-colors">
+              <Download className="h-3 w-3" /> Download
+            </a>
+          )}
+          <button onClick={copyLink} title="Copy link"
+            className="p-1.5 rounded border text-muted-foreground hover:bg-muted/60 transition-colors">
+            <Link2 className="h-3.5 w-3.5" />
+          </button>
+          <button onClick={onClose} className="p-1.5 rounded text-muted-foreground hover:bg-muted/60 transition-colors ml-1">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Preview body */}
+      <div className="flex-1 overflow-hidden bg-muted/10">
+        {isImage && item.downloadUrl ? (
+          <div className="flex items-center justify-center h-full p-4">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={item.downloadUrl} alt={item.name}
+              className="max-w-full max-h-full object-contain rounded shadow-md" />
+          </div>
+        ) : isOffice && embedUrl ? (
+          <iframe src={embedUrl} className="w-full h-full border-0" title={item.name} />
+        ) : isPdf && item.downloadUrl ? (
+          <iframe src={item.downloadUrl} className="w-full h-full border-0" title={item.name} />
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full gap-4 text-center p-8">
+            <ItemIcon item={item} className="h-20 w-20 opacity-20" />
+            <div>
+              <p className="text-sm font-medium">{item.name}</p>
+              <p className="text-xs text-muted-foreground mt-1">No preview available</p>
+            </div>
+            {item.webUrl && (
+              <a href={item.webUrl} target="_blank" rel="noopener noreferrer"
+                className="flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors">
+                <ExternalLink className="h-4 w-4" /> Open in M365
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Sidebar tree node ──────────────────────────────────────────────────────
 
-function TreeNode({
-  name,
-  path,
-  currentPath,
-  onNavigate,
-}: {
-  name: string;
-  path: string;
-  currentPath: string;
-  onNavigate: (p: string) => void;
+function TreeNode({ name, path, currentPath, onNavigate }: {
+  name: string; path: string; currentPath: string; onNavigate: (p: string) => void;
 }) {
   const [open, setOpen] = React.useState(false);
   const [children, setChildren] = React.useState<DriveItem[]>([]);
@@ -138,18 +219,13 @@ function TreeNode({
       >
         <ChevronRight className={cn("h-3.5 w-3.5 flex-shrink-0 transition-transform text-muted-foreground", open && "rotate-90")} />
         <Folder className="h-3.5 w-3.5 flex-shrink-0 text-amber-500" />
-        <span className="truncate text-[13px]">{name}</span>
+        <span className="truncate text-[13px] flex-1">{name}</span>
       </button>
       {open && children.length > 0 && (
         <div className="ml-4 border-l border-border pl-1 mt-0.5 space-y-0.5">
           {children.map((c) => (
-            <TreeNode
-              key={c.id}
-              name={c.name}
-              path={`${path}/${c.name}`}
-              currentPath={currentPath}
-              onNavigate={onNavigate}
-            />
+            <TreeNode key={c.id} name={c.name} path={`${path === "/" ? "" : path}/${c.name}`}
+              currentPath={currentPath} onNavigate={onNavigate} />
           ))}
         </div>
       )}
@@ -157,24 +233,16 @@ function TreeNode({
   );
 }
 
-
 // ── Main component ─────────────────────────────────────────────────────────
 
 const FILTER_TABS: { key: FilterTab; label: string }[] = [
-  { key: "all", label: "All" },
-  { key: "folders", label: "Folders" },
-  { key: "documents", label: "Documents" },
-  { key: "spreadsheets", label: "Spreadsheets" },
-  { key: "presentations", label: "Presentations" },
-  { key: "pdfs", label: "PDFs" },
-  { key: "images", label: "Images" },
-  { key: "videos", label: "Videos" },
+  { key: "all", label: "All" }, { key: "folders", label: "Folders" },
+  { key: "documents", label: "Documents" }, { key: "spreadsheets", label: "Spreadsheets" },
+  { key: "presentations", label: "Presentations" }, { key: "pdfs", label: "PDFs" },
+  { key: "images", label: "Images" }, { key: "videos", label: "Videos" },
 ];
 
-export function DriveClient({
-  currentUserId: _currentUserId,
-  currentUserRole,
-}: {
+export function DriveClient({ currentUserId: _uid, currentUserRole }: {
   currentUserId: string;
   currentUserRole: Role;
 }) {
@@ -188,390 +256,368 @@ export function DriveClient({
   const [canWrite, setCanWrite] = React.useState(false);
   const [filterTab, setFilterTab] = React.useState<FilterTab>("all");
   const [viewMode, setViewMode] = React.useState<"list" | "grid">("list");
+  const [sortKey, setSortKey] = React.useState<SortKey>("name");
+  const [sortDir, setSortDir] = React.useState<SortDir>("asc");
   const [searchQuery, setSearchQuery] = React.useState("");
   const [searchResults, setSearchResults] = React.useState<DriveItem[] | null>(null);
   const [searching, setSearching] = React.useState(false);
+  const [selectedFile, setSelectedFile] = React.useState<DriveItem | null>(null);
   const [uploading, setUploading] = React.useState(false);
   const [newFolderOpen, setNewFolderOpen] = React.useState(false);
   const [newFolderName, setNewFolderName] = React.useState("");
   const [creatingFolder, setCreatingFolder] = React.useState(false);
-
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const searchRef = React.useRef<HTMLInputElement>(null);
 
-  // ── Load folder ──────────────────────────────────────────────────────────
+  // Ctrl+K focus search
+  React.useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") { e.preventDefault(); searchRef.current?.focus(); }
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // ── Load folder ────────────────────────────────────────────────────────
 
   const loadFolder = React.useCallback(async (path: string) => {
-    setLoading(true);
-    setSearchQuery("");
-    setSearchResults(null);
-    setFilterTab("all");
+    setLoading(true); setSearchQuery(""); setSearchResults(null); setFilterTab("all"); setSelectedFile(null);
     try {
       const res = await fetch(`/api/drive/browse?path=${encodeURIComponent(path)}`);
-      if (!res.ok) {
-        const err = await res.json() as { error: string };
-        toast({ title: err.error ?? "Failed to load folder", variant: "error" });
-        return;
-      }
+      if (!res.ok) { toast({ title: (await res.json() as { error: string }).error ?? "Failed to load", variant: "error" }); return; }
       const data = await res.json() as { items: DriveItem[]; canWrite: boolean };
-      setItems(data.items ?? []);
-      setCanWrite(data.canWrite ?? false);
-    } catch {
-      toast({ title: "Failed to connect to drive", variant: "error" });
-    } finally {
-      setLoading(false);
-    }
+      setItems(data.items ?? []); setCanWrite(data.canWrite ?? false);
+    } catch { toast({ title: "Failed to connect to drive", variant: "error" }); }
+    finally { setLoading(false); }
   }, [toast]);
 
-  // Load root folders for sidebar on mount
   React.useEffect(() => {
     (async () => {
       const res = await fetch("/api/drive/browse?path=/");
-      if (res.ok) {
-        const data = await res.json() as { items: DriveItem[] };
-        setRootFolders((data.items ?? []).filter((i) => i.isFolder));
-      }
+      if (res.ok) { const d = await res.json() as { items: DriveItem[] }; setRootFolders((d.items ?? []).filter((i) => i.isFolder)); }
     })();
     loadFolder("/");
   }, [loadFolder]);
 
-  function navigate(path: string) {
-    setCurrentPath(path);
-    loadFolder(path);
-  }
+  function navigate(path: string) { setCurrentPath(path); loadFolder(path); }
 
-  // ── Breadcrumb ───────────────────────────────────────────────────────────
+  // ── Breadcrumb ─────────────────────────────────────────────────────────
 
   const breadcrumbs = React.useMemo(() => {
     const parts = currentPath.split("/").filter(Boolean);
     const crumbs: { label: string; path: string }[] = [{ label: "Common Drive", path: "/" }];
-    parts.forEach((p, i) => {
-      crumbs.push({ label: p, path: "/" + parts.slice(0, i + 1).join("/") });
-    });
+    parts.forEach((p, i) => crumbs.push({ label: p, path: "/" + parts.slice(0, i + 1).join("/") }));
     return crumbs;
   }, [currentPath]);
 
-  // ── Search ───────────────────────────────────────────────────────────────
+  // ── Search ──────────────────────────────────────────────────────────────
 
   React.useEffect(() => {
     if (!searchQuery.trim()) { setSearchResults(null); return; }
     const t = setTimeout(async () => {
       setSearching(true);
       const res = await fetch(`/api/drive/search?q=${encodeURIComponent(searchQuery)}`);
-      if (res.ok) {
-        const data = await res.json() as { items: DriveItem[] };
-        setSearchResults(data.items ?? []);
-      }
+      if (res.ok) setSearchResults((await res.json() as { items: DriveItem[] }).items ?? []);
       setSearching(false);
     }, 400);
     return () => clearTimeout(t);
   }, [searchQuery]);
 
-  // ── Upload ───────────────────────────────────────────────────────────────
+  // ── Upload ──────────────────────────────────────────────────────────────
 
   async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
     if (!files.length) return;
     setUploading(true);
     for (const file of files) {
-      const fd = new FormData();
-      fd.append("file", file);
-      const res = await fetch(`/api/drive/upload?path=${encodeURIComponent(currentPath)}`, {
-        method: "POST",
-        body: fd,
-      });
-      if (!res.ok) {
-        const err = await res.json() as { error: string };
-        toast({ title: `Upload failed: ${err.error}`, variant: "error" });
-      } else {
-        toast({ title: `${file.name} uploaded`, variant: "success" });
-      }
+      const fd = new FormData(); fd.append("file", file);
+      const res = await fetch(`/api/drive/upload?path=${encodeURIComponent(currentPath)}`, { method: "POST", body: fd });
+      if (!res.ok) toast({ title: `Upload failed: ${(await res.json() as { error: string }).error}`, variant: "error" });
+      else toast({ title: `${file.name} uploaded`, variant: "success" });
     }
     setUploading(false);
     if (e.target) e.target.value = "";
     loadFolder(currentPath);
   }
 
-  // ── New folder ───────────────────────────────────────────────────────────
+  // ── New folder ──────────────────────────────────────────────────────────
 
   async function handleCreateFolder() {
     if (!newFolderName.trim()) return;
     setCreatingFolder(true);
-    const res = await fetch("/api/drive/folder", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: currentPath, name: newFolderName.trim() }),
-    });
+    const res = await fetch("/api/drive/folder", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ path: currentPath, name: newFolderName.trim() }) });
     setCreatingFolder(false);
     if (!res.ok) { toast({ title: "Failed to create folder", variant: "error" }); return; }
     toast({ title: "Folder created", variant: "success" });
-    setNewFolderOpen(false);
-    setNewFolderName("");
-    loadFolder(currentPath);
+    setNewFolderOpen(false); setNewFolderName(""); loadFolder(currentPath);
   }
 
-  // ── Filtered items ───────────────────────────────────────────────────────
+  // ── Sort & filter ───────────────────────────────────────────────────────
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortDir((d) => d === "asc" ? "desc" : "asc");
+    else { setSortKey(key); setSortDir("asc"); }
+  }
 
   const displayItems = React.useMemo(() => {
-    const source = searchResults ?? items;
-    if (filterTab === "all") return source;
-    return source.filter((item) => getFilter(item) === filterTab);
-  }, [items, searchResults, filterTab]);
+    let source = searchResults ?? items;
+    if (filterTab !== "all") source = source.filter((i) => getFilter(i) === filterTab);
+    return [...source].sort((a, b) => {
+      // Folders always first
+      if (a.isFolder !== b.isFolder) return a.isFolder ? -1 : 1;
+      let cmp = 0;
+      if (sortKey === "name") cmp = a.name.localeCompare(b.name);
+      else if (sortKey === "size") cmp = a.size - b.size;
+      else cmp = a.lastModifiedDateTime.localeCompare(b.lastModifiedDateTime);
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [items, searchResults, filterTab, sortKey, sortDir]);
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  function SortIcon({ k }: { k: SortKey }) {
+    if (sortKey !== k) return <span className="opacity-30">↕</span>;
+    return <span>{sortDir === "asc" ? "↑" : "↓"}</span>;
+  }
+
+  // ── Copy link ──────────────────────────────────────────────────────────
+
+  function copyLink(item: DriveItem) {
+    navigator.clipboard.writeText(item.webUrl ?? item.downloadUrl ?? "")
+      .then(() => toast({ title: "Link copied", variant: "success" }));
+  }
+
+  // ── Render ─────────────────────────────────────────────────────────────
 
   return (
     <div className="flex gap-0 h-[calc(100vh-2.75rem-2rem)] overflow-hidden rounded-xl border bg-card">
 
-      {/* ── Sidebar ── */}
-      <div className="w-56 flex-shrink-0 border-r bg-muted/20 flex flex-col overflow-hidden">
+      {/* Sidebar */}
+      <div className="w-52 flex-shrink-0 border-r bg-muted/20 flex flex-col overflow-hidden">
         <div className="px-3 pt-3 pb-2 border-b">
           <div className="flex items-center gap-2">
             <HardDrive className="h-4 w-4 text-green-600 flex-shrink-0" />
-            <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">OneDrive — Systems</span>
+            <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">OneDrive — Systems</span>
           </div>
         </div>
         <div className="flex-1 overflow-y-auto p-2 space-y-0.5 thin-scroll">
-          <button
-            onClick={() => navigate("/")}
-            className={cn(
-              "flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left text-sm transition-colors",
-              currentPath === "/" ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted/60 text-foreground/80",
-            )}
-          >
+          <button onClick={() => navigate("/")}
+            className={cn("flex w-full items-center gap-1.5 rounded-md px-2 py-1 text-left transition-colors",
+              currentPath === "/" ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted/60 text-foreground/80")}>
             <FolderOpen className="h-3.5 w-3.5 text-amber-500 flex-shrink-0" />
             <span className="text-[13px]">All files</span>
           </button>
           {rootFolders.map((f) => (
-            <TreeNode
-              key={f.id}
-              name={f.name}
-              path={`/${f.name}`}
-              currentPath={currentPath}
-              onNavigate={navigate}
-            />
+            <TreeNode key={f.id} name={f.name} path={`/${f.name}`}
+              currentPath={currentPath} onNavigate={navigate} />
           ))}
         </div>
         <div className="px-3 py-2 border-t">
           <span className="flex items-center gap-1.5 text-[11px] text-green-600 font-medium">
-            <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />
-            Synced with M365
+            <span className="h-1.5 w-1.5 rounded-full bg-green-500 inline-block" />Synced with M365
           </span>
         </div>
       </div>
 
-      {/* ── Main area ── */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      {/* Main area */}
+      <div className="flex-1 flex overflow-hidden min-w-0">
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
-        {/* Top toolbar */}
-        <div className="flex items-center gap-2 px-4 py-2.5 border-b bg-card flex-shrink-0">
-          {/* Breadcrumb */}
-          <nav className="flex items-center gap-1 flex-1 min-w-0 text-sm">
-            {breadcrumbs.map((crumb, i) => (
-              <React.Fragment key={crumb.path}>
-                {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />}
-                <button
-                  onClick={() => navigate(crumb.path)}
-                  className={cn(
-                    "truncate hover:text-primary transition-colors",
-                    i === breadcrumbs.length - 1 ? "font-semibold text-foreground" : "text-muted-foreground",
-                  )}
-                >
-                  {crumb.label}
-                </button>
-              </React.Fragment>
-            ))}
-          </nav>
-
-          {/* Search */}
-          <div className="relative w-52">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search files…"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-8 w-full rounded-lg pl-8 pr-3 text-sm neu-inset placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-            />
-            {searching && <Loader2 className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 animate-spin text-muted-foreground" />}
-          </div>
-
-          {/* View toggle */}
-          <div className="flex rounded-md border overflow-hidden">
-            <button
-              onClick={() => setViewMode("list")}
-              className={cn("px-2 py-1.5 transition-colors", viewMode === "list" ? "bg-primary text-primary-foreground" : "hover:bg-muted/60")}
-            >
-              <svg className="h-3.5 w-3.5" viewBox="0 0 16 16" fill="currentColor">
-                <rect x="0" y="1" width="16" height="2" rx="1"/><rect x="0" y="7" width="16" height="2" rx="1"/><rect x="0" y="13" width="16" height="2" rx="1"/>
-              </svg>
-            </button>
-            <button
-              onClick={() => setViewMode("grid")}
-              className={cn("px-2 py-1.5 transition-colors", viewMode === "grid" ? "bg-primary text-primary-foreground" : "hover:bg-muted/60")}
-            >
-              <Grid2X2 className="h-3.5 w-3.5" />
-            </button>
-          </div>
-
-          <button onClick={() => loadFolder(currentPath)} className="p-1.5 rounded-md hover:bg-muted/60 text-muted-foreground transition-colors">
-            <RefreshCw className="h-3.5 w-3.5" />
-          </button>
-
-          {canWrite && (
-            <>
-              <Button size="sm" variant="outline" onClick={() => setNewFolderOpen(true)} className="h-8 text-xs gap-1">
-                <Plus className="h-3.5 w-3.5" /> New folder
-              </Button>
-              <Button size="sm" variant="brand" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="h-8 text-xs gap-1">
-                {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
-                Upload
-              </Button>
-              <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleUpload} />
-            </>
-          )}
-
-          {isAdmin && (
-            <a
-              href="https://onedrive.live.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 p-1.5 rounded-md hover:bg-muted/60 text-muted-foreground transition-colors text-xs"
-              title="Manage sharing in OneDrive"
-            >
-              <ExternalLink className="h-3.5 w-3.5" />
-              <span className="hidden lg:inline">Manage in OneDrive</span>
-            </a>
-          )}
-        </div>
-
-        {/* Filter tabs */}
-        <div className="flex items-center gap-0.5 px-4 py-1.5 border-b bg-card flex-shrink-0 overflow-x-auto">
-          {FILTER_TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setFilterTab(tab.key)}
-              className={cn(
-                "px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap",
-                filterTab === tab.key
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted/60",
-              )}
-            >
-              {tab.label}
-            </button>
-          ))}
-          {searchResults !== null && (
-            <span className="ml-auto text-xs text-muted-foreground flex-shrink-0">
-              {searchResults.length} result{searchResults.length !== 1 ? "s" : ""} for &ldquo;{searchQuery}&rdquo;
-              <button onClick={() => { setSearchQuery(""); setSearchResults(null); }} className="ml-1.5 hover:text-foreground"><X className="h-3 w-3 inline" /></button>
-            </span>
-          )}
-        </div>
-
-        {/* Content area */}
-        <div className="flex-1 overflow-auto thin-scroll">
-          {loading ? (
-            <div className="flex items-center justify-center h-48">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : displayItems.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 text-center">
-              <Folder className="h-10 w-10 text-muted-foreground/30 mb-3" />
-              <p className="text-sm text-muted-foreground">
-                {searchResults !== null ? "No files match your search" : "This folder is empty"}
-              </p>
-            </div>
-          ) : viewMode === "list" ? (
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-muted z-10">
-                <tr className="border-b">
-                  <th className="text-left px-4 py-2 font-semibold text-xs text-muted-foreground">Name</th>
-                  <th className="text-left px-4 py-2 font-semibold text-xs text-muted-foreground w-36">Modified</th>
-                  <th className="text-left px-4 py-2 font-semibold text-xs text-muted-foreground w-36">Modified by</th>
-                  <th className="text-right px-4 py-2 font-semibold text-xs text-muted-foreground w-24">Size</th>
-                </tr>
-              </thead>
-              <tbody>
-                {displayItems.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="group border-b hover:bg-muted/30 transition-colors cursor-pointer"
-                    onDoubleClick={() => {
-                      if (item.isFolder) navigate(`${currentPath === "/" ? "" : currentPath}/${item.name}`);
-                      else if (item.downloadUrl) window.open(item.downloadUrl, "_blank");
-                    }}
-                  >
-                    <td className="px-4 py-2">
-                      <div className="flex items-center gap-2.5 min-w-0">
-                        <ItemIcon item={item} className="h-4 w-4" />
-                        <span className="truncate font-medium">{item.name}</span>
-                        {item.isFolder && typeof item.childCount === "number" && (
-                          <span className="text-xs text-muted-foreground flex-shrink-0">{item.childCount}</span>
-                        )}
-                        {!item.isFolder && item.downloadUrl && (
-                          <a
-                            href={item.downloadUrl}
-                            download={item.name}
-                            onClick={(e) => e.stopPropagation()}
-                            className="ml-auto opacity-0 group-hover:opacity-100 text-xs text-primary hover:underline flex-shrink-0 transition-opacity"
-                          >
-                            Download
-                          </a>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-2 text-muted-foreground text-xs">
-                      {formatDate(item.lastModifiedDateTime)}
-                    </td>
-                    <td className="px-4 py-2 text-muted-foreground text-xs">{item.modifiedByName || "—"}</td>
-                    <td className="px-4 py-2 text-muted-foreground text-xs text-right font-variant-numeric tabular-nums">
-                      {item.isFolder ? "—" : formatSize(item.size)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            /* Grid view */
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 p-4">
-              {displayItems.map((item) => (
-                <button
-                  key={item.id}
-                  onDoubleClick={() => {
-                    if (item.isFolder) navigate(`${currentPath === "/" ? "" : currentPath}/${item.name}`);
-                    else if (item.downloadUrl) window.open(item.downloadUrl, "_blank");
-                  }}
-                  onClick={() => {
-                    if (item.isFolder) navigate(`${currentPath === "/" ? "" : currentPath}/${item.name}`);
-                  }}
-                  className="group flex flex-col items-center gap-2 rounded-xl border bg-card p-3 text-center hover:bg-muted/40 transition-colors"
-                >
-                  <ItemIcon item={item} className="h-10 w-10" />
-                  <span className="text-xs font-medium leading-tight text-foreground/80 line-clamp-2">{item.name}</span>
-                  {!item.isFolder && (
-                    <span className="text-[10px] text-muted-foreground">{formatSize(item.size)}</span>
-                  )}
-                </button>
+          {/* Top bar */}
+          <div className="flex items-center gap-2 px-3 py-2 border-b bg-card flex-shrink-0">
+            {/* Breadcrumb */}
+            <nav className="flex items-center gap-1 text-sm min-w-0 flex-1">
+              {breadcrumbs.map((crumb, i) => (
+                <React.Fragment key={crumb.path}>
+                  {i > 0 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />}
+                  <button onClick={() => navigate(crumb.path)}
+                    className={cn("truncate hover:text-primary transition-colors max-w-[120px]",
+                      i === breadcrumbs.length - 1 ? "font-semibold text-foreground" : "text-muted-foreground")}>
+                    {crumb.label}
+                  </button>
+                </React.Fragment>
               ))}
+            </nav>
+
+            {/* Actions */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <button onClick={() => loadFolder(currentPath)} className="p-1.5 rounded hover:bg-muted/60 text-muted-foreground" title="Refresh">
+                <RefreshCw className="h-3.5 w-3.5" />
+              </button>
+
+              {/* View toggle */}
+              <div className="flex rounded-md border overflow-hidden">
+                <button onClick={() => setViewMode("list")} title="List view"
+                  className={cn("px-2 py-1.5", viewMode === "list" ? "bg-primary text-primary-foreground" : "hover:bg-muted/60 text-muted-foreground")}>
+                  <List className="h-3.5 w-3.5" />
+                </button>
+                <button onClick={() => setViewMode("grid")} title="Grid view"
+                  className={cn("px-2 py-1.5", viewMode === "grid" ? "bg-primary text-primary-foreground" : "hover:bg-muted/60 text-muted-foreground")}>
+                  <Grid2X2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {/* Search */}
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                <input ref={searchRef} type="text" placeholder="Search files… (Ctrl+K)"
+                  value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+                  className="h-8 w-48 rounded-lg pl-8 pr-2 text-xs border bg-muted/40 placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:bg-background" />
+                {searching && <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 animate-spin text-muted-foreground" />}
+                {searchQuery && !searching && (
+                  <button onClick={() => { setSearchQuery(""); setSearchResults(null); }}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
+
+              {canWrite && (
+                <Button size="sm" variant="outline" onClick={() => setNewFolderOpen(true)} className="h-8 text-xs gap-1 px-2.5">
+                  <Plus className="h-3.5 w-3.5" /> New folder
+                </Button>
+              )}
+              {canWrite && (
+                <Button size="sm" variant="brand" onClick={() => fileInputRef.current?.click()} disabled={uploading} className="h-8 text-xs gap-1 px-2.5">
+                  {uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                  Upload
+                </Button>
+              )}
+              <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleUpload} />
+
+              {isAdmin && (
+                <a href="https://onedrive.live.com" target="_blank" rel="noopener noreferrer"
+                  className="flex items-center gap-1 px-2 py-1.5 rounded border text-xs text-muted-foreground hover:bg-muted/60 transition-colors" title="Manage OneDrive sharing">
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  <span className="hidden xl:inline">OneDrive</span>
+                </a>
+              )}
             </div>
-          )}
+          </div>
+
+          {/* Filter tabs */}
+          <div className="flex items-center gap-0.5 px-3 py-1.5 border-b bg-card flex-shrink-0 overflow-x-auto">
+            {FILTER_TABS.map((tab) => (
+              <button key={tab.key} onClick={() => setFilterTab(tab.key)}
+                className={cn("px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap",
+                  filterTab === tab.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted/60")}>
+                {tab.label}
+              </button>
+            ))}
+            <span className="ml-auto text-xs text-muted-foreground whitespace-nowrap flex-shrink-0 pl-2">
+              {displayItems.length} item{displayItems.length !== 1 ? "s" : ""}
+              {displayItems.filter((i) => !i.isFolder).length > 0 && (
+                <> · {formatSize(totalSize(displayItems))}</>
+              )}
+              {searchResults !== null && <> for &ldquo;{searchQuery}&rdquo;</>}
+            </span>
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 overflow-auto thin-scroll">
+            {loading ? (
+              <div className="flex items-center justify-center h-48">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            ) : displayItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-48 text-center">
+                <Folder className="h-10 w-10 text-muted-foreground/30 mb-3" />
+                <p className="text-sm text-muted-foreground">
+                  {searchResults !== null ? "No files match your search" : "This folder is empty"}
+                </p>
+              </div>
+            ) : viewMode === "list" ? (
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm z-10">
+                  <tr className="border-b">
+                    <th className="text-left px-4 py-2">
+                      <button onClick={() => toggleSort("name")} className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground">
+                        Name <SortIcon k="name" />
+                      </button>
+                    </th>
+                    <th className="text-right px-4 py-2 w-28">
+                      <button onClick={() => toggleSort("size")} className="flex items-center gap-1 ml-auto text-xs font-semibold text-muted-foreground hover:text-foreground">
+                        Size <SortIcon k="size" />
+                      </button>
+                    </th>
+                    <th className="w-28" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {displayItems.map((item) => (
+                    <tr key={item.id}
+                      onClick={() => {
+                        if (item.isFolder) navigate(`${currentPath === "/" ? "" : currentPath}/${item.name}`);
+                        else setSelectedFile((prev) => prev?.id === item.id ? null : item);
+                      }}
+                      className={cn(
+                        "group border-b cursor-pointer transition-colors",
+                        selectedFile?.id === item.id ? "bg-primary/8" : "hover:bg-muted/30",
+                      )}>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <ItemIcon item={item} className="h-4 w-4" />
+                          <span className={cn("truncate", selectedFile?.id === item.id ? "text-primary font-medium" : "font-medium")}>
+                            {item.name}
+                          </span>
+                          {item.isFolder && typeof item.childCount === "number" && (
+                            <span className="text-xs text-muted-foreground bg-muted px-1.5 rounded-full flex-shrink-0">{item.childCount}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-2 text-right text-xs text-muted-foreground tabular-nums">
+                        {item.isFolder ? "—" : formatSize(item.size)}
+                      </td>
+                      <td className="px-3 py-2">
+                        {!item.isFolder && (
+                          <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {item.webUrl && (
+                              <a href={item.webUrl} target="_blank" rel="noopener noreferrer"
+                                onClick={(e) => e.stopPropagation()}
+                                className="p-1.5 rounded hover:bg-muted/60 text-muted-foreground" title="Open in M365">
+                                <ExternalLink className="h-3.5 w-3.5" />
+                              </a>
+                            )}
+                            {item.downloadUrl && (
+                              <a href={item.downloadUrl} download={item.name}
+                                onClick={(e) => e.stopPropagation()}
+                                className="p-1.5 rounded hover:bg-muted/60 text-muted-foreground" title="Download">
+                                <Download className="h-3.5 w-3.5" />
+                              </a>
+                            )}
+                            <button onClick={(e) => { e.stopPropagation(); copyLink(item); }}
+                              className="p-1.5 rounded hover:bg-muted/60 text-muted-foreground" title="Copy link">
+                              <Link2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 p-4">
+                {displayItems.map((item) => (
+                  <button key={item.id}
+                    onClick={() => {
+                      if (item.isFolder) navigate(`${currentPath === "/" ? "" : currentPath}/${item.name}`);
+                      else setSelectedFile((prev) => prev?.id === item.id ? null : item);
+                    }}
+                    className={cn("group flex flex-col items-center gap-2 rounded-xl border p-3 text-center transition-colors",
+                      selectedFile?.id === item.id ? "bg-primary/8 border-primary/30" : "bg-card hover:bg-muted/40")}>
+                    <ItemIcon item={item} className="h-10 w-10" />
+                    <span className="text-xs font-medium leading-tight line-clamp-2">{item.name}</span>
+                    {!item.isFolder && <span className="text-[10px] text-muted-foreground">{formatSize(item.size)}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Footer bar */}
-        <div className="border-t px-4 py-1.5 flex items-center justify-between bg-muted/20 flex-shrink-0">
-          <span className="text-xs text-muted-foreground">
-            {displayItems.filter((i) => i.isFolder).length} folder{displayItems.filter((i) => i.isFolder).length !== 1 ? "s" : ""}
-            {displayItems.filter((i) => !i.isFolder).length > 0 && (
-              <> · {displayItems.filter((i) => !i.isFolder).length} file{displayItems.filter((i) => !i.isFolder).length !== 1 ? "s" : ""}</>
-            )}
-            {displayItems.filter((i) => !i.isFolder).length > 0 && (
-              <> · {formatSize(displayItems.filter((i) => !i.isFolder).reduce((s, i) => s + i.size, 0))}</>
-            )}
-          </span>
-          <span className="text-[11px] text-muted-foreground italic">
-            common.drive@nationalgroupindia.com
-          </span>
-        </div>
+        {/* Preview panel */}
+        {selectedFile && (
+          <PreviewPanel item={selectedFile} onClose={() => setSelectedFile(null)} />
+        )}
       </div>
 
       {/* New folder dialog */}
@@ -581,13 +627,8 @@ export function DriveClient({
           <div className="space-y-3 py-2">
             <div className="space-y-1.5">
               <Label>Folder name</Label>
-              <Input
-                autoFocus
-                value={newFolderName}
-                onChange={(e) => setNewFolderName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleCreateFolder()}
-                placeholder="e.g. Project Files"
-              />
+              <Input autoFocus value={newFolderName} onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleCreateFolder()} placeholder="e.g. Project Files" />
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setNewFolderOpen(false)}>Cancel</Button>
@@ -598,7 +639,6 @@ export function DriveClient({
           </div>
         </DialogContent>
       </Dialog>
-
     </div>
   );
 }

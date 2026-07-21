@@ -19,7 +19,7 @@ function rootEndpoint(path: string, suffix: string): string {
 }
 
 const SELECT =
-  "id,name,size,lastModifiedDateTime,lastModifiedBy,parentReference,folder,file,@microsoft.graph.downloadUrl";
+  "id,name,size,lastModifiedDateTime,lastModifiedBy,parentReference,folder,file,webUrl,@microsoft.graph.downloadUrl";
 
 export type DriveItem = {
   id: string;
@@ -31,6 +31,7 @@ export type DriveItem = {
   mimeType?: string;
   childCount?: number;
   downloadUrl?: string;
+  webUrl?: string;
   parentPath?: string;
 };
 
@@ -54,6 +55,7 @@ function mapItem(raw: Record<string, unknown>): DriveItem {
     mimeType: file?.mimeType as string | undefined,
     childCount: folder?.childCount as number | undefined,
     downloadUrl: raw["@microsoft.graph.downloadUrl"] as string | undefined,
+    webUrl: raw.webUrl as string | undefined,
     parentPath,
   };
 }
