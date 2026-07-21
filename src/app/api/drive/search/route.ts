@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
-import { searchDrive } from "@/lib/drive-graph";
+import { searchDrive, listFolderWithPerms, userHasPermission } from "@/lib/drive-graph";
 
 export async function GET(req: Request) {
   const user = await requireUser();
@@ -12,18 +11,19 @@ export async function GET(req: Request) {
   try {
     let items = await searchDrive(q.trim());
 
-    // Non-admins: filter results to only paths they have access to
     if (user.role !== "ADMIN") {
-      const grants = await prisma.driveAccess.findMany({
-        where: { OR: [{ userId: user.id }, { role: user.role }] },
-        select: { folderPath: true },
-      });
-      const grantedPaths = grants.map((g) => g.folderPath);
+      const userEmail = user.email ?? "";
+      // Get accessible root folders once, then filter search results
+      const rootItems = await listFolderWithPerms("/");
+      const accessibleRoots = new Set(
+        rootItems
+          .filter((item) => item.isFolder && userHasPermission(item.permissions, userEmail))
+          .map((item) => item.name),
+      );
       items = items.filter((item) => {
-        const itemPath = item.parentPath ?? "/";
-        return grantedPaths.some(
-          (gp) => gp === "/" || itemPath === gp || itemPath.startsWith(gp + "/"),
-        );
+        const parentPath = item.parentPath ?? "/";
+        const topFolder = parentPath.replace(/^\//, "").split("/")[0];
+        return !topFolder || accessibleRoots.has(topFolder);
       });
     }
 

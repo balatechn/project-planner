@@ -1,33 +1,22 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
-import { uploadFile } from "@/lib/drive-graph";
+import { uploadFile, getPathPermissions, userHasPermission, userCanWrite } from "@/lib/drive-graph";
 
-const MAX_BYTES = 4 * 1024 * 1024; // 4 MB (Graph simple upload limit)
+const MAX_BYTES = 4 * 1024 * 1024;
 
 export async function POST(req: Request) {
   const user = await requireUser();
   const { searchParams } = new URL(req.url);
   const path = searchParams.get("path") ?? "/";
 
-  // Check write access
   if (user.role !== "ADMIN") {
-    const grant = await prisma.driveAccess.findFirst({
-      where: {
-        canWrite: true,
-        OR: [{ userId: user.id }, { role: user.role }],
-        AND: [
-          {
-            OR: [
-              { folderPath: "/" },
-              { folderPath: path },
-              { folderPath: { startsWith: path.split("/").slice(0, -1).join("/") || "/" } },
-            ],
-          },
-        ],
-      },
-    });
-    if (!grant) return NextResponse.json({ error: "Write access denied" }, { status: 403 });
+    const perms = await getPathPermissions(path);
+    if (!userHasPermission(perms, user.email ?? "")) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+    if (!userCanWrite(perms, user.email ?? "")) {
+      return NextResponse.json({ error: "Write access denied" }, { status: 403 });
+    }
   }
 
   try {

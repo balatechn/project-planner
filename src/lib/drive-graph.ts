@@ -58,6 +58,66 @@ function mapItem(raw: Record<string, unknown>): DriveItem {
   };
 }
 
+// ── Permission types & helpers ─────────────────────────────────────────────
+
+export type Permission = {
+  id: string;
+  roles: string[];
+  grantedToV2?: { user?: { email?: string; displayName?: string } };
+  grantedToIdentitiesV2?: Array<{ user?: { email?: string } }>;
+  link?: { type: string; scope: string };
+  inheritedFrom?: { id: string };
+};
+
+export function userHasPermission(perms: Permission[], userEmail: string): boolean {
+  const email = userEmail.toLowerCase();
+  return perms.some((p) => {
+    if (p.grantedToV2?.user?.email?.toLowerCase() === email) return true;
+    if (p.grantedToIdentitiesV2?.some((i) => i.user?.email?.toLowerCase() === email)) return true;
+    if (p.link?.scope === "organization") return true;
+    return false;
+  });
+}
+
+export function userCanWrite(perms: Permission[], userEmail: string): boolean {
+  const email = userEmail.toLowerCase();
+  return perms.some((p) => {
+    if (!p.roles.some((r) => ["write", "owner"].includes(r))) return false;
+    if (p.grantedToV2?.user?.email?.toLowerCase() === email) return true;
+    if (p.grantedToIdentitiesV2?.some((i) => i.user?.email?.toLowerCase() === email)) return true;
+    if (p.link?.scope === "organization") return true;
+    return false;
+  });
+}
+
+// Get permissions for a specific path (includes inherited)
+export async function getPathPermissions(path: string): Promise<Permission[]> {
+  const url = `${rootEndpoint(path, "/permissions")}`;
+  const res = await graphFetch(url);
+  if (!res.ok) return [];
+  const json = (await res.json()) as { value: Permission[] };
+  return json.value ?? [];
+}
+
+// List folder children with permissions expanded (one API call)
+export async function listFolderWithPerms(
+  path: string,
+): Promise<(DriveItem & { permissions: Permission[] })[]> {
+  const url = `${rootEndpoint(path, "/children")}?$select=${SELECT}&$expand=permissions&$top=200`;
+  const res = await graphFetch(url);
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Graph listFolderWithPerms(${path}) failed ${res.status}: ${text}`);
+  }
+  const json = (await res.json()) as { value: Record<string, unknown>[] };
+  return (json.value ?? []).map((raw) => ({
+    ...mapItem(raw),
+    permissions: (raw.permissions as Permission[]) ?? [],
+  }));
+}
+
+// ── Folder / file operations ───────────────────────────────────────────────
+
 export async function listFolder(path: string): Promise<DriveItem[]> {
   const url = `${rootEndpoint(path, "/children")}?$select=${SELECT}&$top=200`;
   const res = await graphFetch(url);

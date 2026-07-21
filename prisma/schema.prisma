@@ -210,7 +210,6 @@ model User {
   trainingVideos    TrainingVideo[]
   organizedBookings RoomBooking[]  @relation("RoomBookingOrganizer")
   bookedForMeetings RoomBooking[]  @relation("RoomBookingFor")
-  driveAccess       DriveAccess[]
   spreadsheets      Spreadsheet[]
   sharedWithMe      SpreadsheetShare[] @relation("SharedWithMe")
   sharedByMe        SpreadsheetShare[] @relation("SharedByMe")
@@ -889,21 +888,6 @@ model MasterOption {
   @@index([type, isActive])
 }
 
-// ── Common Drive — OneDrive folder access control ───────────────────────────
-model DriveAccess {
-  id         String   @id @default(cuid())
-  folderPath String   // "/" = root, "/Accounts Common" = specific folder
-  userId     String?  // null = role-level grant
-  role       Role?    // null = user-level grant
-  canWrite   Boolean  @default(false)
-  createdAt  DateTime @default(now())
-
-  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([folderPath])
-  @@index([userId])
-  @@index([role])
-}
 
 // Company holiday calendar (admin-managed)
 model Holiday {

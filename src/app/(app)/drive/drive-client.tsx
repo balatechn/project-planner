@@ -4,6 +4,7 @@ import * as React from "react";
 import { formatDistanceToNow, parseISO } from "date-fns";
 import {
   ChevronRight,
+  ExternalLink,
   File,
   FileSpreadsheet,
   FileText,
@@ -17,8 +18,6 @@ import {
   Presentation,
   RefreshCw,
   Search,
-  Settings2,
-  Trash2,
   Upload,
   Video,
   X,
@@ -27,21 +26,14 @@ import type { Role } from "@prisma/client";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -58,16 +50,6 @@ type DriveItem = {
   parentPath?: string;
 };
 
-type Grant = {
-  id: string;
-  folderPath: string;
-  userId: string | null;
-  role: string | null;
-  canWrite: boolean;
-  userName: string | null;
-};
-
-type UserOption = { id: string; name: string | null; email: string | null; role: string };
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
@@ -175,162 +157,6 @@ function TreeNode({
   );
 }
 
-// ── Access management dialog (admin only) ──────────────────────────────────
-
-function AccessDialog({
-  open,
-  onClose,
-  grants,
-  allUsers,
-  onGrantsChange,
-}: {
-  open: boolean;
-  onClose: () => void;
-  grants: Grant[];
-  allUsers: UserOption[];
-  onGrantsChange: (g: Grant[]) => void;
-}) {
-  const { toast } = useToast();
-  const [path, setPath] = React.useState("/");
-  const [targetType, setTargetType] = React.useState<"user" | "role">("role");
-  const [targetId, setTargetId] = React.useState("");
-  const [canWrite, setCanWrite] = React.useState(false);
-  const [saving, setSaving] = React.useState(false);
-
-  const ROLES: Role[] = ["ADMIN", "PROJECT_MANAGER", "TEAM_MEMBER", "VIEWER"];
-
-  async function addGrant() {
-    if (!path || !targetId) return;
-    setSaving(true);
-    const body = {
-      folderPath: path,
-      canWrite,
-      ...(targetType === "user" ? { userId: targetId } : { role: targetId as Role }),
-    };
-    const res = await fetch("/api/drive/access", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    setSaving(false);
-    if (!res.ok) { toast({ title: "Failed to add", variant: "error" }); return; }
-    const data = await res.json() as { grant: Grant & { user?: { name: string | null; email: string | null } } };
-    const newGrant: Grant = {
-      id: data.grant.id,
-      folderPath: data.grant.folderPath,
-      userId: data.grant.userId,
-      role: data.grant.role,
-      canWrite: data.grant.canWrite,
-      userName: data.grant.user?.name ?? data.grant.user?.email ?? null,
-    };
-    onGrantsChange([...grants, newGrant]);
-    toast({ title: "Access granted", variant: "success" });
-    setTargetId(""); setPath("/"); setCanWrite(false);
-  }
-
-  async function removeGrant(id: string) {
-    const res = await fetch(`/api/drive/access/${id}`, { method: "DELETE" });
-    if (!res.ok) { toast({ title: "Failed to remove", variant: "error" }); return; }
-    onGrantsChange(grants.filter((g) => g.id !== id));
-    toast({ title: "Access removed", variant: "success" });
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Settings2 className="h-5 w-5 text-primary" /> Drive Access Management
-          </DialogTitle>
-        </DialogHeader>
-
-        {/* Add grant */}
-        <div className="rounded-lg border bg-muted/30 p-4 space-y-3">
-          <p className="text-sm font-semibold">Grant access</p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label className="text-xs">Folder path</Label>
-              <Input
-                placeholder="e.g. /Accounts Common or /"
-                value={path}
-                onChange={(e) => setPath(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Grant to</Label>
-              <Select value={targetType} onValueChange={(v) => { setTargetType(v as "user" | "role"); setTargetId(""); }}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="role">Role</SelectItem>
-                  <SelectItem value="user">Specific user</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">{targetType === "role" ? "Role" : "User"}</Label>
-              {targetType === "role" ? (
-                <Select value={targetId} onValueChange={setTargetId}>
-                  <SelectTrigger><SelectValue placeholder="Select role" /></SelectTrigger>
-                  <SelectContent>
-                    {ROLES.map((r) => <SelectItem key={r} value={r}>{r.replace("_", " ")}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Select value={targetId} onValueChange={setTargetId}>
-                  <SelectTrigger><SelectValue placeholder="Select user" /></SelectTrigger>
-                  <SelectContent>
-                    {allUsers.map((u) => (
-                      <SelectItem key={u.id} value={u.id}>
-                        {u.name ?? u.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs">Permission</Label>
-              <Select value={canWrite ? "write" : "read"} onValueChange={(v) => setCanWrite(v === "write")}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="read">View only</SelectItem>
-                  <SelectItem value="write">View + Upload</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <Button size="sm" onClick={addGrant} disabled={saving || !targetId || !path}>
-            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}
-            Add grant
-          </Button>
-        </div>
-
-        {/* Existing grants */}
-        <div className="space-y-1 mt-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Current grants</p>
-          {grants.length === 0 ? (
-            <p className="text-sm text-muted-foreground py-4 text-center">No grants yet. ADMIN always has full access.</p>
-          ) : (
-            grants.map((g) => (
-              <div key={g.id} className="flex items-center gap-3 rounded-md border px-3 py-2 text-sm">
-                <span className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded flex-shrink-0">{g.folderPath}</span>
-                <span className="flex-1 truncate text-muted-foreground">
-                  {g.userId ? (g.userName ?? g.userId) : <span className="capitalize">{g.role?.replace("_", " ")}</span>}
-                </span>
-                <span className={cn("text-xs font-medium", g.canWrite ? "text-amber-600" : "text-blue-600")}>
-                  {g.canWrite ? "View + Upload" : "View only"}
-                </span>
-                <button onClick={() => removeGrant(g.id)} className="text-muted-foreground hover:text-destructive ml-1">
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
-  );
-}
 
 // ── Main component ─────────────────────────────────────────────────────────
 
@@ -346,15 +172,11 @@ const FILTER_TABS: { key: FilterTab; label: string }[] = [
 ];
 
 export function DriveClient({
-  currentUserId,
+  currentUserId: _currentUserId,
   currentUserRole,
-  allUsers,
-  initialGrants,
 }: {
   currentUserId: string;
   currentUserRole: Role;
-  allUsers: UserOption[];
-  initialGrants: Grant[];
 }) {
   const { toast } = useToast();
   const isAdmin = currentUserRole === "ADMIN";
@@ -369,8 +191,6 @@ export function DriveClient({
   const [searchQuery, setSearchQuery] = React.useState("");
   const [searchResults, setSearchResults] = React.useState<DriveItem[] | null>(null);
   const [searching, setSearching] = React.useState(false);
-  const [grants, setGrants] = React.useState<Grant[]>(initialGrants);
-  const [accessOpen, setAccessOpen] = React.useState(false);
   const [uploading, setUploading] = React.useState(false);
   const [newFolderOpen, setNewFolderOpen] = React.useState(false);
   const [newFolderName, setNewFolderName] = React.useState("");
@@ -611,9 +431,16 @@ export function DriveClient({
           )}
 
           {isAdmin && (
-            <button onClick={() => setAccessOpen(true)} className="p-1.5 rounded-md hover:bg-muted/60 text-muted-foreground transition-colors" title="Manage access">
-              <Settings2 className="h-4 w-4" />
-            </button>
+            <a
+              href="https://onedrive.live.com"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 p-1.5 rounded-md hover:bg-muted/60 text-muted-foreground transition-colors text-xs"
+              title="Manage sharing in OneDrive"
+            >
+              <ExternalLink className="h-3.5 w-3.5" />
+              <span className="hidden lg:inline">Manage in OneDrive</span>
+            </a>
           )}
         </div>
 
@@ -772,16 +599,6 @@ export function DriveClient({
         </DialogContent>
       </Dialog>
 
-      {/* Access management dialog (admin only) */}
-      {isAdmin && (
-        <AccessDialog
-          open={accessOpen}
-          onClose={() => setAccessOpen(false)}
-          grants={grants}
-          allUsers={allUsers}
-          onGrantsChange={setGrants}
-        />
-      )}
     </div>
   );
 }
