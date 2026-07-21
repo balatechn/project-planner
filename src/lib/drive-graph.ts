@@ -59,7 +59,7 @@ function mapItem(raw: Record<string, unknown>): DriveItem {
 }
 
 export async function listFolder(path: string): Promise<DriveItem[]> {
-  const url = `${rootEndpoint(path, "/children")}?$select=${SELECT}&$orderby=folder desc,name asc&$top=200`;
+  const url = `${rootEndpoint(path, "/children")}?$select=${SELECT}&$top=200`;
   const res = await graphFetch(url);
   if (!res.ok) {
     const text = await res.text();
