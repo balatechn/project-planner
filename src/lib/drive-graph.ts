@@ -1,6 +1,6 @@
 import { graphFetch } from "@/lib/graph";
 
-const DRIVE_UPN = process.env.DRIVE_USER_UPN ?? "common.drive@nationalgroupindia.com";
+const DRIVE_UPN = process.env.DRIVE_USER_UPN ?? "bala@nationalgroupindia.com";
 
 function base() {
   return `/users/${encodeURIComponent(DRIVE_UPN)}/drive`;
