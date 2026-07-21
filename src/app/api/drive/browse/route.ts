@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/session";
 import {
   listFolder,
-  listFolderWithPerms,
+  batchGetItemPermissions,
   getPathPermissions,
   userHasPermission,
   userCanWrite,
@@ -28,23 +28,30 @@ export async function GET(req: Request) {
   const userEmail = user.email ?? "";
 
   if (isRoot) {
-    // Fetch root children with permissions and filter to what the user can access
     try {
-      const itemsWithPerms = await listFolderWithPerms("/");
-      const accessible = itemsWithPerms.filter(
-        (item) => item.isFolder && userHasPermission(item.permissions, userEmail),
+      // 1. List all root items
+      const allItems = await listFolder("/");
+      const folders = allItems.filter((i) => i.isFolder);
+
+      // 2. Batch-fetch permissions for all folders in one Graph $batch call
+      const permsMap = await batchGetItemPermissions(folders.map((f) => f.id));
+
+      // 3. Filter to folders the user can access
+      const accessible = folders.filter((f) =>
+        userHasPermission(permsMap.get(f.id) ?? [], userEmail),
       );
-      const canWrite = accessible.some((item) => userCanWrite(item.permissions, userEmail));
-      // Strip permissions from response
-      const items = accessible.map(({ permissions: _p, ...item }) => item);
-      return NextResponse.json({ items, canWrite });
+      const canWrite = accessible.some((f) =>
+        userCanWrite(permsMap.get(f.id) ?? [], userEmail),
+      );
+
+      return NextResponse.json({ items: accessible, canWrite });
     } catch (err) {
       console.error("[drive/browse root]", err);
       return NextResponse.json({ error: String(err) }, { status: 502 });
     }
   }
 
-  // Sub-path: verify user has permission on this folder (includes inherited)
+  // Sub-path: check permissions on this specific folder (includes inherited)
   try {
     const perms = await getPathPermissions(path);
     if (!userHasPermission(perms, userEmail)) {

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireUser } from "@/lib/session";
-import { searchDrive, listFolderWithPerms, userHasPermission } from "@/lib/drive-graph";
+import { searchDrive, listFolder, batchGetItemPermissions, userHasPermission } from "@/lib/drive-graph";
 
 export async function GET(req: Request) {
   const user = await requireUser();
@@ -13,16 +13,17 @@ export async function GET(req: Request) {
 
     if (user.role !== "ADMIN") {
       const userEmail = user.email ?? "";
-      // Get accessible root folders once, then filter search results
-      const rootItems = await listFolderWithPerms("/");
+      // Get accessible root folders via batch permissions check
+      const rootItems = await listFolder("/");
+      const rootFolders = rootItems.filter((i) => i.isFolder);
+      const permsMap = await batchGetItemPermissions(rootFolders.map((f) => f.id));
       const accessibleRoots = new Set(
-        rootItems
-          .filter((item) => item.isFolder && userHasPermission(item.permissions, userEmail))
-          .map((item) => item.name),
+        rootFolders
+          .filter((f) => userHasPermission(permsMap.get(f.id) ?? [], userEmail))
+          .map((f) => f.name),
       );
       items = items.filter((item) => {
-        const parentPath = item.parentPath ?? "/";
-        const topFolder = parentPath.replace(/^\//, "").split("/")[0];
+        const topFolder = (item.parentPath ?? "/").replace(/^\//, "").split("/")[0];
         return !topFolder || accessibleRoots.has(topFolder);
       });
     }

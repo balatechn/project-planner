@@ -99,21 +99,38 @@ export async function getPathPermissions(path: string): Promise<Permission[]> {
   return json.value ?? [];
 }
 
-// List folder children with permissions expanded (one API call)
-export async function listFolderWithPerms(
-  path: string,
-): Promise<(DriveItem & { permissions: Permission[] })[]> {
-  const url = `${rootEndpoint(path, "/children")}?$select=${SELECT}&$expand=permissions&$top=200`;
-  const res = await graphFetch(url);
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Graph listFolderWithPerms(${path}) failed ${res.status}: ${text}`);
+// Batch-fetch permissions for multiple item IDs (uses Graph $batch, max 20/call)
+export async function batchGetItemPermissions(
+  itemIds: string[],
+): Promise<Map<string, Permission[]>> {
+  const results = new Map<string, Permission[]>();
+  if (!itemIds.length) return results;
+
+  for (let i = 0; i < itemIds.length; i += 20) {
+    const chunk = itemIds.slice(i, i + 20);
+    const requests = chunk.map((id, j) => ({
+      id: String(j),
+      method: "GET",
+      url: `/users/${encodeURIComponent(DRIVE_UPN)}/drive/items/${id}/permissions`,
+    }));
+
+    const res = await graphFetch("/$batch", {
+      method: "POST",
+      body: JSON.stringify({ requests }),
+    });
+    if (!res.ok) continue;
+
+    const data = (await res.json()) as {
+      responses: Array<{ id: string; status: number; body: { value: Permission[] } }>;
+    };
+    for (const r of data.responses) {
+      const j = Number(r.id);
+      if (r.status === 200 && j < chunk.length) {
+        results.set(chunk[j], r.body?.value ?? []);
+      }
+    }
   }
-  const json = (await res.json()) as { value: Record<string, unknown>[] };
-  return (json.value ?? []).map((raw) => ({
-    ...mapItem(raw),
-    permissions: (raw.permissions as Permission[]) ?? [],
-  }));
+  return results;
 }
 
 // ── Folder / file operations ───────────────────────────────────────────────
