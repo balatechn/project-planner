@@ -3,8 +3,8 @@ import Link from "next/link";
 import { unstable_cache } from "next/cache";
 import { format, formatDistanceToNow, isPast, isToday } from "date-fns";
 import {
-  BarChart3, CalendarDays, CheckSquare, Circle, Cloud, Clock,
-  FileSpreadsheet, FolderKanban, GraduationCap, Landmark, Mail, Monitor, Plus, UserCog, Users, Video,
+  BarChart3, CalendarDays, CheckSquare, Circle, Clock,
+  FileSpreadsheet, FolderKanban, GraduationCap, HardDrive, Landmark, Mail, Monitor, Plus, UserCog, Users, Video,
 } from "lucide-react";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
@@ -114,7 +114,7 @@ const SHORTCUTS = [
   { label: "Sheets",     href: "/sheets",                                                         icon: FileSpreadsheet, bg: "bg-emerald-500", external: false },
   { label: "Outlook",    href: "https://outlook.office365.com",                                   icon: Mail,    bg: "bg-sky-500",     external: true  },
   { label: "Team",     href: "/team",                                                icon: Users,         bg: "bg-pink-500",    external: false },
-  { label: "OneDrive", href: "https://nationalconsultingindia-my.sharepoint.com/",   icon: Cloud,         bg: "bg-teal-500",    external: true  },
+  { label: "Drive",    href: "/drive",                                              icon: HardDrive,     bg: "bg-green-600",   external: false },
   { label: "Finance",   href: "https://finance.nationalgroupindia.com/",             icon: Landmark,      bg: "bg-green-600",   external: true  },
   { label: "HR Portal", href: "http://49.206.25.183:3000/login",                    icon: UserCog,       bg: "bg-rose-600",    external: true  },
   { label: "IT Asset",  href: "https://itasset.nationalgroupindia.com/dashboard",   icon: Monitor,       bg: "bg-sky-500",     external: true  },
