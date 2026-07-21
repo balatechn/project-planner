@@ -110,13 +110,32 @@ function PreviewPanel({ item, onClose }: { item: DriveItem; onClose: () => void 
   const isImage = f === "images";
   const isOffice = f === "documents" || f === "spreadsheets" || f === "presentations";
   const isPdf = f === "pdfs";
-  const embedUrl = item.downloadUrl
-    ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(item.downloadUrl)}`
+  const needsUrl = isImage || isOffice || isPdf;
+
+  // Always fetch a fresh, pre-authenticated download URL — the one stored in
+  // listing state can be absent or expired by the time the panel opens.
+  const [liveUrl, setLiveUrl] = React.useState<string | null>(null);
+  const [urlLoading, setUrlLoading] = React.useState(needsUrl);
+
+  React.useEffect(() => {
+    if (!needsUrl) { setUrlLoading(false); return; }
+    setLiveUrl(null);
+    setUrlLoading(true);
+    fetch(`/api/drive/download?id=${item.id}&mode=url`)
+      .then((r) => r.json())
+      .then((d: { url?: string }) => setLiveUrl(d.url ?? null))
+      .catch(() => setLiveUrl(null))
+      .finally(() => setUrlLoading(false));
+  }, [item.id, needsUrl]);
+
+  const embedUrl = liveUrl && isOffice
+    ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(liveUrl)}`
     : null;
 
+  const downloadHref = `/api/drive/download?id=${item.id}`;
+
   function copyLink() {
-    const url = item.webUrl ?? item.downloadUrl ?? "";
-    navigator.clipboard.writeText(url).then(() => {/* silent */});
+    navigator.clipboard.writeText(item.webUrl ?? downloadHref);
   }
 
   return (
@@ -138,12 +157,10 @@ function PreviewPanel({ item, onClose }: { item: DriveItem; onClose: () => void 
               <ExternalLink className="h-3 w-3" /> M365
             </a>
           )}
-          {item.downloadUrl && (
-            <a href={item.downloadUrl} download={item.name}
-              className="flex items-center gap-1 px-2 py-1 rounded border text-xs font-medium hover:bg-muted/60 transition-colors">
-              <Download className="h-3 w-3" /> Download
-            </a>
-          )}
+          <a href={downloadHref}
+            className="flex items-center gap-1 px-2 py-1 rounded border text-xs font-medium hover:bg-muted/60 transition-colors">
+            <Download className="h-3 w-3" /> Download
+          </a>
           <button onClick={copyLink} title="Copy link"
             className="p-1.5 rounded border text-muted-foreground hover:bg-muted/60 transition-colors">
             <Link2 className="h-3.5 w-3.5" />
@@ -155,17 +172,21 @@ function PreviewPanel({ item, onClose }: { item: DriveItem; onClose: () => void 
       </div>
 
       {/* Preview body */}
-      <div className="flex-1 overflow-hidden bg-muted/10">
-        {isImage && item.downloadUrl ? (
+      <div className="flex-1 overflow-hidden bg-muted/10 relative">
+        {urlLoading ? (
+          <div className="flex items-center justify-center h-full">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : isImage && liveUrl ? (
           <div className="flex items-center justify-center h-full p-4">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={item.downloadUrl} alt={item.name}
+            <img src={liveUrl} alt={item.name}
               className="max-w-full max-h-full object-contain rounded shadow-md" />
           </div>
         ) : isOffice && embedUrl ? (
           <iframe src={embedUrl} className="w-full h-full border-0" title={item.name} />
-        ) : isPdf && item.downloadUrl ? (
-          <iframe src={item.downloadUrl} className="w-full h-full border-0" title={item.name} />
+        ) : isPdf && liveUrl ? (
+          <iframe src={liveUrl} className="w-full h-full border-0" title={item.name} />
         ) : (
           <div className="flex flex-col items-center justify-center h-full gap-4 text-center p-8">
             <ItemIcon item={item} className="h-20 w-20 opacity-20" />
@@ -576,13 +597,11 @@ export function DriveClient({ currentUserId: _uid, currentUserRole }: {
                                 <ExternalLink className="h-3.5 w-3.5" />
                               </a>
                             )}
-                            {item.downloadUrl && (
-                              <a href={item.downloadUrl} download={item.name}
-                                onClick={(e) => e.stopPropagation()}
-                                className="p-1.5 rounded hover:bg-muted/60 text-muted-foreground" title="Download">
-                                <Download className="h-3.5 w-3.5" />
-                              </a>
-                            )}
+                            <a href={`/api/drive/download?id=${item.id}`}
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-1.5 rounded hover:bg-muted/60 text-muted-foreground" title="Download">
+                              <Download className="h-3.5 w-3.5" />
+                            </a>
                             <button onClick={(e) => { e.stopPropagation(); copyLink(item); }}
                               className="p-1.5 rounded hover:bg-muted/60 text-muted-foreground" title="Copy link">
                               <Link2 className="h-3.5 w-3.5" />
